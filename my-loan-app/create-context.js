@@ -25,23 +25,29 @@ const allowedExtensions = [
     '.js', '.ts', '.tsx', '.css', '.json', '.prisma', '.example'
 ];
 
+// --- MODIFIED ---
 // List of directories and files to explicitly exclude.
 const excludePatterns = [
     'node_modules',
     '.next',
     '.git',
     'package-lock.json',
+    'generated', // Exclude auto-generated directories
     outputFile, // Exclude the script's own output
 ];
 
 // --- Script Logic ---
 
 const projectRoot = __dirname;
-let combinedContent = `This file contains the combined source code for the Next.js Loan Tracker project. Each file is separated by a header indicating its path.\n\n`;
+let combinedContent = `This file contains the combined source code for the project. Each file is separated by a header indicating its path.\n\n`;
 
-// Recursive function to walk through directories
+/**
+ * Recursively walks through directories to find files.
+ * @param {string} dir The directory to walk.
+ * @returns {string[]} A list of file paths.
+ */
 function walk(dir) {
-    let files = [];
+    let files;
     try {
         files = fs.readdirSync(dir);
     } catch (e) {
@@ -54,21 +60,31 @@ function walk(dir) {
         const fullPath = path.join(dir, file);
         const relativePath = path.relative(projectRoot, fullPath);
 
-        if (excludePatterns.some(pattern => relativePath.startsWith(pattern))) {
+        // --- CORRECTED EXCLUSION LOGIC ---
+        // Split the path into components and check if any part matches an exclude pattern.
+        // This is more robust than `startsWith` and correctly handles nested directories.
+        const pathParts = relativePath.split(path.sep);
+        if (excludePatterns.some(pattern => pathParts.includes(pattern))) {
             continue;
         }
 
-        const stat = fs.statSync(fullPath);
-        if (stat.isDirectory()) {
-            fileList = fileList.concat(walk(fullPath));
-        } else if (allowedExtensions.includes(path.extname(fullPath))) {
-            fileList.push(fullPath);
+        try {
+            const stat = fs.statSync(fullPath);
+            if (stat.isDirectory()) {
+                fileList = fileList.concat(walk(fullPath));
+            } else if (allowedExtensions.includes(path.extname(fullPath))) {
+                fileList.push(fullPath);
+            }
+        } catch (e) {
+            console.error(`Could not stat path: ${fullPath}. Skipping.`, e);
         }
     }
     return fileList;
 }
 
-// Main function to process paths and generate the output
+/**
+ * Main function to process paths and generate the output file.
+ */
 async function createContextFile() {
     console.log("Starting to gather project files...");
 
@@ -81,23 +97,28 @@ async function createContextFile() {
             continue;
         }
         
-        const stat = fs.statSync(fullPath);
-        if (stat.isDirectory()) {
-            allFiles.push(...walk(fullPath));
-        } else {
-            allFiles.push(fullPath);
+        try {
+            const stat = fs.statSync(fullPath);
+            if (stat.isDirectory()) {
+                allFiles.push(...walk(fullPath));
+            } else {
+                // Ensure single files are also checked for allowed extensions
+                if (allowedExtensions.includes(path.extname(fullPath))) {
+                    allFiles.push(fullPath);
+                }
+            }
+        } catch (e) {
+             console.error(`Could not stat path: ${fullPath}. Skipping.`, e);
         }
     }
 
-    // Sort files for consistent order
-    allFiles.sort();
-    
-    // Remove duplicates
-    const uniqueFiles = [...new Set(allFiles)];
+    // Sort files for consistent order and remove duplicates
+    const uniqueFiles = [...new Set(allFiles)].sort();
     
     console.log(`Found ${uniqueFiles.length} files to include.`);
 
     for (const file of uniqueFiles) {
+        // Use forward slashes for consistency in the output file header
         const relativePath = path.relative(projectRoot, file).replace(/\\/g, '/');
         try {
             const content = fs.readFileSync(file, 'utf-8');
