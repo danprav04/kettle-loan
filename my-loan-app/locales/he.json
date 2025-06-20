@@ -1,0 +1,45 @@
+{
+  "AuthForm": {
+    "login": "התחברות",
+    "signup": "הרשמה",
+    "username": "שם משתמש",
+    "password": "סיסמה",
+    "loginButton": "התחבר",
+    "signupButton": "הירשם",
+    "switchToSignup": "אין לך חשבון? הירשם",
+    "switchToLogin": "יש לך כבר חשבון? התחבר"
+  },
+  "Room": {
+    "createRoom": "צור חדר",
+    "joinRoom": "הצטרף לחדר",
+    "createButton": "צור",
+    "joinButton": "הצטרף",
+    "roomCode": "קוד חדר",
+    "or": "או"
+  },
+  "Entry": {
+    "addEntry": "הוסף רשומה",
+    "amount": "סכום (ש\"ח)",
+    "description": "תיאור",
+    "addButton": "הוסף",
+    "viewAllEntries": "צפה בכל הרשומות",
+    "allEntries": "כל הרשומות",
+    "oweYou": "חייבים לך",
+    "youOwe": "אתה חייב",
+    "backToAddEntry": "חזור להוספת רשומה"
+  },
+  "Dashboard": {
+    "welcome": "ברוך הבא, {username}"
+  },
+  "Errors": {
+    "ipAlreadyRegistered": "כתובת ה-IP הזו כבר שימשה להרשמה.",
+    "userExists": "המשתמש כבר קיים.",
+    "invalidCredentials": "שם משתמש או סיסמה שגויים.",
+    "roomNotFound": "החדר לא נמצא.",
+    "alreadyInRoom": "אתה כבר נמצא בחדר הזה.",
+    "failedToCreateRoom": "יצירת החדר נכשלה.",
+    "failedToJoinRoom": "ההצטרפות לחדר נכשלה.",
+    "failedToAddEntry": "הוספת הרשומה נכשלה.",
+    "unauthorized": "לא מורשה."
+  }
+}
