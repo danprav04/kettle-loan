@@ -2,9 +2,14 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
-export async function GET(req: Request, context: { params: { roomId: string } }) {
+export async function GET(req: Request) {
     try {
-        const { roomId } = context.params;
+        // Workaround for the Next.js 15.3.4 params issue:
+        // Manually parse the roomId from the request URL.
+        const url = new URL(req.url);
+        const pathnameParts = url.pathname.split('/');
+        const roomId = pathnameParts[pathnameParts.length - 1];
+
         const token = req.headers.get('authorization')?.split(' ')[1];
         const user = verifyToken(token);
         if (!user) {
