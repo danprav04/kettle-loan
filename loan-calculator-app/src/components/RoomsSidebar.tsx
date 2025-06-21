@@ -52,16 +52,40 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
 
     const handleCopyToClipboard = (code: string) => {
         setError('');
+        const fallbackCopy = (text: string) => {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    setCopiedCode(code);
+                    setTimeout(() => setCopiedCode(null), 2000);
+                } else {
+                     setError(t('copyFailed'));
+                }
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+                setError(t('copyFailed'));
+            }
+            document.body.removeChild(textArea);
+        }
+
         if (!navigator.clipboard) {
-            setError('Copy function not available in this browser.');
+            fallbackCopy(code);
             return;
         }
         navigator.clipboard.writeText(code).then(() => {
             setCopiedCode(code);
             setTimeout(() => setCopiedCode(null), 2000);
         }).catch(err => {
-            console.error('Failed to copy text: ', err);
-            setError(t('copyFailed'));
+            console.error('Could not copy text: ', err);
+            fallbackCopy(code);
         });
     };
 
@@ -166,7 +190,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                         placeholder={t('roomCode')}
                         value={roomCode}
                         onChange={(e) => setRoomCode(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg mb-2 themed-input placeholder:text-muted-foreground"
+                        className="w-full px-3 py-2 rounded-lg mb-2 themed-input"
                     />
                     <button type="submit" className="w-full py-2 rounded-lg btn-primary">
                         {t('joinRoom')}

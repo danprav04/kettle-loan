@@ -14,6 +14,7 @@ export default function RoomPage() {
     const [balance, setBalance] = useState(0);
     const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
     const [showDetails, setShowDetails] = useState(false);
+    const [roomCode, setRoomCode] = useState('');
     const router = useRouter();
 
     const fetchData = useCallback(async () => {
@@ -26,9 +27,10 @@ export default function RoomPage() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
-            const { currentUserBalance, balances } = await res.json();
+            const { currentUserBalance, balances, code } = await res.json();
             setBalance(currentUserBalance || 0);
             setDetailedBalance(balances || {});
+            setRoomCode(code || '');
         } else if (res.status === 401) {
             router.push('/');
         }
@@ -57,6 +59,12 @@ export default function RoomPage() {
     return (
         <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
             <div className="p-8">
+                <div className="text-center mb-6">
+                    <h1 className="text-xl font-bold text-card-foreground">
+                        Room #{roomCode}
+                    </h1>
+                </div>
+
                 <div className="text-center mb-4">
                     <div className={`text-3xl font-bold ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
                         {balance >= 0 ? `${t('oweYou')}: ${balance.toFixed(2)} ILS` : `${t('youOwe')}: ${Math.abs(balance).toFixed(2)} ILS`}

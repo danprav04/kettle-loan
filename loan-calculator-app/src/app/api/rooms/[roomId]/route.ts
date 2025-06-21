@@ -27,6 +27,12 @@ export async function GET(req: Request) {
             // Returning 404 to not leak information about room existence.
             return NextResponse.json({ message: 'Room not found' }, { status: 404 });
         }
+        
+        const roomResult = await db.query('SELECT code FROM rooms WHERE id = $1', [roomId]);
+        if (roomResult.rows.length === 0) {
+            return NextResponse.json({ message: 'Room not found' }, { status: 404 });
+        }
+        const roomCode = roomResult.rows[0].code;
 
         const entriesResult = await db.query(
             'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at DESC',
@@ -65,6 +71,7 @@ export async function GET(req: Request) {
         const currentUserBalance = currentUserTotalPaid - averageShare;
 
         return NextResponse.json({
+            code: roomCode,
             entries: entriesResult.rows,
             balances,
             currentUserBalance
