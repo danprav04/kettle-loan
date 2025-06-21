@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 interface Entry {
@@ -12,7 +12,8 @@ interface Entry {
     username: string;
 }
 
-export default function EntriesPage({ params }: { params: { roomId: string } }) {
+export default function EntriesPage() {
+    const params = useParams<{ roomId: string }>();
     const { roomId } = params;
     const t = useTranslations('Room');
     const [entries, setEntries] = useState<Entry[]>([]);
@@ -40,8 +41,8 @@ export default function EntriesPage({ params }: { params: { roomId: string } }) 
     }, [fetchEntries]);
 
     return (
-        <div className="max-w-4xl mx-auto">
-            <button onClick={() => router.back()} className="mb-4 font-bold py-2 px-4 rounded btn-primary">
+        <div className="max-w-4xl mx-auto animate-scaleIn">
+            <button onClick={() => router.back()} className="mb-4 font-bold py-2 px-4 rounded-lg btn-primary">
                 {t('backToRoom')}
             </button>
             <div className="bg-card shadow-md rounded-lg border border-card-border">
@@ -49,8 +50,8 @@ export default function EntriesPage({ params }: { params: { roomId: string } }) 
                     <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
                 </div>
                 <ul>
-                    {entries.map(entry => (
-                        <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center">
+                    {entries.map((entry, index) => (
+                        <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
                             <div>
                                 <p className="font-semibold text-card-foreground">{entry.description}</p>
                                 <p className="text-sm text-muted-foreground">

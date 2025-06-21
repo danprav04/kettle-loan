@@ -7,7 +7,7 @@ export default function RoomsPage() {
 
     return (
         <div className="w-full h-full flex items-center justify-center">
-            <div className="text-center bg-card p-8 rounded-lg shadow-md border border-card-border max-w-md">
+            <div className="text-center bg-card p-8 rounded-lg shadow-md border border-card-border max-w-md animate-scaleIn">
                 <h1 className="text-2xl font-bold text-card-foreground">
                     {t('joinOrCreateRoom')}
                 </h1>

@@ -2,9 +2,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import IntlProvider from "@/components/IntlProvider";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
-import ThemeProvider from "@/components/ThemeProvider"; // Import ThemeProvider
-import ThemeSwitcher from "@/components/ThemeSwitcher";   // Import ThemeSwitcher
+import ThemeProvider from "@/components/ThemeProvider";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -24,8 +22,6 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <IntlProvider>
-            <ThemeSwitcher />
-            <LanguageSwitcher />
             <main>{children}</main>
           </IntlProvider>
         </ThemeProvider>

@@ -254,15 +254,62 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Custom styles for inputs and buttons to use variables */
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+
+/* Animation Keyframes */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+.animate-scaleIn {
+  animation: scaleIn 0.3s ease-out forwards;
+}
+
+
+/* --- Base Component Styles & Transitions --- */
+
+/* Default transitions for smoother interactions */
+button, a, input {
+    transition: all 0.2s ease-in-out;
+}
+
+/* Input styles */
 .themed-input {
     background-color: var(--input-bg);
-    border-color: var(--input-border);
+    border: 1px solid var(--input-border);
     color: var(--foreground);
 }
 .themed-input:focus {
-    outline: 2px solid var(--primary);
-    outline-offset: -1px;
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+/* Button styles with enhanced hover effects */
+.btn-primary, .btn-secondary, .btn-muted {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .btn-primary {
@@ -271,6 +318,8 @@ body {
 }
 .btn-primary:hover {
     background-color: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .btn-secondary {
@@ -279,6 +328,8 @@ body {
 }
 .btn-secondary:hover {
     background-color: var(--secondary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--secondary) 30%, transparent);
 }
 
 .btn-muted {
@@ -288,6 +339,8 @@ body {
 }
 .btn-muted:hover {
   background-color: var(--card-border);
+  border-color: var(--muted-foreground);
+  transform: translateY(-1px);
 }
 
 ---
@@ -297,9 +350,7 @@ body {
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import IntlProvider from "@/components/IntlProvider";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
-import ThemeProvider from "@/components/ThemeProvider"; // Import ThemeProvider
-import ThemeSwitcher from "@/components/ThemeSwitcher";   // Import ThemeSwitcher
+import ThemeProvider from "@/components/ThemeProvider";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -319,8 +370,6 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <IntlProvider>
-            <ThemeSwitcher />
-            <LanguageSwitcher />
             <main>{children}</main>
           </IntlProvider>
         </ThemeProvider>
@@ -553,15 +602,19 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
-export async function GET(req: Request, { params }: { params: { roomId: string } }) {
+export async function GET(req: Request) {
     try {
+        // Workaround for the Next.js 15.3.4 params issue:
+        // Manually parse the roomId from the request URL.
+        const url = new URL(req.url);
+        const pathnameParts = url.pathname.split('/');
+        const roomId = pathnameParts[pathnameParts.length - 1];
+
         const token = req.headers.get('authorization')?.split(' ')[1];
         const user = verifyToken(token);
         if (!user) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
-
-        const roomId = params.roomId; // FIX: Access param directly
 
         const entriesResult = await db.query(
             'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at DESC', 
@@ -630,7 +683,7 @@ export async function GET(req: Request) {
              FROM rooms r 
              JOIN room_members rm ON r.id = rm.room_id 
              WHERE rm.user_id = $1 
-             ORDER BY r.created_at DESC`,
+             ORDER BY r.id DESC`,
             [user.userId]
         );
 
@@ -671,7 +724,7 @@ export default function RoomsPage() {
 
     return (
         <div className="w-full h-full flex items-center justify-center">
-            <div className="text-center bg-card p-8 rounded-lg shadow-md border border-card-border max-w-md">
+            <div className="text-center bg-card p-8 rounded-lg shadow-md border border-card-border max-w-md animate-scaleIn">
                 <h1 className="text-2xl font-bold text-card-foreground">
                     {t('joinOrCreateRoom')}
                 </h1>
@@ -689,13 +742,14 @@ export default function RoomsPage() {
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { FiArrowDown } from 'react-icons/fi';
 
-export default function RoomPage({ params }: { params: { roomId: string } }) {
+export default function RoomPage() {
+    const params = useParams<{ roomId: string }>();
+    const { roomId } = params;
     const t = useTranslations('Room');
-    const roomId = params.roomId; // FIX: Access param directly
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [balance, setBalance] = useState(0);
@@ -742,7 +796,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     };
 
     return (
-        <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border">
+        <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
             <div className="p-8">
                 <div className="text-center mb-4">
                     <div className={`text-3xl font-bold ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
@@ -752,7 +806,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         {t('detailed')} <FiArrowDown className={`ms-1 transition-transform rtl:me-1 ${showDetails ? 'rotate-180' : ''}`} />
                     </button>
                     {showDetails && (
-                        <div className="mt-2 text-left bg-muted p-2 rounded">
+                        <div className="mt-2 text-left bg-muted p-2 rounded animate-fadeIn">
                             {Object.entries(detailedBalance).map(([username, bal]) => (
                                 <div key={username} className="flex justify-between text-card-foreground">
                                     <span>{username}:</span>
@@ -771,7 +825,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                             type="number"
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline themed-input"
+                            className="w-full px-3 py-2 leading-tight rounded-lg themed-input"
                             required
                         />
                     </div>
@@ -782,15 +836,15 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                             type="text"
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 mb-3 leading-tight focus:outline-none focus:shadow-outline themed-input"
+                            className="w-full px-3 py-2 mb-3 leading-tight rounded-lg themed-input"
                             required
                         />
                     </div>
                     <div className="flex items-center justify-between">
-                        <button type="submit" className="font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline btn-primary">
+                        <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary">
                             {t('addEntry')}
                         </button>
-                        <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline btn-muted">
+                        <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted">
                             {t('allEntries')}
                         </button>
                     </div>
@@ -806,7 +860,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 interface Entry {
@@ -817,9 +871,10 @@ interface Entry {
     username: string;
 }
 
-export default function EntriesPage({ params }: { params: { roomId: string } }) {
+export default function EntriesPage() {
+    const params = useParams<{ roomId: string }>();
+    const { roomId } = params;
     const t = useTranslations('Room');
-    const roomId = params.roomId; // FIX: Access param directly
     const [entries, setEntries] = useState<Entry[]>([]);
     const router = useRouter();
 
@@ -845,8 +900,8 @@ export default function EntriesPage({ params }: { params: { roomId: string } }) 
     }, [fetchEntries]);
 
     return (
-        <div className="max-w-4xl mx-auto">
-            <button onClick={() => router.back()} className="mb-4 font-bold py-2 px-4 rounded btn-primary">
+        <div className="max-w-4xl mx-auto animate-scaleIn">
+            <button onClick={() => router.back()} className="mb-4 font-bold py-2 px-4 rounded-lg btn-primary">
                 {t('backToRoom')}
             </button>
             <div className="bg-card shadow-md rounded-lg border border-card-border">
@@ -854,8 +909,8 @@ export default function EntriesPage({ params }: { params: { roomId: string } }) 
                     <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
                 </div>
                 <ul>
-                    {entries.map(entry => (
-                        <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center">
+                    {entries.map((entry, index) => (
+                        <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
                             <div>
                                 <p className="font-semibold text-card-foreground">{entry.description}</p>
                                 <p className="text-sm text-muted-foreground">
@@ -1036,6 +1091,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe } from 'react-icons/fi';
+import { useTheme } from '@/components/ThemeProvider';
+import { useLocale } from '@/components/IntlProvider';
 
 interface Room {
     id: number;
@@ -1048,6 +1106,10 @@ export default function RoomsSidebar() {
     const pathname = usePathname();
     const [rooms, setRooms] = useState<Room[]>([]);
     const [roomCode, setRoomCode] = useState('');
+    const [error, setError] = useState('');
+    const [copiedCode, setCopiedCode] = useState<string | null>(null);
+    const { theme, setTheme } = useTheme();
+    const { locale, setLocale } = useLocale();
 
     const fetchRooms = useCallback(async () => {
         const token = localStorage.getItem('token');
@@ -1069,10 +1131,20 @@ export default function RoomsSidebar() {
 
     useEffect(() => {
         fetchRooms();
-    }, [fetchRooms, pathname]); // Re-fetch when path changes to update list after create/join
+    }, [fetchRooms, pathname]);
+
+    const handleCopyToClipboard = (code: string) => {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(code).then(() => {
+                setCopiedCode(code);
+                setTimeout(() => setCopiedCode(null), 2000);
+            });
+        }
+    };
 
     const handleJoinRoom = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError('');
         const token = localStorage.getItem('token');
         const res = await fetch('/api/rooms', {
             method: 'POST',
@@ -1088,11 +1160,14 @@ export default function RoomsSidebar() {
             setRoomCode('');
             router.push(`/rooms/${roomId}`);
         } else {
-            alert(t('joinFailed'));
+            const { message } = await res.json();
+            console.error("Join failed:", message);
+            setError(t('joinFailed'));
         }
     };
 
     const handleCreateRoom = async () => {
+        setError('');
         const token = localStorage.getItem('token');
         const res = await fetch('/api/rooms', {
             method: 'POST',
@@ -1100,54 +1175,103 @@ export default function RoomsSidebar() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({}), // Empty body for creation
+            body: JSON.stringify({}),
         });
 
         if (res.ok) {
-            const { roomId, code } = await res.json();
-            alert(t('roomCreated', { code }));
+            const { roomId } = await res.json();
             router.push(`/rooms/${roomId}`);
         } else {
-            alert(t('createFailed'));
+            const { message } = await res.json();
+            console.error("Create failed:", message);
+            setError(t('createFailed'));
         }
     };
+    
+    const toggleTheme = () => {
+        setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
+    };
+    
+    const cycleLanguage = () => {
+        const languages = ['en', 'ru', 'he'];
+        const currentIndex = languages.indexOf(locale);
+        const nextIndex = (currentIndex + 1) % languages.length;
+        setLocale(languages[nextIndex]);
+    }
 
     return (
-        <div className="w-80 bg-card border-r border-card-border h-screen p-4 flex flex-col flex-shrink-0">
-            <h2 className="text-xl font-bold mb-4 text-card-foreground">My Rooms</h2>
-            <nav className="flex-grow overflow-y-auto mb-4">
+        <aside className="w-80 bg-card border-r border-card-border h-screen p-4 flex flex-col flex-shrink-0">
+            <h2 className="text-2xl font-bold mb-6 text-card-foreground px-2">My Rooms</h2>
+
+            <nav className="flex-grow overflow-y-auto -mx-2 pr-1 animate-fadeIn">
                 <ul>
-                    {rooms.map(room => {
+                    {rooms.map((room, index) => {
                         const isActive = pathname === `/rooms/${room.id}` || pathname.startsWith(`/rooms/${room.id}/`);
                         return (
-                            <li key={room.id} className="mb-2">
-                                <Link href={`/rooms/${room.id}`} className={`block p-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
-                                    Room #{room.code}
-                                </Link>
+                            <li key={room.id} style={{ animationDelay: `${index * 50}ms`, opacity: 0 }} className="animate-fadeIn px-2">
+                                <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
+                                    <Link href={`/rooms/${room.id}`} className="flex-grow p-3 text-sm font-semibold">
+                                        Room #{room.code}
+                                    </Link>
+                                    <button
+                                        onClick={() => handleCopyToClipboard(room.code)}
+                                        className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`}
+                                        title="Copy room code" >
+                                        {copiedCode === room.code 
+                                            ? <FiCheck className="text-success animate-scaleIn" /> 
+                                            : <FiCopy className="group-hover:scale-110 transition-transform" />
+                                        }
+                                    </button>
+                                </div>
                             </li>
                         );
                     })}
                 </ul>
             </nav>
+
             <div className="mt-auto pt-4 border-t border-card-border">
+                {error && <p className="text-danger text-sm text-center mb-2">{error}</p>}
+                
                 <form onSubmit={handleJoinRoom} className="mb-4">
                     <input
                         type="text"
                         placeholder={t('roomCode')}
                         value={roomCode}
                         onChange={(e) => setRoomCode(e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg mb-2 themed-input"
+                        className="w-full px-3 py-2 rounded-lg mb-2 themed-input"
                     />
                     <button type="submit" className="w-full py-2 rounded-lg btn-primary">
                         {t('joinRoom')}
                     </button>
                 </form>
-                <div className="text-center my-2 text-muted-foreground">{t('or')}</div>
-                <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary">
+
+                <div className="flex items-center my-2">
+                    <div className="flex-grow border-t border-card-border"></div>
+                    <span className="flex-shrink mx-2 text-xs text-muted-foreground">{t('or')}</span>
+                    <div className="flex-grow border-t border-card-border"></div>
+                </div>
+                
+                <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary mb-4">
                     {t('createRoom')}
                 </button>
+
+                <div className="flex items-center justify-center space-x-2">
+                     <button
+                        onClick={toggleTheme}
+                        className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
+                        aria-label="Toggle theme" >
+                        {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
+                    </button>
+                     <button
+                        onClick={cycleLanguage}
+                        className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
+                        aria-label="Change language" >
+                        <FiGlobe size={16} className="me-1.5"/>
+                        <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
+                    </button>
+                </div>
             </div>
-        </div>
+        </aside>
     );
 }
 

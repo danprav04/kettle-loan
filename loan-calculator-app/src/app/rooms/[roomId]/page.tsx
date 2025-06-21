@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { FiArrowDown } from 'react-icons/fi';
 
-export default function RoomPage({ params }: { params: { roomId: string } }) {
+export default function RoomPage() {
+    const params = useParams<{ roomId: string }>();
     const { roomId } = params;
     const t = useTranslations('Room');
     const [amount, setAmount] = useState('');
@@ -54,7 +55,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     };
 
     return (
-        <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border">
+        <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
             <div className="p-8">
                 <div className="text-center mb-4">
                     <div className={`text-3xl font-bold ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
@@ -64,7 +65,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                         {t('detailed')} <FiArrowDown className={`ms-1 transition-transform rtl:me-1 ${showDetails ? 'rotate-180' : ''}`} />
                     </button>
                     {showDetails && (
-                        <div className="mt-2 text-left bg-muted p-2 rounded">
+                        <div className="mt-2 text-left bg-muted p-2 rounded animate-fadeIn">
                             {Object.entries(detailedBalance).map(([username, bal]) => (
                                 <div key={username} className="flex justify-between text-card-foreground">
                                     <span>{username}:</span>
@@ -83,7 +84,7 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                             type="number"
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline themed-input"
+                            className="w-full px-3 py-2 leading-tight rounded-lg themed-input"
                             required
                         />
                     </div>
@@ -94,15 +95,15 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
                             type="text"
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            className="shadow appearance-none border rounded w-full py-2 px-3 mb-3 leading-tight focus:outline-none focus:shadow-outline themed-input"
+                            className="w-full px-3 py-2 mb-3 leading-tight rounded-lg themed-input"
                             required
                         />
                     </div>
                     <div className="flex items-center justify-between">
-                        <button type="submit" className="font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline btn-primary">
+                        <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary">
                             {t('addEntry')}
                         </button>
-                        <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline btn-muted">
+                        <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted">
                             {t('allEntries')}
                         </button>
                     </div>
