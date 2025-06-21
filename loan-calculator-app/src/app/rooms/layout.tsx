@@ -30,7 +30,7 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
 
             {/* Sidebar container. Handles mobile slide-in and static desktop display. */}
             <div
-                className={`fixed top-0 left-0 h-full z-40 transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 md:shrink-0 ${
+                className={`fixed top-0 left-0 h-full z-40 transform transition-transform duration-300 ease-in-out bg-background md:static md:translate-x-0 md:shrink-0 ${
                     isSidebarOpen ? "translate-x-0" : "-translate-x-full"
                 }`}
             >
