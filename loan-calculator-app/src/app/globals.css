@@ -3,6 +3,41 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --card: #ffffff;
+  --card-border: #e5e7eb;
+  --card-foreground: #171717;
+  --primary: #3b82f6; /* blue-500 */
+  --primary-hover: #2563eb; /* blue-600 */
+  --primary-foreground: #ffffff;
+  --secondary: #4ade80; /* green-500 */
+  --secondary-hover: #16a34a; /* green-600 */
+  --secondary-foreground: #ffffff;
+  --muted: #f3f4f6; /* gray-100 */
+  --muted-foreground: #6b7280; /* gray-500 */
+  --input-bg: #ffffff;
+  --input-border: #d1d5db; /* gray-300 */
+  --danger: #ef4444; /* red-500 */
+  --success: #22c55e; /* green-500 */
+}
+
+[data-theme='dark'] {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --card: #1f2937; /* gray-800 */
+  --card-border: #4b5563; /* gray-600 */
+  --card-foreground: #ededed;
+  --primary: #60a5fa; /* blue-400 */
+  --primary-hover: #3b82f6; /* blue-500 */
+  --primary-foreground: #171717;
+  --secondary: #4ade80; /* green-500 */
+  --secondary-hover: #22c55e; /* green-600 */
+  --secondary-foreground: #171717;
+  --muted: #374151; /* gray-700 */
+  --muted-foreground: #9ca3af; /* gray-400 */
+  --input-bg: #374151; /* gray-700 */
+  --input-border: #6b7280; /* gray-500 */
+  --danger: #f87171; /* red-400 */
+  --success: #4ade80; /* green-400 */
 }
 
 @theme inline {
@@ -12,15 +47,44 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Custom styles for inputs and buttons to use variables */
+.themed-input {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--foreground);
+}
+.themed-input:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: -1px;
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+}
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+    background-color: var(--secondary);
+    color: var(--secondary-foreground);
+}
+.btn-secondary:hover {
+    background-color: var(--secondary-hover);
+}
+
+.btn-muted {
+  background-color: var(--muted);
+  color: var(--muted-foreground);
+  border: 1px solid var(--card-border);
+}
+.btn-muted:hover {
+  background-color: var(--card-border);
 }

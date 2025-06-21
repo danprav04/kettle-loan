@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation'; // <-- Changed from next-intl/navigation
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 interface Entry {
@@ -40,25 +40,25 @@ export default function EntriesPage({ params }: { params: { roomId: string } }) 
     }, [fetchEntries]);
 
     return (
-        <div className="min-h-screen bg-gray-100 p-4">
+        <div className="min-h-screen bg-muted p-4">
             <div className="max-w-4xl mx-auto">
-                <button onClick={() => router.back()} className="mb-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                <button onClick={() => router.back()} className="mb-4 font-bold py-2 px-4 rounded btn-primary">
                     {t('backToRoom')}
                 </button>
-                <div className="bg-white shadow-md rounded-lg">
-                    <div className="p-4 border-b">
-                        <h1 className="text-xl font-semibold">{t('allEntries')}</h1>
+                <div className="bg-card shadow-md rounded-lg border border-card-border">
+                    <div className="p-4 border-b border-card-border">
+                        <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
                     </div>
                     <ul>
                         {entries.map(entry => (
-                            <li key={entry.id} className="p-4 border-b flex justify-between items-center">
+                            <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center">
                                 <div>
-                                    <p className="font-semibold">{entry.description}</p>
-                                    <p className="text-sm text-gray-500">
+                                    <p className="font-semibold text-card-foreground">{entry.description}</p>
+                                    <p className="text-sm text-muted-foreground">
                                         {entry.username} - {new Date(entry.created_at).toLocaleString()}
                                     </p>
                                 </div>
-                                <div className="text-lg font-bold">
+                                <div className="text-lg font-bold text-card-foreground">
                                     {entry.amount} ILS
                                 </div>
                             </li>

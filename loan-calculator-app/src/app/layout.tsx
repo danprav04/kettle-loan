@@ -2,7 +2,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import IntlProvider from "@/components/IntlProvider";
-import LanguageSwitcher from "@/components/LanguageSwitcher"; // Import the new component
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import ThemeProvider from "@/components/ThemeProvider"; // Import ThemeProvider
+import ThemeSwitcher from "@/components/ThemeSwitcher";   // Import ThemeSwitcher
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -20,10 +22,13 @@ export default function RootLayout({
   return (
     <html>
       <body className={inter.className}>
-        <IntlProvider>
-          <LanguageSwitcher />
-          <main>{children}</main>
-        </IntlProvider>
+        <ThemeProvider>
+          <IntlProvider>
+            <ThemeSwitcher />
+            <LanguageSwitcher />
+            <main>{children}</main>
+          </IntlProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -39,7 +39,7 @@ export default function LanguageSwitcher() {
             <div className="relative">
                 <button
                     onClick={() => setIsOpen(!isOpen)}
-                    className="flex items-center space-x-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="flex items-center space-x-2 bg-card border border-card-border rounded-md px-4 py-2 text-sm font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                     <FiGlobe />
                     <span>{currentLanguageName}</span>
@@ -48,7 +48,7 @@ export default function LanguageSwitcher() {
 
                 {isOpen && (
                     <div
-                        className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                        className="absolute right-0 mt-2 w-48 bg-card rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
                         role="menu"
                         aria-orientation="vertical"
                         aria-labelledby="menu-button"
@@ -60,8 +60,8 @@ export default function LanguageSwitcher() {
                                     onClick={() => handleLanguageChange(lang.code)}
                                     className={`w-full text-left block px-4 py-2 text-sm ${
                                         locale === lang.code
-                                            ? 'bg-blue-500 text-white'
-                                            : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'text-foreground hover:bg-muted'
                                     }`}
                                     role="menuitem"
                                 >

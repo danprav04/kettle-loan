@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation'; // <-- Changed from next-intl/navigation
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 export default function RoomsPage() {
@@ -49,23 +49,23 @@ export default function RoomsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
-            <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-                <h1 className="text-2xl font-bold mb-6 text-center">{t('joinOrCreateRoom')}</h1>
+        <div className="min-h-screen bg-muted flex flex-col justify-center items-center p-4">
+            <div className="bg-card p-8 rounded-lg shadow-md w-full max-w-md border border-card-border">
+                <h1 className="text-2xl font-bold mb-6 text-center text-card-foreground">{t('joinOrCreateRoom')}</h1>
                 <div className="mb-4">
                     <input
                         type="text"
                         placeholder={t('roomCode')}
                         value={roomCode}
                         onChange={(e) => setRoomCode(e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg mb-2"
+                        className="w-full px-3 py-2 border rounded-lg mb-2 themed-input"
                     />
-                    <button onClick={handleJoinRoom} className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600">
+                    <button onClick={handleJoinRoom} className="w-full py-2 rounded-lg btn-primary">
                         {t('joinRoom')}
                     </button>
                 </div>
-                <div className="text-center my-4">{t('or')}</div>
-                <button onClick={handleCreateRoom} className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600">
+                <div className="text-center my-4 text-muted-foreground">{t('or')}</div>
+                <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary">
                     {t('createRoom')}
                 </button>
             </div>

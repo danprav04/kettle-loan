@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation'; // <-- Changed from next-intl/navigation
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { FiArrowDown } from 'react-icons/fi';
 
@@ -54,22 +54,22 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4">
-            <div className="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="min-h-screen bg-muted p-4">
+            <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border">
                 <div className="p-8">
                     <div className="text-center mb-4">
-                        <div className={`text-3xl font-bold ${balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        <div className={`text-3xl font-bold ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
                             {balance >= 0 ? `${t('oweYou')}: ${balance.toFixed(2)} ILS` : `${t('youOwe')}: ${Math.abs(balance).toFixed(2)} ILS`}
                         </div>
-                        <button onClick={() => setShowDetails(!showDetails)} className="text-sm text-gray-500 flex items-center justify-center mx-auto mt-2">
+                        <button onClick={() => setShowDetails(!showDetails)} className="text-sm text-muted-foreground flex items-center justify-center mx-auto mt-2">
                             {t('detailed')} <FiArrowDown className="ms-1 transition-transform rtl:me-1" style={{ transform: showDetails ? 'rotate(180deg)' : 'none' }} />
                         </button>
                         {showDetails && (
-                            <div className="mt-2 text-left bg-gray-100 p-2 rounded">
+                            <div className="mt-2 text-left bg-muted p-2 rounded">
                                 {Object.entries(detailedBalance).map(([username, bal]) => (
-                                    <div key={username} className="flex justify-between">
+                                    <div key={username} className="flex justify-between text-card-foreground">
                                         <span>{username}:</span>
-                                        <span className={bal > 0 ? 'text-green-600' : 'text-red-600'}>{bal.toFixed(2)}</span>
+                                        <span className={bal > 0 ? 'text-success' : 'text-danger'}>{bal.toFixed(2)}</span>
                                     </div>
                                 ))}
                             </div>
@@ -78,32 +78,32 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
 
                     <form onSubmit={handleAddEntry}>
                         <div className="mb-4">
-                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
+                            <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
                             <input
                                 id="amount"
                                 type="number"
                                 value={amount}
                                 onChange={(e) => setAmount(e.target.value)}
-                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                className="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline themed-input"
                                 required
                             />
                         </div>
                         <div className="mb-6">
-                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
+                            <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
                             <input
                                 id="description"
                                 type="text"
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
+                                className="shadow appearance-none border rounded w-full py-2 px-3 mb-3 leading-tight focus:outline-none focus:shadow-outline themed-input"
                                 required
                             />
                         </div>
                         <div className="flex items-center justify-between">
-                            <button type="submit" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            <button type="submit" className="font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline btn-primary">
                                 {t('addEntry')}
                             </button>
-                            <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline btn-muted">
                                 {t('allEntries')}
                             </button>
                         </div>
