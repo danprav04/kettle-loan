@@ -6,16 +6,12 @@ JWT_SECRET="your-super-secret-and-long-jwt-key"
 
 --- File: next.config.ts ---
 import type { NextConfig } from "next";
-import withNextIntl from 'next-intl/plugin';
-
-// Point the plugin to your i18n configuration file.
-const withIntl = withNextIntl('./src/i18n.ts');
 
 const nextConfig: NextConfig = {
   /* config options here */
 };
 
-export default withIntl(nextConfig);
+export default nextConfig;
 
 ---
 
@@ -202,60 +198,6 @@ export default withIntl(nextConfig);
 
 ---
 
---- File: src/i18n.ts ---
-// src/i18n.ts
-import {notFound} from 'next/navigation';
-import {getRequestConfig} from 'next-intl/server';
-
-const locales = ['en', 'ru', 'he'];
-
-export default getRequestConfig(async ({locale}) => {
-  if (!locales.includes(locale as any)) notFound();
-
-  return {
-    messages: (await import(`../messages/${locale}.json`)).default,
-    locale: locale // <-- This line is required and was missing.
-  };
-});
-
----
-
---- File: src/middleware.ts ---
-import createMiddleware from 'next-intl/middleware';
-import { NextRequest } from 'next/server';
-
-const intlMiddleware = createMiddleware({
-  locales: ['en', 'ru', 'he'],
-  defaultLocale: 'en',
-  localePrefix: 'always'
-});
-
-export default function(request: NextRequest) {
-  console.log(`[Middleware] Intercepting request for path: ${request.nextUrl.pathname}`);
-  return intlMiddleware(request);
-}
-
-export const config = {
-  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)']
-};
-
----
-
---- File: src/navigation.ts ---
-// src/navigation.ts
-
-import {createNavigation} from 'next-intl/navigation';
-
-export const locales = ['en', 'ru', 'he'] as const;
-export const localePrefix = 'always'; // <-- CHANGE THIS
-
-export const {Link, redirect, usePathname, useRouter} = createNavigation({
-  locales,
-  localePrefix,
-});
-
----
-
 --- File: src/app/globals.css ---
 @import "tailwindcss";
 
@@ -290,7 +232,8 @@ body {
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import IntlProvider from "@/components/IntlProvider"; // Check your path alias if needed
+import IntlProvider from "@/components/IntlProvider";
+import LanguageSwitcher from "@/components/LanguageSwitcher"; // Import the new component
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -306,10 +249,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html>
       <body className={inter.className}>
         <IntlProvider>
-          {children}
+          <LanguageSwitcher />
+          <main>{children}</main>
         </IntlProvider>
       </body>
     </html>
@@ -322,7 +266,7 @@ export default function RootLayout({
 "use client";
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation'; // <-- Changed from next-intl/navigation
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 export default function AuthPage() {
@@ -879,7 +823,7 @@ export default function EntriesPage({ params }: { params: { roomId: string } }) 
 "use client";
 
 import { NextIntlClientProvider } from "next-intl";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState, createContext, useContext, Dispatch, SetStateAction } from "react";
 
 // Import all message files directly
 import enMessages from '../../messages/en.json';
@@ -894,24 +838,136 @@ const messages = {
 
 type Messages = typeof enMessages;
 
+// Create a context to share locale state and its setter
+interface LocaleContextType {
+  locale: string;
+  setLocale: Dispatch<SetStateAction<string>>;
+}
+const LocaleContext = createContext<LocaleContextType | undefined>(undefined);
+
 export default function IntlProvider({ children }: { children: ReactNode }) {
-  // Default to 'en' and load from local storage on the client
-  const [locale, setLocale] = useState('en');
+  const [locale, setLocale] = useState('en'); // Default to 'en'
   const [loadedMessages, setLoadedMessages] = useState<Messages>(messages.en);
 
+  // On initial client-side render, load the locale from localStorage
   useEffect(() => {
     const storedLocale = localStorage.getItem('locale') || 'en';
     if (messages[storedLocale as keyof typeof messages]) {
       setLocale(storedLocale);
-      setLoadedMessages(messages[storedLocale as keyof typeof messages]);
     }
   }, []);
 
+  // When locale changes, update messages, localStorage, and document attributes
+  useEffect(() => {
+    if (messages[locale as keyof typeof messages]) {
+      setLoadedMessages(messages[locale as keyof typeof messages]);
+      localStorage.setItem('locale', locale);
+      document.documentElement.lang = locale;
+      document.documentElement.dir = locale === 'he' ? 'rtl' : 'ltr';
+    }
+  }, [locale]);
+
   return (
-    <NextIntlClientProvider locale={locale} messages={loadedMessages}>
-      {children}
-    </NextIntlClientProvider>
+    <LocaleContext.Provider value={{ locale, setLocale }}>
+      <NextIntlClientProvider
+        locale={locale}
+        messages={loadedMessages}
+        timeZone="UTC" // Set a default timezone to prevent errors
+      >
+        {children}
+      </NextIntlClientProvider>
+    </LocaleContext.Provider>
   );
+}
+
+// Custom hook for components to easily access and change the locale
+export function useLocale() {
+  const context = useContext(LocaleContext);
+  if (context === undefined) {
+    throw new Error('useLocale must be used within an IntlProvider');
+  }
+  return context;
+}
+
+---
+
+--- File: src/components/LanguageSwitcher.tsx ---
+// src/components/LanguageSwitcher.tsx
+"use client";
+
+import { useState, useEffect, useRef } from 'react';
+import { useLocale } from '@/components/IntlProvider';
+import { FiGlobe, FiChevronDown } from 'react-icons/fi';
+
+export default function LanguageSwitcher() {
+    const { locale, setLocale } = useLocale();
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const languages = [
+        { code: 'en', name: 'English' },
+        { code: 'ru', name: 'Русский' },
+        { code: 'he', name: 'עברית' },
+    ];
+
+    const currentLanguageName = languages.find(lang => lang.code === locale)?.name || 'Language';
+
+    const handleLanguageChange = (langCode: string) => {
+        setLocale(langCode);
+        setIsOpen(false); // Close dropdown after selection
+    };
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div className="fixed top-4 right-4 z-50" ref={dropdownRef}>
+            <div className="relative">
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="flex items-center space-x-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                    <FiGlobe />
+                    <span>{currentLanguageName}</span>
+                    <FiChevronDown className={`transition-transform ms-1 ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isOpen && (
+                    <div
+                        className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+                        role="menu"
+                        aria-orientation="vertical"
+                        aria-labelledby="menu-button"
+                    >
+                        <div className="py-1" role="none">
+                            {languages.map(lang => (
+                                <button
+                                    key={lang.code}
+                                    onClick={() => handleLanguageChange(lang.code)}
+                                    className={`w-full text-left block px-4 py-2 text-sm ${
+                                        locale === lang.code
+                                            ? 'bg-blue-500 text-white'
+                                            : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                    }`}
+                                    role="menuitem"
+                                >
+                                    {lang.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 }
 
 ---

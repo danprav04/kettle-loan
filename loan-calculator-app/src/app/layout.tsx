@@ -1,7 +1,8 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import IntlProvider from "@/components/IntlProvider"; // Check your path alias if needed
+import IntlProvider from "@/components/IntlProvider";
+import LanguageSwitcher from "@/components/LanguageSwitcher"; // Import the new component
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -20,7 +21,8 @@ export default function RootLayout({
     <html>
       <body className={inter.className}>
         <IntlProvider>
-          {children}
+          <LanguageSwitcher />
+          <main>{children}</main>
         </IntlProvider>
       </body>
     </html>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation'; // <-- Changed from next-intl/navigation
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 export default function AuthPage() {
