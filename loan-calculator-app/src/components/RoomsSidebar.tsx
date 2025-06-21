@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX } from 'react-icons/fi';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
 
@@ -13,7 +13,11 @@ interface Room {
     code: string;
 }
 
-export default function RoomsSidebar() {
+interface RoomsSidebarProps {
+    closeSidebar: () => void;
+}
+
+export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const t = useTranslations('Rooms');
     const router = useRouter();
     const pathname = usePathname();
@@ -113,8 +117,13 @@ export default function RoomsSidebar() {
     }
 
     return (
-        <aside className="w-80 bg-card border-r border-card-border h-screen p-4 flex flex-col flex-shrink-0">
-            <h2 className="text-2xl font-bold mb-6 text-card-foreground px-2">My Rooms</h2>
+        <aside className="w-80 bg-card border-e border-card-border h-screen p-4 flex flex-col flex-shrink-0">
+            <div className="flex items-center justify-between mb-6 px-2">
+                <h2 className="text-2xl font-bold text-card-foreground">My Rooms</h2>
+                <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
+                    <FiX size={24} />
+                </button>
+            </div>
 
             <nav className="flex-grow overflow-y-auto -mx-2 pr-1 animate-fadeIn">
                 <ul>

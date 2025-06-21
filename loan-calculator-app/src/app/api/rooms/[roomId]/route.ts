@@ -16,16 +16,28 @@ export async function GET(req: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
+        // Check if the user is a member of the room
+        const memberCheckResult = await db.query(
+            'SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2',
+            [roomId, user.userId]
+        );
+
+        if (memberCheckResult.rows.length === 0) {
+            // If user is not a member, deny access.
+            // Returning 404 to not leak information about room existence.
+            return NextResponse.json({ message: 'Room not found' }, { status: 404 });
+        }
+
         const entriesResult = await db.query(
-            'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at DESC', 
+            'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at DESC',
             [roomId]
         );
 
         const membersResult = await db.query(
-            'SELECT u.id, u.username FROM users u JOIN room_members rm ON u.id = rm.user_id WHERE rm.room_id = $1', 
+            'SELECT u.id, u.username FROM users u JOIN room_members rm ON u.id = rm.user_id WHERE rm.room_id = $1',
             [roomId]
         );
-        
+
         if (membersResult.rows.length === 0) {
            return NextResponse.json({ message: 'No members in room or room does not exist' }, { status: 404 });
         }
