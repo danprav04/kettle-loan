@@ -1,4 +1,5 @@
 "use client";
+console.log('✅ Rendering /[locale]/page.tsx');
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';

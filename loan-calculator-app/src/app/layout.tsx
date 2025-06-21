@@ -1,4 +1,6 @@
-//This file remains simple. It passes control to the localized layout.
+// src/app/layout.tsx
+
+// This file must remain simple and only pass down its children.
 export default function RootLayout({
   children,
 }: {

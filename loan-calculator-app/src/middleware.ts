@@ -1,4 +1,6 @@
 import createMiddleware from 'next-intl/middleware';
+
+console.log('✅ Middleware is running');
  
 export default createMiddleware({
   // A list of all locales that are supported
