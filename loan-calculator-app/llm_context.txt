@@ -561,15 +561,13 @@ export async function GET(req: Request, { params }: { params: { roomId: string }
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const { roomId } = params;
+        const roomId = params.roomId; // FIX: Access param directly
 
-        // Get room entries with username
         const entriesResult = await db.query(
             'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at DESC', 
             [roomId]
         );
 
-        // Get room members
         const membersResult = await db.query(
             'SELECT u.id, u.username FROM users u JOIN room_members rm ON u.id = rm.user_id WHERE rm.room_id = $1', 
             [roomId]
@@ -579,8 +577,7 @@ export async function GET(req: Request, { params }: { params: { roomId: string }
            return NextResponse.json({ message: 'No members in room or room does not exist' }, { status: 404 });
         }
 
-        // Calculate totals
-        const userTotals: { [key: number]: number } = {};
+        const userTotals: { [key: string]: number } = {};
         membersResult.rows.forEach(member => {
             userTotals[member.id] = 0;
         });
@@ -594,12 +591,12 @@ export async function GET(req: Request, { params }: { params: { roomId: string }
 
         const balances: { [key: string]: number } = {};
         membersResult.rows.forEach(member => {
-            if (member.id !== user.userId) { // Don't show the current user in their own detailed balance
-                balances[member.username] = userTotals[member.id] - averageShare;
+            if (member.id !== user.userId) {
+                balances[member.username] = (userTotals[member.id] || 0) - averageShare;
             }
         });
 
-        const currentUserTotalPaid = userTotals[user.userId];
+        const currentUserTotalPaid = userTotals[user.userId] || 0;
         const currentUserBalance = currentUserTotalPaid - averageShare;
 
         return NextResponse.json({
@@ -615,77 +612,72 @@ export async function GET(req: Request, { params }: { params: { roomId: string }
 
 ---
 
+--- File: src/app/api/user/rooms/route.ts ---
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
+
+export async function GET(req: Request) {
+    try {
+        const token = req.headers.get('authorization')?.split(' ')[1];
+        const user = verifyToken(token);
+        if (!user) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
+        const roomsResult = await db.query(
+            `SELECT r.id, r.code 
+             FROM rooms r 
+             JOIN room_members rm ON r.id = rm.room_id 
+             WHERE rm.user_id = $1 
+             ORDER BY r.created_at DESC`,
+            [user.userId]
+        );
+
+        return NextResponse.json(roomsResult.rows);
+
+    } catch (error) {
+        console.error('Failed to fetch user rooms:', error);
+        return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
+    }
+}
+
+---
+
+--- File: src/app/rooms/layout.tsx ---
+import RoomsSidebar from '@/components/RoomsSidebar';
+import { ReactNode } from 'react';
+
+export default function RoomsLayout({ children }: { children: ReactNode }) {
+    return (
+        <div className="flex h-screen bg-background">
+            <RoomsSidebar />
+            <main className="flex-1 bg-muted p-4 sm:p-6 md:p-8 overflow-y-auto">
+                {children}
+            </main>
+        </div>
+    );
+}
+
+---
+
 --- File: src/app/rooms/page.tsx ---
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 export default function RoomsPage() {
     const t = useTranslations('Rooms');
-    const [roomCode, setRoomCode] = useState('');
-    const router = useRouter();
-
-    const handleJoinRoom = async () => {
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/rooms', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ roomCode }),
-        });
-
-        if (res.ok) {
-            const { roomId } = await res.json();
-            router.push(`/rooms/${roomId}`);
-        } else {
-            alert(t('joinFailed'));
-        }
-    };
-
-    const handleCreateRoom = async () => {
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/rooms', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({}),
-        });
-
-        if (res.ok) {
-            const { roomId, code } = await res.json();
-            alert(t('roomCreated', { code }));
-            router.push(`/rooms/${roomId}`);
-        } else {
-            alert(t('createFailed'));
-        }
-    };
 
     return (
-        <div className="min-h-screen bg-muted flex flex-col justify-center items-center p-4">
-            <div className="bg-card p-8 rounded-lg shadow-md w-full max-w-md border border-card-border">
-                <h1 className="text-2xl font-bold mb-6 text-center text-card-foreground">{t('joinOrCreateRoom')}</h1>
-                <div className="mb-4">
-                    <input
-                        type="text"
-                        placeholder={t('roomCode')}
-                        value={roomCode}
-                        onChange={(e) => setRoomCode(e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg mb-2 themed-input"
-                    />
-                    <button onClick={handleJoinRoom} className="w-full py-2 rounded-lg btn-primary">
-                        {t('joinRoom')}
-                    </button>
-                </div>
-                <div className="text-center my-4 text-muted-foreground">{t('or')}</div>
-                <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary">
-                    {t('createRoom')}
-                </button>
+        <div className="w-full h-full flex items-center justify-center">
+            <div className="text-center bg-card p-8 rounded-lg shadow-md border border-card-border max-w-md">
+                <h1 className="text-2xl font-bold text-card-foreground">
+                    {t('joinOrCreateRoom')}
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                    Select a room from the panel on the left or create a new one to get started.
+                </p>
             </div>
         </div>
     );
@@ -703,7 +695,7 @@ import { FiArrowDown } from 'react-icons/fi';
 
 export default function RoomPage({ params }: { params: { roomId: string } }) {
     const t = useTranslations('Room');
-    const { roomId } = params;
+    const roomId = params.roomId; // FIX: Access param directly
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [balance, setBalance] = useState(0);
@@ -750,61 +742,59 @@ export default function RoomPage({ params }: { params: { roomId: string } }) {
     };
 
     return (
-        <div className="min-h-screen bg-muted p-4">
-            <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border">
-                <div className="p-8">
-                    <div className="text-center mb-4">
-                        <div className={`text-3xl font-bold ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
-                            {balance >= 0 ? `${t('oweYou')}: ${balance.toFixed(2)} ILS` : `${t('youOwe')}: ${Math.abs(balance).toFixed(2)} ILS`}
-                        </div>
-                        <button onClick={() => setShowDetails(!showDetails)} className="text-sm text-muted-foreground flex items-center justify-center mx-auto mt-2">
-                            {t('detailed')} <FiArrowDown className="ms-1 transition-transform rtl:me-1" style={{ transform: showDetails ? 'rotate(180deg)' : 'none' }} />
-                        </button>
-                        {showDetails && (
-                            <div className="mt-2 text-left bg-muted p-2 rounded">
-                                {Object.entries(detailedBalance).map(([username, bal]) => (
-                                    <div key={username} className="flex justify-between text-card-foreground">
-                                        <span>{username}:</span>
-                                        <span className={bal > 0 ? 'text-success' : 'text-danger'}>{bal.toFixed(2)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+        <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border">
+            <div className="p-8">
+                <div className="text-center mb-4">
+                    <div className={`text-3xl font-bold ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
+                        {balance >= 0 ? `${t('oweYou')}: ${balance.toFixed(2)} ILS` : `${t('youOwe')}: ${Math.abs(balance).toFixed(2)} ILS`}
                     </div>
-
-                    <form onSubmit={handleAddEntry}>
-                        <div className="mb-4">
-                            <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
-                            <input
-                                id="amount"
-                                type="number"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                className="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline themed-input"
-                                required
-                            />
+                    <button onClick={() => setShowDetails(!showDetails)} className="text-sm text-muted-foreground flex items-center justify-center mx-auto mt-2">
+                        {t('detailed')} <FiArrowDown className={`ms-1 transition-transform rtl:me-1 ${showDetails ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showDetails && (
+                        <div className="mt-2 text-left bg-muted p-2 rounded">
+                            {Object.entries(detailedBalance).map(([username, bal]) => (
+                                <div key={username} className="flex justify-between text-card-foreground">
+                                    <span>{username}:</span>
+                                    <span className={bal > 0 ? 'text-success' : 'text-danger'}>{bal.toFixed(2)}</span>
+                                </div>
+                            ))}
                         </div>
-                        <div className="mb-6">
-                            <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
-                            <input
-                                id="description"
-                                type="text"
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                className="shadow appearance-none border rounded w-full py-2 px-3 mb-3 leading-tight focus:outline-none focus:shadow-outline themed-input"
-                                required
-                            />
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <button type="submit" className="font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline btn-primary">
-                                {t('addEntry')}
-                            </button>
-                            <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline btn-muted">
-                                {t('allEntries')}
-                            </button>
-                        </div>
-                    </form>
+                    )}
                 </div>
+
+                <form onSubmit={handleAddEntry}>
+                    <div className="mb-4">
+                        <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
+                        <input
+                            id="amount"
+                            type="number"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline themed-input"
+                            required
+                        />
+                    </div>
+                    <div className="mb-6">
+                        <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
+                        <input
+                            id="description"
+                            type="text"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            className="shadow appearance-none border rounded w-full py-2 px-3 mb-3 leading-tight focus:outline-none focus:shadow-outline themed-input"
+                            required
+                        />
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <button type="submit" className="font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline btn-primary">
+                            {t('addEntry')}
+                        </button>
+                        <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline btn-muted">
+                            {t('allEntries')}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );
@@ -829,7 +819,7 @@ interface Entry {
 
 export default function EntriesPage({ params }: { params: { roomId: string } }) {
     const t = useTranslations('Room');
-    const { roomId } = params;
+    const roomId = params.roomId; // FIX: Access param directly
     const [entries, setEntries] = useState<Entry[]>([]);
     const router = useRouter();
 
@@ -855,31 +845,29 @@ export default function EntriesPage({ params }: { params: { roomId: string } }) 
     }, [fetchEntries]);
 
     return (
-        <div className="min-h-screen bg-muted p-4">
-            <div className="max-w-4xl mx-auto">
-                <button onClick={() => router.back()} className="mb-4 font-bold py-2 px-4 rounded btn-primary">
-                    {t('backToRoom')}
-                </button>
-                <div className="bg-card shadow-md rounded-lg border border-card-border">
-                    <div className="p-4 border-b border-card-border">
-                        <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
-                    </div>
-                    <ul>
-                        {entries.map(entry => (
-                            <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center">
-                                <div>
-                                    <p className="font-semibold text-card-foreground">{entry.description}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {entry.username} - {new Date(entry.created_at).toLocaleString()}
-                                    </p>
-                                </div>
-                                <div className="text-lg font-bold text-card-foreground">
-                                    {entry.amount} ILS
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
+        <div className="max-w-4xl mx-auto">
+            <button onClick={() => router.back()} className="mb-4 font-bold py-2 px-4 rounded btn-primary">
+                {t('backToRoom')}
+            </button>
+            <div className="bg-card shadow-md rounded-lg border border-card-border">
+                <div className="p-4 border-b border-card-border">
+                    <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
                 </div>
+                <ul>
+                    {entries.map(entry => (
+                        <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center">
+                            <div>
+                                <p className="font-semibold text-card-foreground">{entry.description}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {entry.username} - {new Date(entry.created_at).toLocaleString()}
+                                </p>
+                            </div>
+                            <div className="text-lg font-bold text-card-foreground">
+                                {entry.amount} ILS
+                            </div>
+                        </li>
+                    ))}
+                </ul>
             </div>
         </div>
     );
@@ -1034,6 +1022,130 @@ export default function LanguageSwitcher() {
                         </div>
                     </div>
                 )}
+            </div>
+        </div>
+    );
+}
+
+---
+
+--- File: src/components/RoomsSidebar.tsx ---
+"use client";
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import Link from 'next/link';
+
+interface Room {
+    id: number;
+    code: string;
+}
+
+export default function RoomsSidebar() {
+    const t = useTranslations('Rooms');
+    const router = useRouter();
+    const pathname = usePathname();
+    const [rooms, setRooms] = useState<Room[]>([]);
+    const [roomCode, setRoomCode] = useState('');
+
+    const fetchRooms = useCallback(async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            router.push('/');
+            return;
+        }
+        const res = await fetch('/api/user/rooms', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            setRooms(data);
+        } else if (res.status === 401) {
+            router.push('/');
+        }
+    }, [router]);
+
+    useEffect(() => {
+        fetchRooms();
+    }, [fetchRooms, pathname]); // Re-fetch when path changes to update list after create/join
+
+    const handleJoinRoom = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/rooms', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ roomCode }),
+        });
+
+        if (res.ok) {
+            const { roomId } = await res.json();
+            setRoomCode('');
+            router.push(`/rooms/${roomId}`);
+        } else {
+            alert(t('joinFailed'));
+        }
+    };
+
+    const handleCreateRoom = async () => {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/rooms', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({}), // Empty body for creation
+        });
+
+        if (res.ok) {
+            const { roomId, code } = await res.json();
+            alert(t('roomCreated', { code }));
+            router.push(`/rooms/${roomId}`);
+        } else {
+            alert(t('createFailed'));
+        }
+    };
+
+    return (
+        <div className="w-80 bg-card border-r border-card-border h-screen p-4 flex flex-col flex-shrink-0">
+            <h2 className="text-xl font-bold mb-4 text-card-foreground">My Rooms</h2>
+            <nav className="flex-grow overflow-y-auto mb-4">
+                <ul>
+                    {rooms.map(room => {
+                        const isActive = pathname === `/rooms/${room.id}` || pathname.startsWith(`/rooms/${room.id}/`);
+                        return (
+                            <li key={room.id} className="mb-2">
+                                <Link href={`/rooms/${room.id}`} className={`block p-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
+                                    Room #{room.code}
+                                </Link>
+                            </li>
+                        );
+                    })}
+                </ul>
+            </nav>
+            <div className="mt-auto pt-4 border-t border-card-border">
+                <form onSubmit={handleJoinRoom} className="mb-4">
+                    <input
+                        type="text"
+                        placeholder={t('roomCode')}
+                        value={roomCode}
+                        onChange={(e) => setRoomCode(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg mb-2 themed-input"
+                    />
+                    <button type="submit" className="w-full py-2 rounded-lg btn-primary">
+                        {t('joinRoom')}
+                    </button>
+                </form>
+                <div className="text-center my-2 text-muted-foreground">{t('or')}</div>
+                <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary">
+                    {t('createRoom')}
+                </button>
             </div>
         </div>
     );

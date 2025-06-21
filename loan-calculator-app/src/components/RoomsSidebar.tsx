@@ -16,6 +16,7 @@ export default function RoomsSidebar() {
     const pathname = usePathname();
     const [rooms, setRooms] = useState<Room[]>([]);
     const [roomCode, setRoomCode] = useState('');
+    const [error, setError] = useState('');
 
     const fetchRooms = useCallback(async () => {
         const token = localStorage.getItem('token');
@@ -37,10 +38,11 @@ export default function RoomsSidebar() {
 
     useEffect(() => {
         fetchRooms();
-    }, [fetchRooms, pathname]); // Re-fetch when path changes to update list after create/join
+    }, [fetchRooms, pathname]);
 
     const handleJoinRoom = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError('');
         const token = localStorage.getItem('token');
         const res = await fetch('/api/rooms', {
             method: 'POST',
@@ -56,11 +58,14 @@ export default function RoomsSidebar() {
             setRoomCode('');
             router.push(`/rooms/${roomId}`);
         } else {
-            alert(t('joinFailed'));
+            const { message } = await res.json();
+            console.error("Join failed:", message);
+            setError(t('joinFailed'));
         }
     };
 
     const handleCreateRoom = async () => {
+        setError('');
         const token = localStorage.getItem('token');
         const res = await fetch('/api/rooms', {
             method: 'POST',
@@ -72,11 +77,12 @@ export default function RoomsSidebar() {
         });
 
         if (res.ok) {
-            const { roomId, code } = await res.json();
-            alert(t('roomCreated', { code }));
+            const { roomId } = await res.json();
             router.push(`/rooms/${roomId}`);
         } else {
-            alert(t('createFailed'));
+            const { message } = await res.json();
+            console.error("Create failed:", message);
+            setError(t('createFailed'));
         }
     };
 
@@ -98,6 +104,7 @@ export default function RoomsSidebar() {
                 </ul>
             </nav>
             <div className="mt-auto pt-4 border-t border-card-border">
+                {error && <p className="text-danger text-sm text-center mb-2">{error}</p>}
                 <form onSubmit={handleJoinRoom} className="mb-4">
                     <input
                         type="text"

@@ -15,7 +15,7 @@ export async function GET(req: Request) {
              FROM rooms r 
              JOIN room_members rm ON r.id = rm.room_id 
              WHERE rm.user_id = $1 
-             ORDER BY r.created_at DESC`,
+             ORDER BY r.id DESC`,
             [user.userId]
         );
 
