@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation'; // <-- Changed from next-intl/navigation
 import { useTranslations } from 'next-intl';
 
 interface Entry {

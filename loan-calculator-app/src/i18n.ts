@@ -1,18 +1,14 @@
-import { notFound } from 'next/navigation';
-import { getRequestConfig } from 'next-intl/server';
+// src/i18n.ts
+import {notFound} from 'next/navigation';
+import {getRequestConfig} from 'next-intl/server';
 
 const locales = ['en', 'ru', 'he'];
 
-export default getRequestConfig(async ({ locale }) => {
-  console.log('✅ i18n.ts: locale =', locale);
-
-  if (!locales.includes(locale as any)) {
-    console.error('❌ Invalid locale:', locale);
-    notFound();
-  }
+export default getRequestConfig(async ({locale}) => {
+  if (!locales.includes(locale as any)) notFound();
 
   return {
     messages: (await import(`../messages/${locale}.json`)).default,
-    locale, // ✅ important!
+    locale: locale // <-- This line is required and was missing.
   };
 });

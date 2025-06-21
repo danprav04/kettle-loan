@@ -25,7 +25,7 @@ export default withIntl(nextConfig);
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -203,18 +203,21 @@ export default withIntl(nextConfig);
 ---
 
 --- File: src/i18n.ts ---
+// src/i18n.ts
 import {notFound} from 'next/navigation';
 import {getRequestConfig} from 'next-intl/server';
- 
-// Can be imported from a shared config
+
 const locales = ['en', 'ru', 'he'];
- 
+
 export default getRequestConfig(async ({locale}) => {
-  // Validate that the incoming `locale` parameter is valid
-  if (!locales.includes(locale as any)) notFound();
- 
+  if (!locales.includes(locale as any)) {
+    notFound();
+  }
+
+  // This return statement is now correct.
   return {
-    messages: (await import(`../messages/${locale}.json`)).default
+    messages: (await import(`../messages/${locale}.json`)).default,
+    locale: locale // <-- This line is CRITICAL and was missing.
   };
 });
 
@@ -222,33 +225,35 @@ export default getRequestConfig(async ({locale}) => {
 
 --- File: src/middleware.ts ---
 import createMiddleware from 'next-intl/middleware';
- 
-export default createMiddleware({
-  // A list of all locales that are supported
-  locales: ['en', 'ru', 'he'],
+import { NextRequest } from 'next/server';
 
-  // Used when no locale matches
+const intlMiddleware = createMiddleware({
+  locales: ['en', 'ru', 'he'],
   defaultLocale: 'en',
-  
-  // Always show the locale prefix for consistency
   localePrefix: 'always'
 });
- 
+
+export default function(request: NextRequest) {
+  console.log(`[Middleware] Intercepting request for path: ${request.nextUrl.pathname}`);
+  return intlMiddleware(request);
+}
+
 export const config = {
-  // Match only internationalized pathnames
   matcher: ['/((?!api|_next|_vercel|.*\\..*).*)']
 };
 
 ---
 
 --- File: src/navigation.ts ---
+// src/navigation.ts
+
 import {createNavigation} from 'next-intl/navigation';
- 
+
 export const locales = ['en', 'ru', 'he'] as const;
-export const localePrefix = 'as-needed';
+export const localePrefix = 'always'; // <-- CHANGE THIS
 
 export const {Link, redirect, usePathname, useRouter} = createNavigation({
-  locales, 
+  locales,
   localePrefix,
 });
 
@@ -285,7 +290,9 @@ body {
 ---
 
 --- File: src/app/layout.tsx ---
-//This file remains simple. It passes control to the localized layout.
+// src/app/layout.tsx
+
+// This file must remain simple and only pass down its children.
 export default function RootLayout({
   children,
 }: {
@@ -501,32 +508,25 @@ export async function GET(req: Request, { params }: { params: { roomId: string }
 ---
 
 --- File: src/app/[locale]/layout.tsx ---
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+// src/app/[locale]/layout.tsx
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import "../globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "Loan Calculator",
-  description: "A simple loan calculator app",
-};
-
-export default async function LocaleLayout({
-  children,
-  params,
-}: {
+// Define the type for the component's props
+type Props = {
   children: React.ReactNode;
   params: { locale: string };
-}) {
-  const messages = await getMessages();
-  const { locale } = params;
+};
+
+// By destructuring { params: { locale } } here, you are using the
+// one and only safe way to access the locale in a Next.js 15 layout.
+export default async function LocaleLayout({ children, params: { locale } }: Props) {
+  const messages = await getMessages({ locale });
 
   return (
     <html lang={locale} dir={locale === "he" ? "rtl" : "ltr"}>
-      <body className={inter.className}>
+      <body>
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
         </NextIntlClientProvider>
@@ -544,7 +544,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
-export default function AuthPage() {
+export default function AuthPage({ params }: { params: { locale: string } }) {
+    // This log will appear in the BROWSER console
+    console.log(`[Page] Component rendered. Received params: ${JSON.stringify(params)}`);
+
     const t = useTranslations('Auth');
     const [isLogin, setIsLogin] = useState(true);
     const [username, setUsername] = useState('');

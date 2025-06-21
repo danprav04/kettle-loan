@@ -1,8 +1,7 @@
 "use client";
-console.log('✅ Rendering /[locale]/page.tsx');
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation'; // <-- Changed from next-intl/navigation
 import { useTranslations } from 'next-intl';
 
 export default function AuthPage() {

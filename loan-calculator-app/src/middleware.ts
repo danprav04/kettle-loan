@@ -1,19 +1,17 @@
 import createMiddleware from 'next-intl/middleware';
+import { NextRequest } from 'next/server';
 
-console.log('✅ Middleware is running');
- 
-export default createMiddleware({
-  // A list of all locales that are supported
+const intlMiddleware = createMiddleware({
   locales: ['en', 'ru', 'he'],
-
-  // Used when no locale matches
   defaultLocale: 'en',
-  
-  // Always show the locale prefix for consistency
   localePrefix: 'always'
 });
- 
+
+export default function(request: NextRequest) {
+  console.log(`[Middleware] Intercepting request for path: ${request.nextUrl.pathname}`);
+  return intlMiddleware(request);
+}
+
 export const config = {
-  // Match only internationalized pathnames
   matcher: ['/((?!api|_next|_vercel|.*\\..*).*)']
 };
