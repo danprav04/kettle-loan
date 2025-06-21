@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next-intl/client'; // Corrected import path
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { FiArrowDown } from 'react-icons/fi';
 
