@@ -19,10 +19,10 @@ async function getDashboardData() {
     return res.json();
 }
 
-export default async function Dashboard({ params: { lang } }: { params: { lang: string } }) {
+export default async function Dashboard() {
     const tokenPayload = await verifyToken();
     if (!tokenPayload) {
-        redirect(`/${lang}`);
+        redirect(`/`);
     }
 
     const data = await getDashboardData();
@@ -31,5 +31,5 @@ export default async function Dashboard({ params: { lang } }: { params: { lang: 
         return <div>Error loading data. Please try logging in again.</div>
     }
 
-    return <DashboardClient initialData={data} lang={lang} />;
+    return <DashboardClient initialData={data} />;
 }

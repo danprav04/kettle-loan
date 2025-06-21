@@ -5,7 +5,7 @@ import RoomManager from './RoomManager';
 import EntryManager from './EntryManager';
 import { useTranslations } from 'next-intl';
 
-export default function DashboardClient({ initialData, lang }: { initialData: any, lang: string }) {
+export default function DashboardClient({ initialData }: { initialData: any }) {
     const [data, setData] = useState(initialData);
     const [loading, setLoading] = useState(true);
     const t = useTranslations('Dashboard');
