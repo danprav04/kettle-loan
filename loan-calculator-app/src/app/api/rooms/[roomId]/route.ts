@@ -10,15 +10,13 @@ export async function GET(req: Request, { params }: { params: { roomId: string }
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const { roomId } = params;
+        const roomId = params.roomId; // FIX: Access param directly
 
-        // Get room entries with username
         const entriesResult = await db.query(
             'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at DESC', 
             [roomId]
         );
 
-        // Get room members
         const membersResult = await db.query(
             'SELECT u.id, u.username FROM users u JOIN room_members rm ON u.id = rm.user_id WHERE rm.room_id = $1', 
             [roomId]
@@ -28,8 +26,7 @@ export async function GET(req: Request, { params }: { params: { roomId: string }
            return NextResponse.json({ message: 'No members in room or room does not exist' }, { status: 404 });
         }
 
-        // Calculate totals
-        const userTotals: { [key: number]: number } = {};
+        const userTotals: { [key: string]: number } = {};
         membersResult.rows.forEach(member => {
             userTotals[member.id] = 0;
         });
@@ -43,12 +40,12 @@ export async function GET(req: Request, { params }: { params: { roomId: string }
 
         const balances: { [key: string]: number } = {};
         membersResult.rows.forEach(member => {
-            if (member.id !== user.userId) { // Don't show the current user in their own detailed balance
-                balances[member.username] = userTotals[member.id] - averageShare;
+            if (member.id !== user.userId) {
+                balances[member.username] = (userTotals[member.id] || 0) - averageShare;
             }
         });
 
-        const currentUserTotalPaid = userTotals[user.userId];
+        const currentUserTotalPaid = userTotals[user.userId] || 0;
         const currentUserBalance = currentUserTotalPaid - averageShare;
 
         return NextResponse.json({

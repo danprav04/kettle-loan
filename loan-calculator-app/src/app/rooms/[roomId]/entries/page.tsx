@@ -14,7 +14,7 @@ interface Entry {
 
 export default function EntriesPage({ params }: { params: { roomId: string } }) {
     const t = useTranslations('Room');
-    const { roomId } = params;
+    const roomId = params.roomId; // FIX: Access param directly
     const [entries, setEntries] = useState<Entry[]>([]);
     const router = useRouter();
 
@@ -40,31 +40,29 @@ export default function EntriesPage({ params }: { params: { roomId: string } }) 
     }, [fetchEntries]);
 
     return (
-        <div className="min-h-screen bg-muted p-4">
-            <div className="max-w-4xl mx-auto">
-                <button onClick={() => router.back()} className="mb-4 font-bold py-2 px-4 rounded btn-primary">
-                    {t('backToRoom')}
-                </button>
-                <div className="bg-card shadow-md rounded-lg border border-card-border">
-                    <div className="p-4 border-b border-card-border">
-                        <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
-                    </div>
-                    <ul>
-                        {entries.map(entry => (
-                            <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center">
-                                <div>
-                                    <p className="font-semibold text-card-foreground">{entry.description}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {entry.username} - {new Date(entry.created_at).toLocaleString()}
-                                    </p>
-                                </div>
-                                <div className="text-lg font-bold text-card-foreground">
-                                    {entry.amount} ILS
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
+        <div className="max-w-4xl mx-auto">
+            <button onClick={() => router.back()} className="mb-4 font-bold py-2 px-4 rounded btn-primary">
+                {t('backToRoom')}
+            </button>
+            <div className="bg-card shadow-md rounded-lg border border-card-border">
+                <div className="p-4 border-b border-card-border">
+                    <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
                 </div>
+                <ul>
+                    {entries.map(entry => (
+                        <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center">
+                            <div>
+                                <p className="font-semibold text-card-foreground">{entry.description}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {entry.username} - {new Date(entry.created_at).toLocaleString()}
+                                </p>
+                            </div>
+                            <div className="text-lg font-bold text-card-foreground">
+                                {entry.amount} ILS
+                            </div>
+                        </li>
+                    ))}
+                </ul>
             </div>
         </div>
     );
