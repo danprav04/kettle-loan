@@ -51,12 +51,18 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     }, [fetchRooms, pathname]);
 
     const handleCopyToClipboard = (code: string) => {
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(code).then(() => {
-                setCopiedCode(code);
-                setTimeout(() => setCopiedCode(null), 2000);
-            });
+        setError('');
+        if (!navigator.clipboard) {
+            setError('Copy function not available in this browser.');
+            return;
         }
+        navigator.clipboard.writeText(code).then(() => {
+            setCopiedCode(code);
+            setTimeout(() => setCopiedCode(null), 2000);
+        }).catch(err => {
+            console.error('Failed to copy text: ', err);
+            setError(t('copyFailed'));
+        });
     };
 
     const handleJoinRoom = async (e: React.FormEvent) => {
@@ -131,7 +137,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                         const isActive = pathname === `/rooms/${room.id}` || pathname.startsWith(`/rooms/${room.id}/`);
                         return (
                             <li key={room.id} style={{ animationDelay: `${index * 50}ms`, opacity: 0 }} className="animate-fadeIn px-2">
-                                <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
+                                <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
                                     <Link href={`/rooms/${room.id}`} className="flex-grow p-3 text-sm font-semibold">
                                         Room #{room.code}
                                     </Link>
@@ -160,7 +166,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                         placeholder={t('roomCode')}
                         value={roomCode}
                         onChange={(e) => setRoomCode(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg mb-2 themed-input"
+                        className="w-full px-3 py-2 rounded-lg mb-2 themed-input placeholder:text-muted-foreground"
                     />
                     <button type="submit" className="w-full py-2 rounded-lg btn-primary">
                         {t('joinRoom')}

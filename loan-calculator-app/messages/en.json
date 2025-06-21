@@ -18,7 +18,8 @@
     "createRoom": "Create Room",
     "joinFailed": "Failed to join room",
     "createFailed": "Failed to create room",
-    "roomCreated": "Room created with code: {code}"
+    "roomCreated": "Room created with code: {code}",
+    "copyFailed": "Failed to copy code"
   },
   "Room": {
     "oweYou": "Owe You",

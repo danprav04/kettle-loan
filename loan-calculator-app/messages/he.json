@@ -18,7 +18,8 @@
     "createRoom": "צור חדר",
     "joinFailed": "ההצטרפות לחדר נכשלה",
     "createFailed": "יצירת החדר נכשלה",
-    "roomCreated": "החדר נוצר עם הקוד: {code}"
+    "roomCreated": "החדר נוצר עם הקוד: {code}",
+    "copyFailed": "העתקת הקוד נכשלה"
   },
   "Room": {
     "oweYou": "חייבים לך",
