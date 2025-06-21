@@ -1,0 +1,33 @@
+{
+  "Auth": {
+    "login": "התחברות",
+    "signup": "הרשמה",
+    "username": "שם משתמש",
+    "password": "סיסמה",
+    "dontHaveAccount": "אין לך חשבון? הירשם",
+    "alreadyHaveAccount": "כבר יש לך חשבון? התחבר",
+    "loginError": "פרטי התחברות שגויים",
+    "signupIpError": "חשבון כבר נוצר מכתובת IP זו.",
+    "signupUsernameError": "שם המשתמש כבר קיים."
+  },
+  "Rooms": {
+    "joinOrCreateRoom": "הצטרף או צור חדר",
+    "roomCode": "קוד חדר",
+    "joinRoom": "הצטרף לחדר",
+    "or": "או",
+    "createRoom": "צור חדר",
+    "joinFailed": "ההצטרפות לחדר נכשלה",
+    "createFailed": "יצירת החדר נכשלה",
+    "roomCreated": "החדר נוצר עם הקוד: {code}"
+  },
+  "Room": {
+    "oweYou": "חייבים לך",
+    "youOwe": "אתה חייב",
+    "detailed": "פירוט",
+    "amount": "סכום",
+    "description": "תיאור",
+    "addEntry": "הוסף רשומה",
+    "allEntries": "כל הרשומות",
+    "backToRoom": "חזור לחדר"
+  }
+}

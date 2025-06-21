@@ -1,0 +1,33 @@
+{
+  "Auth": {
+    "login": "Login",
+    "signup": "Sign Up",
+    "username": "Username",
+    "password": "Password",
+    "dontHaveAccount": "Don't have an account? Sign up",
+    "alreadyHaveAccount": "Already have an account? Login",
+    "loginError": "Invalid credentials",
+    "signupIpError": "An account has already been created from this IP address.",
+    "signupUsernameError": "Username already exists."
+  },
+  "Rooms": {
+    "joinOrCreateRoom": "Join or Create a Room",
+    "roomCode": "Room Code",
+    "joinRoom": "Join Room",
+    "or": "OR",
+    "createRoom": "Create Room",
+    "joinFailed": "Failed to join room",
+    "createFailed": "Failed to create room",
+    "roomCreated": "Room created with code: {code}"
+  },
+  "Room": {
+    "oweYou": "Owe You",
+    "youOwe": "You Owe",
+    "detailed": "Detailed",
+    "amount": "Amount",
+    "description": "Description",
+    "addEntry": "Add Entry",
+    "allEntries": "All Entries",
+    "backToRoom": "Back to Room"
+  }
+}
