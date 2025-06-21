@@ -4,14 +4,14 @@ export default createMiddleware({
   // A list of all locales that are supported
   locales: ['en', 'ru', 'he'],
 
-  // The prefixing strategy
-  localePrefix: 'as-needed',
- 
   // Used when no locale matches
-  defaultLocale: 'en'
+  defaultLocale: 'en',
+  
+  // Always show the locale prefix for consistency
+  localePrefix: 'always'
 });
  
 export const config = {
   // Match only internationalized pathnames
-  matcher: ['/', '/(ru|en|he)/:path*']
+  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)']
 };

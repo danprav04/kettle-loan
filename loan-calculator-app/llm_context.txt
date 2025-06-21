@@ -1,0 +1,912 @@
+--- File: .env.local ---
+POSTGRES_URL="postgres://avnadmin:AVNS_WC7sVPgG69xrpUocmLZ@pg-2a7579b1-cristout-daa2.g.aivencloud.com:10830/test1?sslmode=require"
+JWT_SECRET="your-super-secret-and-long-jwt-key"
+
+---
+
+--- File: next.config.ts ---
+import type { NextConfig } from "next";
+import withNextIntl from 'next-intl/plugin';
+
+// Point the plugin to your i18n configuration file.
+const withIntl = withNextIntl('./src/i18n.ts');
+
+const nextConfig: NextConfig = {
+  /* config options here */
+};
+
+export default withIntl(nextConfig);
+
+---
+
+--- File: package.json ---
+{
+  "name": "loan-calculator-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "i18next": "^25.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "next": "15.3.4",
+    "next-intl": "^4.1.0",
+    "pg": "^8.16.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-i18next": "^15.5.3",
+    "react-icons": "^5.5.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20",
+    "@types/pg": "^8.15.4",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+
+---
+
+--- File: tsconfig.json ---
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+
+---
+
+--- File: messages/en.json ---
+{
+  "Auth": {
+    "login": "Login",
+    "signup": "Sign Up",
+    "username": "Username",
+    "password": "Password",
+    "dontHaveAccount": "Don't have an account? Sign up",
+    "alreadyHaveAccount": "Already have an account? Login",
+    "loginError": "Invalid credentials",
+    "signupIpError": "An account has already been created from this IP address.",
+    "signupUsernameError": "Username already exists."
+  },
+  "Rooms": {
+    "joinOrCreateRoom": "Join or Create a Room",
+    "roomCode": "Room Code",
+    "joinRoom": "Join Room",
+    "or": "OR",
+    "createRoom": "Create Room",
+    "joinFailed": "Failed to join room",
+    "createFailed": "Failed to create room",
+    "roomCreated": "Room created with code: {code}"
+  },
+  "Room": {
+    "oweYou": "Owe You",
+    "youOwe": "You Owe",
+    "detailed": "Detailed",
+    "amount": "Amount",
+    "description": "Description",
+    "addEntry": "Add Entry",
+    "allEntries": "All Entries",
+    "backToRoom": "Back to Room"
+  }
+}
+
+---
+
+--- File: messages/he.json ---
+{
+  "Auth": {
+    "login": "התחברות",
+    "signup": "הרשמה",
+    "username": "שם משתמש",
+    "password": "סיסמה",
+    "dontHaveAccount": "אין לך חשבון? הירשם",
+    "alreadyHaveAccount": "כבר יש לך חשבון? התחבר",
+    "loginError": "פרטי התחברות שגויים",
+    "signupIpError": "חשבון כבר נוצר מכתובת IP זו.",
+    "signupUsernameError": "שם המשתמש כבר קיים."
+  },
+  "Rooms": {
+    "joinOrCreateRoom": "הצטרף או צור חדר",
+    "roomCode": "קוד חדר",
+    "joinRoom": "הצטרף לחדר",
+    "or": "או",
+    "createRoom": "צור חדר",
+    "joinFailed": "ההצטרפות לחדר נכשלה",
+    "createFailed": "יצירת החדר נכשלה",
+    "roomCreated": "החדר נוצר עם הקוד: {code}"
+  },
+  "Room": {
+    "oweYou": "חייבים לך",
+    "youOwe": "אתה חייב",
+    "detailed": "פירוט",
+    "amount": "סכום",
+    "description": "תיאור",
+    "addEntry": "הוסף רשומה",
+    "allEntries": "כל הרשומות",
+    "backToRoom": "חזור לחדר"
+  }
+}
+
+---
+
+--- File: messages/ru.json ---
+{
+  "Auth": {
+    "login": "Войти",
+    "signup": "Зарегистрироваться",
+    "username": "Имя пользователя",
+    "password": "Пароль",
+    "dontHaveAccount": "Нет аккаунта? Зарегистрируйтесь",
+    "alreadyHaveAccount": "Уже есть аккаунт? Войдите",
+    "loginError": "Неверные учетные данные",
+    "signupIpError": "С этого IP-адреса уже была создана учетная запись.",
+    "signupUsernameError": "Имя пользователя уже существует."
+  },
+  "Rooms": {
+    "joinOrCreateRoom": "Присоединиться или создать комнату",
+    "roomCode": "Код комнаты",
+    "joinRoom": "Присоединиться",
+    "or": "ИЛИ",
+    "createRoom": "Создать комнату",
+    "joinFailed": "Не удалось присоединиться к комнате",
+    "createFailed": "Не удалось создать комнату",
+    "roomCreated": "Комната создана с кодом: {code}"
+  },
+  "Room": {
+    "oweYou": "Вам должны",
+    "youOwe": "Вы должны",
+    "detailed": "Подробно",
+    "amount": "Сумма",
+    "description": "Описание",
+    "addEntry": "Добавить запись",
+    "allEntries": "Все записи",
+    "backToRoom": "Вернуться в комнату"
+  }
+}
+
+---
+
+--- File: src/middleware.ts ---
+import createMiddleware from 'next-intl/middleware';
+ 
+export default createMiddleware({
+  // A list of all locales that are supported
+  locales: ['en', 'ru', 'he'],
+
+  // The prefixing strategy
+  localePrefix: 'as-needed',
+ 
+  // Used when no locale matches
+  defaultLocale: 'en'
+});
+ 
+export const config = {
+  // Match only internationalized pathnames
+  matcher: ['/', '/(ru|en|he)/:path*']
+};
+
+---
+
+--- File: src/navigation.ts ---
+import {createNavigation} from 'next-intl/navigation';
+ 
+export const locales = ['en', 'ru', 'he'] as const;
+export const localePrefix = 'as-needed';
+
+export const {Link, redirect, usePathname, useRouter} = createNavigation({
+  locales, 
+  localePrefix,
+});
+
+---
+
+--- File: src/app/globals.css ---
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+---
+
+--- File: src/app/layout.tsx ---
+//This file remains simple. It passes control to the localized layout.
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return children;
+}
+
+---
+
+--- File: src/app/api/auth/login/route.ts ---
+import { NextResponse } from 'next/server';
+import { compare } from 'bcryptjs';
+import { sign } from 'jsonwebtoken';
+import { db } from '@/lib/db';
+import { JWT_SECRET } from '@/lib/constants';
+
+export async function POST(req: Request) {
+    try {
+        const { username, password } = await req.json();
+
+        const response = await db.query('SELECT * FROM users WHERE username = $1', [username]);
+        if (response.rows.length === 0) {
+            return NextResponse.json({ message: 'loginError' }, { status: 401 });
+        }
+
+        const user = response.rows[0];
+        const passwordMatch = await compare(password, user.password);
+
+        if (!passwordMatch) {
+            return NextResponse.json({ message: 'loginError' }, { status: 401 });
+        }
+
+        const token = sign({ userId: user.id, username: user.username }, JWT_SECRET!, { expiresIn: '1h' });
+
+        return NextResponse.json({ token });
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
+    }
+}
+
+---
+
+--- File: src/app/api/auth/signup/route.ts ---
+import { NextResponse } from 'next/server';
+import { hash } from 'bcryptjs';
+import { db } from '@/lib/db';
+
+export async function POST(req: Request) {
+    try {
+        const { username, password } = await req.json();
+        const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
+
+        const existingUserByIp = await db.query('SELECT * FROM users WHERE last_ip = $1', [ip]);
+        if (existingUserByIp.rows.length > 0) {
+            return NextResponse.json({ message: 'signupIpError' }, { status: 403 });
+        }
+
+        const hashedPassword = await hash(password, 10);
+        await db.query(
+            'INSERT INTO users (username, password, last_ip) VALUES ($1, $2, $3)',
+            [username, hashedPassword, ip]
+        );
+
+        return NextResponse.json({ message: 'User created successfully' }, { status: 201 });
+    } catch (error: any) {
+        if (error.code === '23505' && error.constraint === 'users_username_key') {
+            return NextResponse.json({ message: 'signupUsernameError' }, { status: 409 });
+        }
+        console.error(error);
+        return NextResponse.json({ message: 'An error occurred during signup.' }, { status: 500 });
+    }
+}
+
+---
+
+--- File: src/app/api/entries/route.ts ---
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
+
+export async function POST(req: Request) {
+    try {
+        const token = req.headers.get('authorization')?.split(' ')[1];
+        const user = verifyToken(token);
+        if (!user) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { roomId, amount, description } = await req.json();
+
+        await db.query('INSERT INTO entries (room_id, user_id, amount, description) VALUES ($1, $2, $3, $4)', [roomId, user.userId, amount, description]);
+
+        return NextResponse.json({ message: 'Entry added successfully' });
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
+    }
+}
+
+---
+
+--- File: src/app/api/rooms/route.ts ---
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
+
+export async function POST(req: Request) {
+    try {
+        const token = req.headers.get('authorization')?.split(' ')[1];
+        const user = verifyToken(token);
+        if (!user) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { roomCode } = await req.json();
+
+        if (roomCode) {
+            // Join a room
+            const roomResult = await db.query('SELECT id FROM rooms WHERE code = $1', [roomCode]);
+            if (roomResult.rows.length === 0) {
+                return NextResponse.json({ message: 'Room not found' }, { status: 404 });
+            }
+            const roomId = roomResult.rows[0].id;
+
+            await db.query('INSERT INTO room_members (user_id, room_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [user.userId, roomId]);
+
+            return NextResponse.json({ roomId });
+        } else {
+            // Create a room
+            const newCode = Math.random().toString().substring(2, 8);
+            const roomResult = await db.query('INSERT INTO rooms (code, creator_id) VALUES ($1, $2) RETURNING id', [newCode, user.userId]);
+            const roomId = roomResult.rows[0].id;
+
+            await db.query('INSERT INTO room_members (user_id, room_id) VALUES ($1, $2)', [user.userId, roomId]);
+
+            return NextResponse.json({ roomId, code: newCode });
+        }
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
+    }
+}
+
+---
+
+--- File: src/app/api/rooms/[roomId]/route.ts ---
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
+
+export async function GET(req: Request, { params }: { params: { roomId: string } }) {
+    try {
+        const token = req.headers.get('authorization')?.split(' ')[1];
+        const user = verifyToken(token);
+        if (!user) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { roomId } = params;
+
+        // Get room entries with username
+        const entriesResult = await db.query(
+            'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at DESC', 
+            [roomId]
+        );
+
+        // Get room members
+        const membersResult = await db.query(
+            'SELECT u.id, u.username FROM users u JOIN room_members rm ON u.id = rm.user_id WHERE rm.room_id = $1', 
+            [roomId]
+        );
+        
+        if (membersResult.rows.length === 0) {
+           return NextResponse.json({ message: 'No members in room or room does not exist' }, { status: 404 });
+        }
+
+        // Calculate totals
+        const userTotals: { [key: number]: number } = {};
+        membersResult.rows.forEach(member => {
+            userTotals[member.id] = 0;
+        });
+
+        entriesResult.rows.forEach(entry => {
+            userTotals[entry.user_id] += parseFloat(entry.amount);
+        });
+
+        const totalAmount = entriesResult.rows.reduce((acc, entry) => acc + parseFloat(entry.amount), 0);
+        const averageShare = totalAmount / membersResult.rows.length;
+
+        const balances: { [key: string]: number } = {};
+        membersResult.rows.forEach(member => {
+            if (member.id !== user.userId) { // Don't show the current user in their own detailed balance
+                balances[member.username] = userTotals[member.id] - averageShare;
+            }
+        });
+
+        const currentUserTotalPaid = userTotals[user.userId];
+        const currentUserBalance = currentUserTotalPaid - averageShare;
+
+        return NextResponse.json({
+            entries: entriesResult.rows,
+            balances,
+            currentUserBalance
+        });
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
+    }
+}
+
+---
+
+--- File: src/app/[locale]/layout.tsx ---
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
+import "../globals.css";
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "Loan Calculator",
+  description: "A simple loan calculator app",
+};
+
+export default async function LocaleLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: { locale: string };
+}) {
+  const messages = await getMessages();
+  const { locale } = params;
+
+  return (
+    <html lang={locale} dir={locale === "he" ? "rtl" : "ltr"}>
+      <body className={inter.className}>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
+      </body>
+    </html>
+  );
+}
+
+---
+
+--- File: src/app/[locale]/page.tsx ---
+"use client";
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+
+export default function AuthPage() {
+    const t = useTranslations('Auth');
+    const [isLogin, setIsLogin] = useState(true);
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const router = useRouter();
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        const endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup';
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            if (isLogin) {
+                localStorage.setItem('token', data.token);
+                router.push('/rooms');
+            } else {
+                setIsLogin(true);
+            }
+        } else {
+            setError(t(data.message as any));
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center">
+            <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+                <h1 className="text-2xl font-bold mb-6 text-center">{isLogin ? t('login') : t('signup')}</h1>
+                <form onSubmit={handleSubmit}>
+                    <div className="mb-4">
+                        <label className="block text-gray-700 mb-2" htmlFor="username">{t('username')}</label>
+                        <input
+                            id="username"
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className="w-full px-3 py-2 border rounded-lg"
+                            required
+                        />
+                    </div>
+                    <div className="mb-6">
+                        <label className="block text-gray-700 mb-2" htmlFor="password">{t('password')}</label>
+                        <input
+                            id="password"
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full px-3 py-2 border rounded-lg"
+                            required
+                        />
+                    </div>
+                    {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
+                    <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600">
+                        {isLogin ? t('login') : t('signup')}
+                    </button>
+                </form>
+                <button onClick={() => setIsLogin(!isLogin)} className="mt-4 text-center w-full text-sm text-blue-500 hover:underline">
+                    {isLogin ? t('dontHaveAccount') : t('alreadyHaveAccount')}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+---
+
+--- File: src/app/[locale]/rooms/page.tsx ---
+"use client";
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+
+export default function RoomsPage() {
+    const t = useTranslations('Rooms');
+    const [roomCode, setRoomCode] = useState('');
+    const router = useRouter();
+
+    const handleJoinRoom = async () => {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/rooms', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ roomCode }),
+        });
+
+        if (res.ok) {
+            const { roomId } = await res.json();
+            router.push(`/rooms/${roomId}`);
+        } else {
+            alert(t('joinFailed'));
+        }
+    };
+
+    const handleCreateRoom = async () => {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/rooms', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({}),
+        });
+
+        if (res.ok) {
+            const { roomId, code } = await res.json();
+            alert(t('roomCreated', { code }));
+            router.push(`/rooms/${roomId}`);
+        } else {
+            alert(t('createFailed'));
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
+            <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+                <h1 className="text-2xl font-bold mb-6 text-center">{t('joinOrCreateRoom')}</h1>
+                <div className="mb-4">
+                    <input
+                        type="text"
+                        placeholder={t('roomCode')}
+                        value={roomCode}
+                        onChange={(e) => setRoomCode(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg mb-2"
+                    />
+                    <button onClick={handleJoinRoom} className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600">
+                        {t('joinRoom')}
+                    </button>
+                </div>
+                <div className="text-center my-4">{t('or')}</div>
+                <button onClick={handleCreateRoom} className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600">
+                    {t('createRoom')}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+---
+
+--- File: src/app/[locale]/rooms/[roomId]/page.tsx ---
+"use client";
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { FiArrowDown } from 'react-icons/fi';
+
+export default function RoomPage({ params }: { params: { roomId: string } }) {
+    const t = useTranslations('Room');
+    const { roomId } = params;
+    const [amount, setAmount] = useState('');
+    const [description, setDescription] = useState('');
+    const [balance, setBalance] = useState(0);
+    const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
+    const [showDetails, setShowDetails] = useState(false);
+    const router = useRouter();
+
+    const fetchData = useCallback(async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            router.push('/');
+            return;
+        }
+        const res = await fetch(`/api/rooms/${roomId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const { currentUserBalance, balances } = await res.json();
+            setBalance(currentUserBalance || 0);
+            setDetailedBalance(balances || {});
+        } else if (res.status === 401) {
+            router.push('/');
+        }
+    }, [roomId, router]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const handleAddEntry = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const token = localStorage.getItem('token');
+        await fetch('/api/entries', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ roomId, amount: parseFloat(amount), description }),
+        });
+        setAmount('');
+        setDescription('');
+        fetchData(); // Refetch data
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-50 p-4">
+            <div className="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="p-8">
+                    <div className="text-center mb-4">
+                        <div className={`text-3xl font-bold ${balance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {balance >= 0 ? `${t('oweYou')}: ${balance.toFixed(2)} ILS` : `${t('youOwe')}: ${Math.abs(balance).toFixed(2)} ILS`}
+                        </div>
+                        <button onClick={() => setShowDetails(!showDetails)} className="text-sm text-gray-500 flex items-center justify-center mx-auto mt-2">
+                            {t('detailed')} <FiArrowDown className="ms-1 transition-transform rtl:me-1" style={{ transform: showDetails ? 'rotate(180deg)' : 'none' }} />
+                        </button>
+                        {showDetails && (
+                            <div className="mt-2 text-left bg-gray-100 p-2 rounded">
+                                {Object.entries(detailedBalance).map(([username, bal]) => (
+                                    <div key={username} className="flex justify-between">
+                                        <span>{username}:</span>
+                                        <span className={bal > 0 ? 'text-green-600' : 'text-red-600'}>{bal.toFixed(2)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <form onSubmit={handleAddEntry}>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
+                            <input
+                                id="amount"
+                                type="number"
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
+                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                required
+                            />
+                        </div>
+                        <div className="mb-6">
+                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
+                            <input
+                                id="description"
+                                type="text"
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
+                                required
+                            />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <button type="submit" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                                {t('addEntry')}
+                            </button>
+                            <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                                {t('allEntries')}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+---
+
+--- File: src/app/[locale]/rooms/[roomId]/entries/page.tsx ---
+"use client";
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+
+interface Entry {
+    id: number;
+    amount: string;
+    description: string;
+    created_at: string;
+    username: string;
+}
+
+export default function EntriesPage({ params }: { params: { roomId: string } }) {
+    const t = useTranslations('Room');
+    const { roomId } = params;
+    const [entries, setEntries] = useState<Entry[]>([]);
+    const router = useRouter();
+
+    const fetchEntries = useCallback(async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            router.push('/');
+            return;
+        }
+        const res = await fetch(`/api/rooms/${roomId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const { entries } = await res.json();
+            setEntries(entries);
+        } else if (res.status === 401) {
+            router.push('/');
+        }
+    }, [roomId, router]);
+
+    useEffect(() => {
+        fetchEntries();
+    }, [fetchEntries]);
+
+    return (
+        <div className="min-h-screen bg-gray-100 p-4">
+            <div className="max-w-4xl mx-auto">
+                <button onClick={() => router.back()} className="mb-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    {t('backToRoom')}
+                </button>
+                <div className="bg-white shadow-md rounded-lg">
+                    <div className="p-4 border-b">
+                        <h1 className="text-xl font-semibold">{t('allEntries')}</h1>
+                    </div>
+                    <ul>
+                        {entries.map(entry => (
+                            <li key={entry.id} className="p-4 border-b flex justify-between items-center">
+                                <div>
+                                    <p className="font-semibold">{entry.description}</p>
+                                    <p className="text-sm text-gray-500">
+                                        {entry.username} - {new Date(entry.created_at).toLocaleString()}
+                                    </p>
+                                </div>
+                                <div className="text-lg font-bold">
+                                    {entry.amount} ILS
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+---
+
+--- File: src/lib/auth.ts ---
+import { verify } from 'jsonwebtoken';
+import { JWT_SECRET } from './constants';
+
+interface UserPayload {
+    userId: number;
+    username: string;
+}
+
+export function verifyToken(token: string | undefined): UserPayload | null {
+    if (!token) {
+        return null;
+    }
+    try {
+        const decoded = verify(token, JWT_SECRET!) as UserPayload;
+        return decoded;
+    } catch (error) {
+        return null;
+    }
+}
+
+---
+
+--- File: src/lib/constants.ts ---
+export const POSTGRES_URL = process.env.POSTGRES_URL;
+export const JWT_SECRET = process.env.JWT_SECRET;
+
+---
+
+--- File: src/lib/db.ts ---
+import { Pool } from 'pg';
+import { POSTGRES_URL } from './constants';
+
+export const db = new Pool({
+    connectionString: POSTGRES_URL,
+});
+
+---
+
