@@ -106,6 +106,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             const { roomId } = await res.json();
             setRoomCode('');
             router.push(`/rooms/${roomId}`);
+            closeSidebar();
         } else {
             const { message } = await res.json();
             console.error("Join failed:", message);
@@ -128,6 +129,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         if (res.ok) {
             const { roomId } = await res.json();
             router.push(`/rooms/${roomId}`);
+            closeSidebar();
         } else {
             const { message } = await res.json();
             console.error("Create failed:", message);
@@ -147,7 +149,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     }
 
     return (
-        <aside className="w-80 bg-card border-e border-card-border h-screen p-4 flex flex-col flex-shrink-0">
+        <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
             <div className="flex items-center justify-between mb-6 px-2">
                 <h2 className="text-2xl font-bold text-card-foreground">My Rooms</h2>
                 <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">

@@ -9,7 +9,7 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const pathname = usePathname();
 
-    // Close sidebar on route change
+    // Close sidebar on route change for better mobile UX
     useEffect(() => {
         if (isSidebarOpen) {
             setIsSidebarOpen(false);
@@ -18,18 +18,19 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
     }, [pathname]);
 
     return (
-        <div className="h-screen flex bg-background">
+        <div className="h-screen flex bg-background overflow-hidden">
             {/* Overlay for mobile, appears when sidebar is open */}
             {isSidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
                     onClick={() => setIsSidebarOpen(false)}
+                    aria-hidden="true"
                 />
             )}
 
             {/* Sidebar container. Handles mobile slide-in and static desktop display. */}
             <div
-                className={`fixed top-0 left-0 h-full z-40 transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${
+                className={`fixed top-0 left-0 h-full z-40 transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 md:shrink-0 ${
                     isSidebarOpen ? "translate-x-0" : "-translate-x-full"
                 }`}
             >

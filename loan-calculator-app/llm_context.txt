@@ -108,7 +108,8 @@ export default nextConfig;
     "createRoom": "Create Room",
     "joinFailed": "Failed to join room",
     "createFailed": "Failed to create room",
-    "roomCreated": "Room created with code: {code}"
+    "roomCreated": "Room created with code: {code}",
+    "copyFailed": "Failed to copy code"
   },
   "Room": {
     "oweYou": "Owe You",
@@ -145,7 +146,8 @@ export default nextConfig;
     "createRoom": "צור חדר",
     "joinFailed": "ההצטרפות לחדר נכשלה",
     "createFailed": "יצירת החדר נכשלה",
-    "roomCreated": "החדר נוצר עם הקוד: {code}"
+    "roomCreated": "החדר נוצר עם הקוד: {code}",
+    "copyFailed": "העתקת הקוד נכשלה"
   },
   "Room": {
     "oweYou": "חייבים לך",
@@ -182,7 +184,8 @@ export default nextConfig;
     "createRoom": "Создать комнату",
     "joinFailed": "Не удалось присоединиться к комнате",
     "createFailed": "Не удалось создать комнату",
-    "roomCreated": "Комната создана с кодом: {code}"
+    "roomCreated": "Комната создана с кодом: {code}",
+    "copyFailed": "Не удалось скопировать код"
   },
   "Room": {
     "oweYou": "Вам должны",
@@ -627,6 +630,12 @@ export async function GET(req: Request) {
             // Returning 404 to not leak information about room existence.
             return NextResponse.json({ message: 'Room not found' }, { status: 404 });
         }
+        
+        const roomResult = await db.query('SELECT code FROM rooms WHERE id = $1', [roomId]);
+        if (roomResult.rows.length === 0) {
+            return NextResponse.json({ message: 'Room not found' }, { status: 404 });
+        }
+        const roomCode = roomResult.rows[0].code;
 
         const entriesResult = await db.query(
             'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at DESC',
@@ -665,6 +674,7 @@ export async function GET(req: Request) {
         const currentUserBalance = currentUserTotalPaid - averageShare;
 
         return NextResponse.json({
+            code: roomCode,
             entries: entriesResult.rows,
             balances,
             currentUserBalance
@@ -812,6 +822,7 @@ export default function RoomPage() {
     const [balance, setBalance] = useState(0);
     const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
     const [showDetails, setShowDetails] = useState(false);
+    const [roomCode, setRoomCode] = useState('');
     const router = useRouter();
 
     const fetchData = useCallback(async () => {
@@ -824,9 +835,10 @@ export default function RoomPage() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
-            const { currentUserBalance, balances } = await res.json();
+            const { currentUserBalance, balances, code } = await res.json();
             setBalance(currentUserBalance || 0);
             setDetailedBalance(balances || {});
+            setRoomCode(code || '');
         } else if (res.status === 401) {
             router.push('/');
         }
@@ -855,6 +867,12 @@ export default function RoomPage() {
     return (
         <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
             <div className="p-8">
+                <div className="text-center mb-6">
+                    <h1 className="text-xl font-bold text-card-foreground">
+                        Room #{roomCode}
+                    </h1>
+                </div>
+
                 <div className="text-center mb-4">
                     <div className={`text-3xl font-bold ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
                         {balance >= 0 ? `${t('oweYou')}: ${balance.toFixed(2)} ILS` : `${t('youOwe')}: ${Math.abs(balance).toFixed(2)} ILS`}
@@ -1195,12 +1213,42 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     }, [fetchRooms, pathname]);
 
     const handleCopyToClipboard = (code: string) => {
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(code).then(() => {
-                setCopiedCode(code);
-                setTimeout(() => setCopiedCode(null), 2000);
-            });
+        setError('');
+        const fallbackCopy = (text: string) => {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    setCopiedCode(code);
+                    setTimeout(() => setCopiedCode(null), 2000);
+                } else {
+                     setError(t('copyFailed'));
+                }
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+                setError(t('copyFailed'));
+            }
+            document.body.removeChild(textArea);
         }
+
+        if (!navigator.clipboard) {
+            fallbackCopy(code);
+            return;
+        }
+        navigator.clipboard.writeText(code).then(() => {
+            setCopiedCode(code);
+            setTimeout(() => setCopiedCode(null), 2000);
+        }).catch(err => {
+            console.error('Could not copy text: ', err);
+            fallbackCopy(code);
+        });
     };
 
     const handleJoinRoom = async (e: React.FormEvent) => {
@@ -1275,7 +1323,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                         const isActive = pathname === `/rooms/${room.id}` || pathname.startsWith(`/rooms/${room.id}/`);
                         return (
                             <li key={room.id} style={{ animationDelay: `${index * 50}ms`, opacity: 0 }} className="animate-fadeIn px-2">
-                                <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
+                                <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
                                     <Link href={`/rooms/${room.id}`} className="flex-grow p-3 text-sm font-semibold">
                                         Room #{room.code}
                                     </Link>
