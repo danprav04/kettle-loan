@@ -12,7 +12,8 @@ interface Entry {
     username: string;
 }
 
-export default function EntriesPage({ params: { roomId } }: { params: { roomId: string } }) {
+export default function EntriesPage({ params }: { params: { roomId: string } }) {
+    const { roomId } = params;
     const t = useTranslations('Room');
     const [entries, setEntries] = useState<Entry[]>([]);
     const router = useRouter();

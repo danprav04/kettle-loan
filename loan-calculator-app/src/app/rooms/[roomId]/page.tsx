@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { FiArrowDown } from 'react-icons/fi';
 
-export default function RoomPage({ params: { roomId } }: { params: { roomId: string } }) {
+export default function RoomPage({ params }: { params: { roomId: string } }) {
+    const { roomId } = params;
     const t = useTranslations('Room');
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');

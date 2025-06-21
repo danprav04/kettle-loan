@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
-export async function GET(req: Request, { params: { roomId } }: { params: { roomId: string } }) {
+export async function GET(req: Request, context: { params: { roomId: string } }) {
     try {
+        const { roomId } = context.params;
         const token = req.headers.get('authorization')?.split(' ')[1];
         const user = verifyToken(token);
         if (!user) {
