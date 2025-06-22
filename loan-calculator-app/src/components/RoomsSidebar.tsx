@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut } from 'react-icons/fi';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
 
@@ -137,6 +137,11 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         }
     };
     
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        router.push('/');
+    };
+
     const toggleTheme = () => {
         setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
     };
@@ -209,20 +214,31 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                     {t('createRoom')}
                 </button>
 
-                <div className="flex items-center justify-center space-x-2">
-                     <button
-                        onClick={toggleTheme}
-                        className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                        aria-label="Toggle theme" >
-                        {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
+                <div className="space-y-2">
+                    <button
+                        onClick={handleLogout}
+                        className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted"
+                        aria-label="Logout"
+                    >
+                        <FiLogOut size={16} className="me-2"/>
+                        <span className="font-semibold text-xs">{t('logout')}</span>
                     </button>
-                     <button
-                        onClick={cycleLanguage}
-                        className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                        aria-label="Change language" >
-                        <FiGlobe size={16} className="me-1.5"/>
-                        <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
-                    </button>
+
+                    <div className="flex items-center justify-center space-x-2">
+                         <button
+                            onClick={toggleTheme}
+                            className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
+                            aria-label="Toggle theme" >
+                            {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
+                        </button>
+                         <button
+                            onClick={cycleLanguage}
+                            className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
+                            aria-label="Change language" >
+                            <FiGlobe size={16} className="me-1.5"/>
+                            <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </aside>

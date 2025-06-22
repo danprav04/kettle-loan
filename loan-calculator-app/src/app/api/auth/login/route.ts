@@ -20,7 +20,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'loginError' }, { status: 401 });
         }
 
-        const token = sign({ userId: user.id, username: user.username }, JWT_SECRET!, { expiresIn: '1h' });
+        const token = sign({ userId: user.id, username: user.username }, JWT_SECRET!, { expiresIn: '365d' });
 
         return NextResponse.json({ token });
     } catch (error) {

@@ -19,7 +19,8 @@
     "joinFailed": "ההצטרפות לחדר נכשלה",
     "createFailed": "יצירת החדר נכשלה",
     "roomCreated": "החדר נוצר עם הקוד: {code}",
-    "copyFailed": "העתקת הקוד נכשלה"
+    "copyFailed": "העתקת הקוד נכשלה",
+    "logout": "התנתקות"
   },
   "Room": {
     "oweYou": "חייבים לך",
