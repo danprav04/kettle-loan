@@ -10,6 +10,8 @@ env:
   CONTAINER_NAME: "loan-app-service" # Name for Docker container & systemd service
   HOST_PORT: 3000 # Port exposed on the server
   CONTAINER_PORT: 3000 # Port the app listens on inside the container
+  # --- NEW, MORE ROBUST PATH FOR THE ENV FILE ---
+  SERVER_ENV_FILE_PATH: /etc/loan-app-service/.env
 
 jobs:
   build-and-push-image:
@@ -81,18 +83,18 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Create .env.local file from individual secrets
+      - name: Create .env file from individual secrets
         run: |
-          echo "Assembling .env.local file..."
-          echo "POSTGRES_URL=${{ secrets.PROD_POSTGRES_URL }}" > .env.local
-          echo "JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}" >> .env.local
+          echo "Assembling .env file..."
+          echo "POSTGRES_URL=${{ secrets.PROD_POSTGRES_URL }}" > .env
+          echo "JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}" >> .env
         shell: bash
 
       - name: Deploy to Server
         env:
           TARGET_SSH_HOST: ${{ secrets.SSH_HOST }}
           TARGET_SSH_USER: ubuntu
-          TARGET_SERVER_ENV_FILE_PATH: /home/ubuntu/deployments/production/my-loan-app/.env.local
+          TARGET_SERVER_ENV_FILE_PATH: ${{ env.SERVER_ENV_FILE_PATH }}
           TARGET_SERVICE_NAME: ${{ env.CONTAINER_NAME }}
           TARGET_HOST_PORT_MAPPING: ${{ env.HOST_PORT }}
           TARGET_CONTAINER_LISTENING_PORT: ${{ env.CONTAINER_PORT }}
@@ -102,32 +104,29 @@ jobs:
         run: |
           ssh-keyscan -H "${TARGET_SSH_HOST}" >> ~/.ssh/known_hosts
 
-          TEMP_REMOTE_ENV_FILE="/tmp/.env.local.${GITHUB_RUN_ID}"
+          TEMP_REMOTE_ENV_FILE="/tmp/.env.${GITHUB_RUN_ID}"
           REMOTE_ENV_DIR=$(dirname "${TARGET_SERVER_ENV_FILE_PATH}")
 
-          scp -o StrictHostKeyChecking=no .env.local "${TARGET_SSH_USER}@${TARGET_SSH_HOST}:${TEMP_REMOTE_ENV_FILE}"
+          scp -o StrictHostKeyChecking=no .env "${TARGET_SSH_USER}@${TARGET_SSH_HOST}:${TEMP_REMOTE_ENV_FILE}"
 
           ssh -o StrictHostKeyChecking=no "${TARGET_SSH_USER}@${TARGET_SSH_HOST}" " \
-            set -e; \
+            set -ex; \
             sudo mkdir -p '${REMOTE_ENV_DIR}'; \
             sudo mv '${TEMP_REMOTE_ENV_FILE}' '${TARGET_SERVER_ENV_FILE_PATH}'; \
-            sudo chown '${TARGET_SSH_USER}:${TARGET_SSH_USER}' '${TARGET_SERVER_ENV_FILE_PATH}'; \
+            sudo chown root:root '${TARGET_SERVER_ENV_FILE_PATH}'; \
             sudo chmod 600 '${TARGET_SERVER_ENV_FILE_PATH}'; \
           "
 
-          # --- THIS IS THE CORRECTED COMMAND ---
-          # Pass the environment variables as arguments to the remote script
           ssh -o StrictHostKeyChecking=no "${TARGET_SSH_USER}@${TARGET_SSH_HOST}" "bash -s" \
             "${TARGET_SERVICE_NAME}" \
             "${TARGET_FULL_IMAGE_URI}" \
             "${TARGET_HOST_PORT_MAPPING}" \
             "${TARGET_CONTAINER_LISTENING_PORT}" \
             "${TARGET_SERVER_ENV_FILE_PATH}" \
-            "${TARGET_SSH_USER}" \
+            "ubuntu" \
             "${TARGET_GHCR_USERNAME}" \
             "${TARGET_GHCR_PULL_TOKEN}" << 'REMOTE_SCRIPT_EOF'
             set -ex
-            # Input variables from workflow arguments
             ARG_SERVICE_NAME="$1"
             ARG_FULL_IMAGE_URI="$2"
             ARG_HOST_PORT="$3"
@@ -137,10 +136,8 @@ jobs:
             ARG_GHCR_USERNAME="$7"
             ARG_GHCR_PAT="$8"
 
-            # Log into GHCR on the server to pull the image
             echo "${ARG_GHCR_PAT}" | sudo docker login ghcr.io -u "${ARG_GHCR_USERNAME}" --password-stdin
 
-            # Create the systemd service file
             sudo tee "/etc/systemd/system/${ARG_SERVICE_NAME}.service" > /dev/null << INNER_SYSTEMD_EOF
             [Unit]
             Description=${ARG_SERVICE_NAME} Docker Container
@@ -165,7 +162,6 @@ jobs:
             WantedBy=multi-user.target
             INNER_SYSTEMD_EOF
 
-            # Reload systemd and restart the service
             sudo systemctl daemon-reload
             sudo systemctl enable "${ARG_SERVICE_NAME}.service"
             sudo systemctl restart "${ARG_SERVICE_NAME}.service"
