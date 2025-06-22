@@ -82,82 +82,56 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Create .env file from individual secrets
-        run: |
-          echo "Assembling .env file..."
-          echo "POSTGRES_URL=${{ secrets.PROD_POSTGRES_URL }}" > .env
-          echo "JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}" >> .env
-        shell: bash
-
-      - name: Deploy to Server
+      - name: Deploy via SSH
         env:
           TARGET_SSH_HOST: ${{ secrets.SSH_HOST }}
           TARGET_SSH_USER: ubuntu
-          TARGET_SERVER_ENV_FILE_PATH: ${{ env.SERVER_ENV_FILE_PATH }}
-          TARGET_SERVICE_NAME: ${{ env.CONTAINER_NAME }}
-          TARGET_HOST_PORT_MAPPING: ${{ env.HOST_PORT }}
-          TARGET_CONTAINER_LISTENING_PORT: ${{ env.CONTAINER_PORT }}
-          TARGET_FULL_IMAGE_URI: ${{ needs.build-and-push-image.outputs.image_uri }}
-          TARGET_GHCR_USERNAME: ${{ github.repository_owner }}
-          TARGET_GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          FULL_IMAGE_URI: ${{ needs.build-and-push-image.outputs.image_uri }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          GHCR_USERNAME: ${{ github.repository_owner }}
+          PROD_POSTGRES_URL: ${{ secrets.PROD_POSTGRES_URL }}
+          PROD_JWT_SECRET: ${{ secrets.PROD_JWT_SECRET }}
         run: |
           ssh-keyscan -H "${TARGET_SSH_HOST}" >> ~/.ssh/known_hosts
 
-          TEMP_REMOTE_ENV_FILE="/tmp/.env.${GITHUB_RUN_ID}"
-          REMOTE_ENV_DIR=$(dirname "${TARGET_SERVER_ENV_FILE_PATH}")
-
-          scp -o StrictHostKeyChecking=no .env "${TARGET_SSH_USER}@${TARGET_SSH_HOST}:${TEMP_REMOTE_ENV_FILE}"
-
-          ssh -o StrictHostKeyChecking=no "${TARGET_SSH_USER}@${TARGET_SSH_HOST}" " \
-            set -ex; \
-            sudo mkdir -p '${REMOTE_ENV_DIR}'; \
-            sudo mv '${TEMP_REMOTE_ENV_FILE}' '${TARGET_SERVER_ENV_FILE_PATH}'; \
-            sudo chown root:root '${TARGET_SERVER_ENV_FILE_PATH}'; \
-            sudo chmod 600 '${TARGET_SERVER_ENV_FILE_PATH}'; \
-          "
-
-          ssh -o StrictHostKeyChecking=no "${TARGET_SSH_USER}@${TARGET_SSH_HOST}" "bash -s" \
-            "${TARGET_SERVICE_NAME}" \
-            "${TARGET_FULL_IMAGE_URI}" \
-            "${TARGET_HOST_PORT_MAPPING}" \
-            "${TARGET_CONTAINER_LISTENING_PORT}" \
-            "${TARGET_SERVER_ENV_FILE_PATH}" \
-            "${TARGET_GHCR_USERNAME}" \
-            "${TARGET_GHCR_PULL_TOKEN}" <<-'REMOTE_SCRIPT_EOF'
+          ssh -o StrictHostKeyChecking=no "${TARGET_SSH_USER}@${TARGET_SSH_HOST}" << EOF
             set -ex
-            ARG_SERVICE_NAME="$1"
-            ARG_FULL_IMAGE_URI="$2"
-            ARG_HOST_PORT="$3"
-            ARG_CONTAINER_PORT="$4"
-            ARG_ENV_FILE_PATH="$5"
-            ARG_GHCR_USERNAME="$6"
-            ARG_GHCR_PAT="$7"
 
-            echo "${ARG_GHCR_PAT}" | sudo docker login ghcr.io -u "${ARG_GHCR_USERNAME}" --password-stdin
+            # Create the directory for the .env file
+            sudo mkdir -p $(dirname "${{ env.SERVER_ENV_FILE_PATH }}")
 
-            sudo tee "/etc/systemd/system/${ARG_SERVICE_NAME}.service" > /dev/null <<-'INNER_SYSTEMD_EOF'
-            [Unit]
-            Description=${ARG_SERVICE_NAME} Docker Container
-            Requires=docker.service
-            After=docker.service network.target
+            # Create the .env file on the server
+            echo "POSTGRES_URL=${PROD_POSTGRES_URL}" | sudo tee "${{ env.SERVER_ENV_FILE_PATH }}" > /dev/null
+            echo "JWT_SECRET=${PROD_JWT_SECRET}" | sudo tee -a "${{ env.SERVER_ENV_FILE_PATH }}" > /dev/null
+            sudo chown root:root "${{ env.SERVER_ENV_FILE_PATH }}"
+            sudo chmod 600 "${{ env.SERVER_ENV_FILE_PATH }}"
 
-            [Service]
-            Restart=always
-            RestartSec=10
+            # Log in to GitHub Container Registry
+            echo "${GHCR_PULL_TOKEN}" | sudo docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
 
-            ExecStartPre=-/usr/bin/docker stop ${ARG_SERVICE_NAME}
-            ExecStartPre=-/usr/bin/docker rm ${ARG_SERVICE_NAME}
-            ExecStartPre=/usr/bin/docker pull ${ARG_FULL_IMAGE_URI}
-            ExecStart=/usr/bin/docker run --rm --name ${ARG_SERVICE_NAME} -p "${ARG_HOST_PORT}:${ARG_CONTAINER_PORT}" --env-file "${ARG_ENV_FILE_PATH}" ${ARG_FULL_IMAGE_URI}
-            ExecStop=/usr/bin/docker stop ${ARG_SERVICE_NAME}
+            # Create systemd service file using line-by-line echo to avoid heredoc issues
+            echo "[Unit]" | sudo tee "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "Description=${{ env.CONTAINER_NAME }} Docker Container" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "Requires=docker.service" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "After=docker.service network.target" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "[Service]" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "Restart=always" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "RestartSec=10" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "ExecStartPre=-/usr/bin/docker stop ${{ env.CONTAINER_NAME }}" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "ExecStartPre=-/usr/bin/docker rm ${{ env.CONTAINER_NAME }}" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "ExecStartPre=/usr/bin/docker pull ${FULL_IMAGE_URI}" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "ExecStart=/usr/bin/docker run --rm --name ${{ env.CONTAINER_NAME }} -p \"${{ env.HOST_PORT }}:${{ env.CONTAINER_PORT }}\" --env-file \"${{ env.SERVER_ENV_FILE_PATH }}\" ${FULL_IMAGE_URI}" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "ExecStop=/usr/bin/docker stop ${{ env.CONTAINER_NAME }}" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "[Install]" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
+            echo "WantedBy=multi-user.target" | sudo tee -a "/etc/systemd/system/${{ env.CONTAINER_NAME }}.service"
 
-            [Install]
-            WantedBy=multi-user.target
-            INNER_SYSTEMD_EOF
-
+            # Reload systemd, enable and restart the service
             sudo systemctl daemon-reload
-            sudo systemctl enable "${ARG_SERVICE_NAME}.service"
-            sudo systemctl restart "${ARG_SERVICE_NAME}.service"
-            echo "Deployment of ${ARG_SERVICE_NAME} finished."
-          REMOTE_SCRIPT_EOF
+            sudo systemctl enable "${{ env.CONTAINER_NAME }}.service"
+            sudo systemctl restart "${{ env.CONTAINER_NAME }}.service"
+
+            echo "Deployment of ${{ env.CONTAINER_NAME }} finished successfully."
+          EOF
         shell: bash
