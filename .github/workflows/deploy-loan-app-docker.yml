@@ -1,0 +1,167 @@
+name: Deploy Loan App via Docker
+
+on:
+  push:
+    branches:
+      - main # Or your primary deployment branch
+
+env:
+  REGISTRY: ghcr.io
+  CONTAINER_NAME: "loan-app-service" # Name for Docker container & systemd service
+  HOST_PORT: 3000 # Port exposed on the server
+  CONTAINER_PORT: 3000 # Port the app listens on inside the container
+
+jobs:
+  build-and-push-image:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_uri: ${{ steps.get-primary-tag.outputs.primary_tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set lowercase image name components
+        run: |
+          echo "IMAGE_OWNER_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          echo "IMAGE_REPO_NAME_LC=loan-calculator-app" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER_LC }}/${{ env.IMAGE_REPO_NAME_LC }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Get primary image tag
+        id: get-primary-tag
+        run: |
+          PRIMARY_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
+          echo "primary_tag=$PRIMARY_TAG" >> $GITHUB_OUTPUT
+        shell: bash
+
+  deploy-to-server:
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+    needs: build-and-push-image
+    environment: production
+
+    steps:
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # --- THIS IS THE MODIFIED STEP ---
+      - name: Create .env.local file from individual secrets
+        run: |
+          echo "Assembling .env.local file..."
+          echo "POSTGRES_URL=${{ secrets.PROD_POSTGRES_URL }}" > .env.local
+          echo "JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}" >> .env.local
+          echo "--- Verifying .env.local content (values will be masked in logs) ---"
+          cat .env.local
+        shell: bash
+
+      - name: Deploy to Server
+        env:
+          TARGET_SSH_HOST: ${{ secrets.SSH_HOST }}
+          TARGET_SSH_USER: ubuntu
+          TARGET_SERVER_ENV_FILE_PATH: /home/ubuntu/deployments/production/my-loan-app/.env.local
+          TARGET_SERVICE_NAME: ${{ env.CONTAINER_NAME }}
+          TARGET_HOST_PORT_MAPPING: ${{ env.HOST_PORT }}
+          TARGET_CONTAINER_LISTENING_PORT: ${{ env.CONTAINER_PORT }}
+          TARGET_FULL_IMAGE_URI: ${{ needs.build-and-push-image.outputs.image_uri }}
+          TARGET_GHCR_USERNAME: ${{ github.repository_owner }}
+          TARGET_GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          ssh-keyscan -H "${TARGET_SSH_HOST}" >> ~/.ssh/known_hosts
+
+          TEMP_REMOTE_ENV_FILE="/tmp/.env.local.${GITHUB_RUN_ID}"
+          REMOTE_ENV_DIR=$(dirname "${TARGET_SERVER_ENV_FILE_PATH}")
+
+          scp -o StrictHostKeyChecking=no .env.local "${TARGET_SSH_USER}@${TARGET_SSH_HOST}:${TEMP_REMOTE_ENV_FILE}"
+
+          ssh -o StrictHostKeyChecking=no "${TARGET_SSH_USER}@${TARGET_SSH_HOST}" " \
+            set -e; \
+            sudo mkdir -p '${REMOTE_ENV_DIR}'; \
+            sudo mv '${TEMP_REMOTE_ENV_FILE}' '${TARGET_SERVER_ENV_FILE_PATH}'; \
+            sudo chown '${TARGET_SSH_USER}:${TARGET_SSH_USER}' '${TARGET_SERVER_ENV_FILE_PATH}'; \
+            sudo chmod 600 '${TARGET_SERVER_ENV_FILE_PATH}'; \
+          "
+
+          ssh -o StrictHostKeyChecking=no "${TARGET_SSH_USER}@${TARGET_SSH_HOST}" "bash -s" << 'REMOTE_SCRIPT_EOF'
+            set -ex
+            # Input variables from workflow
+            ARG_SERVICE_NAME="$1"
+            ARG_FULL_IMAGE_URI="$2"
+            ARG_HOST_PORT="$3"
+            ARG_CONTAINER_PORT="$4"
+            ARG_ENV_FILE_PATH="$5"
+            ARG_SYSTEMD_USER="$6"
+            ARG_GHCR_USERNAME="$7"
+            ARG_GHCR_PAT="$8"
+
+            # Log into GHCR on the server to pull the image
+            echo "${ARG_GHCR_PAT}" | sudo docker login ghcr.io -u "${ARG_GHCR_USERNAME}" --password-stdin
+
+            # Create the systemd service file
+            sudo tee "/etc/systemd/system/${ARG_SERVICE_NAME}.service" > /dev/null << INNER_SYSTEMD_EOF
+            [Unit]
+            Description=${ARG_SERVICE_NAME} Docker Container
+            Requires=docker.service
+            After=docker.service network.target
+
+            [Service]
+            User=${ARG_SYSTEMD_USER}
+            Restart=always
+            RestartSec=10
+
+            ExecStartPre=-/usr/bin/docker stop ${ARG_SERVICE_NAME}
+            ExecStartPre=-/usr/bin/docker rm ${ARG_SERVICE_NAME}
+            ExecStartPre=/usr/bin/docker pull ${ARG_FULL_IMAGE_URI}
+            ExecStart=/usr/bin/docker run --rm --name ${ARG_SERVICE_NAME} \
+              -p "${ARG_HOST_PORT}:${ARG_CONTAINER_PORT}" \
+              --env-file "${ARG_ENV_FILE_PATH}" \
+              ${ARG_FULL_IMAGE_URI}
+            ExecStop=/usr/bin/docker stop ${ARG_SERVICE_NAME}
+
+            [Install]
+            WantedBy=multi-user.target
+            INNER_SYSTEMD_EOF
+
+            # Reload systemd and restart the service
+            sudo systemctl daemon-reload
+            sudo systemctl enable "${ARG_SERVICE_NAME}.service"
+            sudo systemctl restart "${ARG_SERVICE_NAME}.service"
+            echo "Deployment of ${ARG_SERVICE_NAME} finished."
+          REMOTE_SCRIPT_EOF
+        shell: bash
