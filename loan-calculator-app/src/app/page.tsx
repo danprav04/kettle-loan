@@ -3,6 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import messages from '../../messages/en.json'; // Import messages to get keys
+
+// Create a type for valid keys within the 'Auth' section of your translations
+type AuthTranslationKey = keyof typeof messages.Auth;
 
 export default function AuthPage() {
     const t = useTranslations('Auth');
@@ -31,7 +35,8 @@ export default function AuthPage() {
                 setIsLogin(true);
             }
         } else {
-            setError(t(data.message as any));
+            // Use the type-safe key for the translation function
+            setError(t(data.message as AuthTranslationKey));
         }
     };
 

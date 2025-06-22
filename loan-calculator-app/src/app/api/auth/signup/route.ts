@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
 import { db } from '@/lib/db';
 
+// Define a type for the potential Postgres error to make our catch block type-safe
+interface PostgresError extends Error {
+    code?: string;
+    constraint?: string;
+}
+
 export async function POST(req: Request) {
     try {
         const { username, password } = await req.json();
@@ -19,7 +25,9 @@ export async function POST(req: Request) {
         );
 
         return NextResponse.json({ message: 'User created successfully' }, { status: 201 });
-    } catch (error: any) {
+    } catch (e: unknown) {
+        const error = e as PostgresError;
+        // Check for the specific duplicate username error from Postgres
         if (error.code === '23505' && error.constraint === 'users_username_key') {
             return NextResponse.json({ message: 'signupUsernameError' }, { status: 409 });
         }

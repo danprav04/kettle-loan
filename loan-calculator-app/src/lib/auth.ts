@@ -13,7 +13,7 @@ export function verifyToken(token: string | undefined): UserPayload | null {
     try {
         const decoded = verify(token, JWT_SECRET!) as UserPayload;
         return decoded;
-    } catch (error) {
+    } catch { // The unused 'error' variable is removed here
         return null;
     }
 }
