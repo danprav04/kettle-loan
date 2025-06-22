@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import messages from '../../messages/en.json'; // Import messages to get keys
@@ -14,7 +14,17 @@ export default function AuthPage() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            router.replace('/rooms');
+        } else {
+            setIsLoading(false);
+        }
+    }, [router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -39,6 +49,10 @@ export default function AuthPage() {
             setError(t(data.message as AuthTranslationKey));
         }
     };
+
+    if (isLoading) {
+        return <div className="min-h-screen bg-muted" />;
+    }
 
     return (
         <div className="min-h-screen bg-muted flex flex-col justify-center items-center">
