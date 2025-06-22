@@ -123,7 +123,7 @@ jobs:
             "${TARGET_CONTAINER_LISTENING_PORT}" \
             "${TARGET_SERVER_ENV_FILE_PATH}" \
             "${TARGET_GHCR_USERNAME}" \
-            "${TARGET_GHCR_PULL_TOKEN}" << 'REMOTE_SCRIPT_EOF'
+            "${TARGET_GHCR_PULL_TOKEN}" <<-'REMOTE_SCRIPT_EOF'
             set -ex
             ARG_SERVICE_NAME="$1"
             ARG_FULL_IMAGE_URI="$2"
@@ -135,7 +135,7 @@ jobs:
 
             echo "${ARG_GHCR_PAT}" | sudo docker login ghcr.io -u "${ARG_GHCR_USERNAME}" --password-stdin
 
-            sudo tee "/etc/systemd/system/${ARG_SERVICE_NAME}.service" > /dev/null << INNER_SYSTEMD_EOF
+            sudo tee "/etc/systemd/system/${ARG_SERVICE_NAME}.service" > /dev/null <<-'INNER_SYSTEMD_EOF'
             [Unit]
             Description=${ARG_SERVICE_NAME} Docker Container
             Requires=docker.service
