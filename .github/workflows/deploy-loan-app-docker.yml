@@ -10,7 +10,6 @@ env:
   CONTAINER_NAME: "loan-app-service" # Name for Docker container & systemd service
   HOST_PORT: 3000 # Port exposed on the server
   CONTAINER_PORT: 3000 # Port the app listens on inside the container
-  # --- NEW, MORE ROBUST PATH FOR THE ENV FILE ---
   SERVER_ENV_FILE_PATH: /etc/loan-app-service/.env
 
 jobs:
@@ -56,8 +55,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./loan-calculator-app
-          file: ./loan-calculator-app/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -123,7 +122,6 @@ jobs:
             "${TARGET_HOST_PORT_MAPPING}" \
             "${TARGET_CONTAINER_LISTENING_PORT}" \
             "${TARGET_SERVER_ENV_FILE_PATH}" \
-            "ubuntu" \
             "${TARGET_GHCR_USERNAME}" \
             "${TARGET_GHCR_PULL_TOKEN}" << 'REMOTE_SCRIPT_EOF'
             set -ex
@@ -132,9 +130,8 @@ jobs:
             ARG_HOST_PORT="$3"
             ARG_CONTAINER_PORT="$4"
             ARG_ENV_FILE_PATH="$5"
-            ARG_SYSTEMD_USER="$6"
-            ARG_GHCR_USERNAME="$7"
-            ARG_GHCR_PAT="$8"
+            ARG_GHCR_USERNAME="$6"
+            ARG_GHCR_PAT="$7"
 
             echo "${ARG_GHCR_PAT}" | sudo docker login ghcr.io -u "${ARG_GHCR_USERNAME}" --password-stdin
 
@@ -145,17 +142,13 @@ jobs:
             After=docker.service network.target
 
             [Service]
-            User=${ARG_SYSTEMD_USER}
             Restart=always
             RestartSec=10
 
             ExecStartPre=-/usr/bin/docker stop ${ARG_SERVICE_NAME}
             ExecStartPre=-/usr/bin/docker rm ${ARG_SERVICE_NAME}
             ExecStartPre=/usr/bin/docker pull ${ARG_FULL_IMAGE_URI}
-            ExecStart=/usr/bin/docker run --rm --name ${ARG_SERVICE_NAME} \
-              -p "${ARG_HOST_PORT}:${ARG_CONTAINER_PORT}" \
-              --env-file "${ARG_ENV_FILE_PATH}" \
-              ${ARG_FULL_IMAGE_URI}
+            ExecStart=/usr/bin/docker run --rm --name ${ARG_SERVICE_NAME} -p "${ARG_HOST_PORT}:${ARG_CONTAINER_PORT}" --env-file "${ARG_ENV_FILE_PATH}" ${ARG_FULL_IMAGE_URI}
             ExecStop=/usr/bin/docker stop ${ARG_SERVICE_NAME}
 
             [Install]

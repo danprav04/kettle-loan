@@ -9,6 +9,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  output: 'standalone', // Add this line
 };
 
 export default nextConfig;
@@ -24,7 +25,8 @@ export default nextConfig;
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "build:local": "env-cmd -f .env.local next build"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -47,6 +49,7 @@ export default nextConfig;
     "@types/pg": "^8.15.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "env-cmd": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
     "tailwindcss": "^4",
@@ -389,6 +392,10 @@ export default function RootLayout({
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import messages from '../../messages/en.json'; // Import messages to get keys
+
+// Create a type for valid keys within the 'Auth' section of your translations
+type AuthTranslationKey = keyof typeof messages.Auth;
 
 export default function AuthPage() {
     const t = useTranslations('Auth');
@@ -417,7 +424,8 @@ export default function AuthPage() {
                 setIsLogin(true);
             }
         } else {
-            setError(t(data.message as any));
+            // Use the type-safe key for the translation function
+            setError(t(data.message as AuthTranslationKey));
         }
     };
 
@@ -502,14 +510,27 @@ import { NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
 import { db } from '@/lib/db';
 
+// Define a type for the potential Postgres error to make our catch block type-safe
+interface PostgresError extends Error {
+    code?: string;
+    constraint?: string;
+}
+
 export async function POST(req: Request) {
     try {
         const { username, password } = await req.json();
+        // Use x-forwarded-for header (set by Nginx/Caddy) or fall back to a default.
         const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
 
-        const existingUserByIp = await db.query('SELECT * FROM users WHERE last_ip = $1', [ip]);
-        if (existingUserByIp.rows.length > 0) {
-            return NextResponse.json({ message: 'signupIpError' }, { status: 403 });
+        // Check if an account has been created from this IP in the last hour.
+        const recentUserByIp = await db.query(
+            "SELECT id FROM users WHERE last_ip = $1 AND created_at > NOW() - INTERVAL '1 hour'",
+            [ip]
+        );
+
+        // If any rows are returned, an account was created recently. Block the request.
+        if (recentUserByIp.rows.length > 0) {
+            return NextResponse.json({ message: 'signupIpError' }, { status: 429 }); // 429 Too Many Requests is more semantic
         }
 
         const hashedPassword = await hash(password, 10);
@@ -519,7 +540,9 @@ export async function POST(req: Request) {
         );
 
         return NextResponse.json({ message: 'User created successfully' }, { status: 201 });
-    } catch (error: any) {
+    } catch (e: unknown) {
+        const error = e as PostgresError;
+        // Check for the specific duplicate username error from Postgres
         if (error.code === '23505' && error.constraint === 'users_username_key') {
             return NextResponse.json({ message: 'signupUsernameError' }, { status: 409 });
         }
@@ -731,7 +754,7 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const pathname = usePathname();
 
-    // Close sidebar on route change
+    // Close sidebar on route change for better mobile UX
     useEffect(() => {
         if (isSidebarOpen) {
             setIsSidebarOpen(false);
@@ -740,18 +763,19 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
     }, [pathname]);
 
     return (
-        <div className="h-screen flex bg-background">
+        <div className="h-screen flex bg-background overflow-hidden">
             {/* Overlay for mobile, appears when sidebar is open */}
             {isSidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
                     onClick={() => setIsSidebarOpen(false)}
+                    aria-hidden="true"
                 />
             )}
 
             {/* Sidebar container. Handles mobile slide-in and static desktop display. */}
             <div
-                className={`fixed top-0 left-0 h-full z-40 transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${
+                className={`fixed top-0 left-0 h-full z-40 transform transition-transform duration-300 ease-in-out bg-background md:static md:translate-x-0 md:shrink-0 ${
                     isSidebarOpen ? "translate-x-0" : "-translate-x-full"
                 }`}
             >
@@ -1268,6 +1292,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             const { roomId } = await res.json();
             setRoomCode('');
             router.push(`/rooms/${roomId}`);
+            closeSidebar();
         } else {
             const { message } = await res.json();
             console.error("Join failed:", message);
@@ -1290,6 +1315,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         if (res.ok) {
             const { roomId } = await res.json();
             router.push(`/rooms/${roomId}`);
+            closeSidebar();
         } else {
             const { message } = await res.json();
             console.error("Create failed:", message);
@@ -1309,7 +1335,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     }
 
     return (
-        <aside className="w-80 bg-card border-e border-card-border h-screen p-4 flex flex-col flex-shrink-0">
+        <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
             <div className="flex items-center justify-between mb-6 px-2">
                 <h2 className="text-2xl font-bold text-card-foreground">My Rooms</h2>
                 <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
@@ -1485,7 +1511,7 @@ export function verifyToken(token: string | undefined): UserPayload | null {
     try {
         const decoded = verify(token, JWT_SECRET!) as UserPayload;
         return decoded;
-    } catch (error) {
+    } catch { // The unused 'error' variable is removed here
         return null;
     }
 }
