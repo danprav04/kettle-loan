@@ -14,17 +14,6 @@ export async function POST(req: Request) {
         // Use x-forwarded-for header (set by Nginx/Caddy) or fall back to a default.
         const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
 
-        // Check if an account has been created from this IP in the last hour.
-        const recentUserByIp = await db.query(
-            "SELECT id FROM users WHERE last_ip = $1 AND created_at > NOW() - INTERVAL '1 hour'",
-            [ip]
-        );
-
-        // If any rows are returned, an account was created recently. Block the request.
-        if (recentUserByIp.rows.length > 0) {
-            return NextResponse.json({ message: 'signupIpError' }, { status: 429 }); // 429 Too Many Requests is more semantic
-        }
-
         const hashedPassword = await hash(password, 10);
         await db.query(
             'INSERT INTO users (username, password, last_ip) VALUES ($1, $2, $3)',
