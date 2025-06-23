@@ -39,8 +39,8 @@
     "addEntry": "Add Entry",
     "allEntries": "All Entries",
     "backToRoom": "Back to Room",
-    "expense": "Expense",
-    "loan": "Loan",
+    "expense": "I Pay",
+    "loan": "I Owe",
     "splitEqually": "This cost will be split equally among all members.",
     "oweFullAmount": "You will owe the full amount to the group.",
     "roomTitle": "Room #{code}"

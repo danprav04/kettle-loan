@@ -39,8 +39,8 @@
     "addEntry": "הוסף רשומה",
     "allEntries": "כל הרשומות",
     "backToRoom": "חזור לחדר",
-    "expense": "הוצאה",
-    "loan": "הלוואה",
+    "expense": "אני משלם",
+    "loan": "אני חייב",
     "splitEqually": "העלות תחולק באופן שווה בין כל חברי החדר.",
     "oweFullAmount": "אתה תחוב את הסכום המלא לקבוצה.",
     "roomTitle": "חדר #{code}"
