@@ -30,6 +30,8 @@
     "description": "תיאור",
     "addEntry": "הוסף רשומה",
     "allEntries": "כל הרשומות",
-    "backToRoom": "חזור לחדר"
+    "backToRoom": "חזור לחדר",
+    "expense": "הוצאה",
+    "loan": "הלוואה"
   }
 }

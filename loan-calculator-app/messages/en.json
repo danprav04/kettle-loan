@@ -30,6 +30,8 @@
     "description": "Description",
     "addEntry": "Add Entry",
     "allEntries": "All Entries",
-    "backToRoom": "Back to Room"
+    "backToRoom": "Back to Room",
+    "expense": "Expense",
+    "loan": "Loan"
   }
 }

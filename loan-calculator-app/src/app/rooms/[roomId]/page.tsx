@@ -16,6 +16,8 @@ export default function RoomPage() {
     const [showDetails, setShowDetails] = useState(false);
     const [roomCode, setRoomCode] = useState('');
     const router = useRouter();
+    // Initialize state to null to prevent rendering on the server and before client-side hydration.
+    const [entryType, setEntryType] = useState<'expense' | 'loan' | null>(null);
 
     const fetchData = useCallback(async () => {
         const token = localStorage.getItem('token');
@@ -40,21 +42,41 @@ export default function RoomPage() {
         fetchData();
     }, [fetchData]);
 
+    // This effect runs once on the client to hydrate the entryType state from localStorage.
+    useEffect(() => {
+        const savedEntryType = localStorage.getItem('entryType') as 'expense' | 'loan';
+        // Set state from localStorage, or default to 'expense' if no value is saved.
+        setEntryType(savedEntryType && ['expense', 'loan'].includes(savedEntryType) ? savedEntryType : 'expense');
+    }, []);
+
+    const handleSetEntryType = (type: 'expense' | 'loan') => {
+        setEntryType(type);
+        localStorage.setItem('entryType', type);
+    };
+
     const handleAddEntry = async (e: React.FormEvent) => {
         e.preventDefault();
         const token = localStorage.getItem('token');
+        const parsedAmount = Math.abs(parseFloat(amount));
+        if (isNaN(parsedAmount) || parsedAmount <= 0) {
+            return; 
+        }
+
+        const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
+
         await fetch('/api/entries', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ roomId, amount: parseFloat(amount), description }),
+            body: JSON.stringify({ roomId, amount: finalAmount, description }),
         });
         setAmount('');
         setDescription('');
         fetchData(); // Refetch data
     };
+
 
     return (
         <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
@@ -92,6 +114,39 @@ export default function RoomPage() {
                 <div>
                     <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">{t('newEntryTitle')}</h2>
                     <form onSubmit={handleAddEntry}>
+                        {/* High-Contrast Entry Type Toggle */}
+                        <div className="mb-6">
+                            {entryType !== null ? (
+                                <div className="relative flex w-full rounded-full bg-muted p-1">
+                                    <span
+                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out border-2 border-black dark:border-white
+                                            ${entryType === 'expense' ? 'bg-primary' : 'bg-success'}`
+                                        }
+                                        style={{ left: entryType === 'loan' ? '50%' : '4px' }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSetEntryType('expense')}
+                                        className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300
+                                            ${entryType === 'expense' ? 'text-primary-foreground' : 'text-foreground'}`
+                                        }
+                                    >
+                                        {t('expense')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSetEntryType('loan')}
+                                        className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300
+                                            ${entryType === 'loan' ? 'text-secondary-foreground' : 'text-foreground'}`
+                                        }
+                                    >
+                                        {t('loan')}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="h-[44px] w-full rounded-full bg-muted" />
+                            )}
+                        </div>
                         <div className="mb-4">
                             <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
                             <input
@@ -101,6 +156,8 @@ export default function RoomPage() {
                                 onChange={(e) => setAmount(e.target.value)}
                                 className="w-full px-3 py-2 leading-tight rounded-lg themed-input"
                                 required
+                                min="0"
+                                step="any"
                             />
                         </div>
                         <div className="mb-6">

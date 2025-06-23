@@ -30,6 +30,8 @@
     "description": "Описание",
     "addEntry": "Добавить запись",
     "allEntries": "Все записи",
-    "backToRoom": "Вернуться в комнату"
+    "backToRoom": "Вернуться в комнату",
+    "expense": "Расход",
+    "loan": "Заём"
   }
 }

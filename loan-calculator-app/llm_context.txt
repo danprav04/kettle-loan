@@ -623,8 +623,7 @@ export async function POST(req: Request) {
             if (text) {
               body = JSON.parse(text);
             }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (_error) {
+        } catch {
             // Ignore error if body is empty or invalid, which is expected when creating a room.
         }
         const { roomCode } = body as { roomCode?: string };
