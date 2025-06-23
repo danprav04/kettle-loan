@@ -112,7 +112,8 @@ export default nextConfig;
     "joinFailed": "Failed to join room",
     "createFailed": "Failed to create room",
     "roomCreated": "Room created with code: {code}",
-    "copyFailed": "Failed to copy code"
+    "copyFailed": "Failed to copy code",
+    "logout": "Logout"
   },
   "Room": {
     "oweYou": "Owe You",
@@ -150,7 +151,8 @@ export default nextConfig;
     "joinFailed": "ההצטרפות לחדר נכשלה",
     "createFailed": "יצירת החדר נכשלה",
     "roomCreated": "החדר נוצר עם הקוד: {code}",
-    "copyFailed": "העתקת הקוד נכשלה"
+    "copyFailed": "העתקת הקוד נכשלה",
+    "logout": "התנתקות"
   },
   "Room": {
     "oweYou": "חייבים לך",
@@ -188,7 +190,8 @@ export default nextConfig;
     "joinFailed": "Не удалось присоединиться к комнате",
     "createFailed": "Не удалось создать комнату",
     "roomCreated": "Комната создана с кодом: {code}",
-    "copyFailed": "Не удалось скопировать код"
+    "copyFailed": "Не удалось скопировать код",
+    "logout": "Выйти"
   },
   "Room": {
     "oweYou": "Вам должны",
@@ -389,7 +392,7 @@ export default function RootLayout({
 --- File: src/app/page.tsx ---
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import messages from '../../messages/en.json'; // Import messages to get keys
@@ -403,7 +406,17 @@ export default function AuthPage() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            router.replace('/rooms');
+        } else {
+            setIsLoading(false);
+        }
+    }, [router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -428,6 +441,10 @@ export default function AuthPage() {
             setError(t(data.message as AuthTranslationKey));
         }
     };
+
+    if (isLoading) {
+        return <div className="min-h-screen bg-muted" />;
+    }
 
     return (
         <div className="min-h-screen bg-muted flex flex-col justify-center items-center">
@@ -494,7 +511,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'loginError' }, { status: 401 });
         }
 
-        const token = sign({ userId: user.id, username: user.username }, JWT_SECRET!, { expiresIn: '1h' });
+        const token = sign({ userId: user.id, username: user.username }, JWT_SECRET!, { expiresIn: '365d' });
 
         return NextResponse.json({ token });
     } catch (error) {
@@ -521,17 +538,6 @@ export async function POST(req: Request) {
         const { username, password } = await req.json();
         // Use x-forwarded-for header (set by Nginx/Caddy) or fall back to a default.
         const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
-
-        // Check if an account has been created from this IP in the last hour.
-        const recentUserByIp = await db.query(
-            "SELECT id FROM users WHERE last_ip = $1 AND created_at > NOW() - INTERVAL '1 hour'",
-            [ip]
-        );
-
-        // If any rows are returned, an account was created recently. Block the request.
-        if (recentUserByIp.rows.length > 0) {
-            return NextResponse.json({ message: 'signupIpError' }, { status: 429 }); // 429 Too Many Requests is more semantic
-        }
 
         const hashedPassword = await hash(password, 10);
         await db.query(
@@ -808,10 +814,67 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
 --- File: src/app/rooms/page.tsx ---
 "use client";
 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+
+interface Room {
+    id: number;
+    code: string;
+}
 
 export default function RoomsPage() {
     const t = useTranslations('Rooms');
+    const router = useRouter();
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const checkRoomsAndRedirect = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                router.replace('/'); // Use replace to avoid back-button issues
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/user/rooms', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    const rooms: Room[] = await res.json();
+                    if (rooms && rooms.length > 0) {
+                        // Redirect to the most recent room
+                        router.replace(`/rooms/${rooms[0].id}`);
+                    } else {
+                        // No rooms, so stop loading and show the welcome message
+                        setIsLoading(false);
+                    }
+                } else if (res.status === 401) {
+                    // Unauthorized, redirect to login
+                    router.replace('/');
+                } else {
+                    // Handle other errors, stop loading to prevent infinite loop
+                    setIsLoading(false);
+                }
+            } catch (error) {
+                console.error("Failed to fetch rooms", error);
+                setIsLoading(false); // Stop loading on network or other errors
+            }
+        };
+
+        checkRoomsAndRedirect();
+    }, [router]);
+
+    if (isLoading) {
+        return (
+            <div className="w-full h-full flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-muted-foreground">Loading your rooms...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full h-full flex items-center justify-center">
@@ -1190,7 +1253,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut } from 'react-icons/fi';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
 
@@ -1323,6 +1386,11 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         }
     };
     
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        router.push('/');
+    };
+
     const toggleTheme = () => {
         setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
     };
@@ -1395,20 +1463,31 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                     {t('createRoom')}
                 </button>
 
-                <div className="flex items-center justify-center space-x-2">
-                     <button
-                        onClick={toggleTheme}
-                        className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                        aria-label="Toggle theme" >
-                        {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
+                <div className="space-y-2">
+                    <button
+                        onClick={handleLogout}
+                        className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted"
+                        aria-label="Logout"
+                    >
+                        <FiLogOut size={16} className="me-2"/>
+                        <span className="font-semibold text-xs">{t('logout')}</span>
                     </button>
-                     <button
-                        onClick={cycleLanguage}
-                        className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                        aria-label="Change language" >
-                        <FiGlobe size={16} className="me-1.5"/>
-                        <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
-                    </button>
+
+                    <div className="flex items-center justify-center space-x-2">
+                         <button
+                            onClick={toggleTheme}
+                            className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
+                            aria-label="Toggle theme" >
+                            {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
+                        </button>
+                         <button
+                            onClick={cycleLanguage}
+                            className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
+                            aria-label="Change language" >
+                            <FiGlobe size={16} className="me-1.5"/>
+                            <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </aside>

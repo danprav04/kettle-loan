@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle } from 'react-icons/fi';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
+import ConfirmationDialog from './ConfirmationDialog';
 
 interface Room {
     id: number;
@@ -27,6 +28,10 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
+
+    // State for the leave room confirmation dialog
+    const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+    const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
 
     const fetchRooms = useCallback(async () => {
         const token = localStorage.getItem('token');
@@ -136,10 +141,42 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             setError(t('createFailed'));
         }
     };
-    
+
     const handleLogout = () => {
         localStorage.removeItem('token');
         router.push('/');
+    };
+    
+    const openLeaveDialog = (room: Room) => {
+        setSelectedRoomToLeave(room);
+        setIsLeaveDialogOpen(true);
+    };
+
+    const handleLeaveRoom = async () => {
+        if (!selectedRoomToLeave) return;
+
+        setError('');
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/rooms/${selectedRoomToLeave.id}/members`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+
+        if (res.ok) {
+            setIsLeaveDialogOpen(false);
+            // If the user is currently in the room they just left, navigate to the base rooms page.
+            if (pathname.includes(`/rooms/${selectedRoomToLeave.id}`)) {
+                router.push('/rooms');
+            }
+            fetchRooms(); // Refresh the room list
+        } else {
+            const { message } = await res.json();
+            setError(message || 'Failed to leave room.');
+            setIsLeaveDialogOpen(false);
+        }
+        setSelectedRoomToLeave(null);
     };
 
     const toggleTheme = () => {
@@ -154,93 +191,113 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     }
 
     return (
-        <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
-            <div className="flex items-center justify-between mb-6 px-2">
-                <h2 className="text-2xl font-bold text-card-foreground">My Rooms</h2>
-                <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
-                    <FiX size={24} />
-                </button>
-            </div>
-
-            <nav className="flex-grow overflow-y-auto -mx-2 pr-1 animate-fadeIn">
-                <ul>
-                    {rooms.map((room, index) => {
-                        const isActive = pathname === `/rooms/${room.id}` || pathname.startsWith(`/rooms/${room.id}/`);
-                        return (
-                            <li key={room.id} style={{ animationDelay: `${index * 50}ms`, opacity: 0 }} className="animate-fadeIn px-2">
-                                <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
-                                    <Link href={`/rooms/${room.id}`} className="flex-grow p-3 text-sm font-semibold">
-                                        Room #{room.code}
-                                    </Link>
-                                    <button
-                                        onClick={() => handleCopyToClipboard(room.code)}
-                                        className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`}
-                                        title="Copy room code" >
-                                        {copiedCode === room.code 
-                                            ? <FiCheck className="text-success animate-scaleIn" /> 
-                                            : <FiCopy className="group-hover:scale-110 transition-transform" />
-                                        }
-                                    </button>
-                                </div>
-                            </li>
-                        );
-                    })}
-                </ul>
-            </nav>
-
-            <div className="mt-auto pt-4 border-t border-card-border">
-                {error && <p className="text-danger text-sm text-center mb-2">{error}</p>}
-                
-                <form onSubmit={handleJoinRoom} className="mb-4">
-                    <input
-                        type="text"
-                        placeholder={t('roomCode')}
-                        value={roomCode}
-                        onChange={(e) => setRoomCode(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg mb-2 themed-input"
-                    />
-                    <button type="submit" className="w-full py-2 rounded-lg btn-primary">
-                        {t('joinRoom')}
+        <>
+            <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
+                <div className="flex items-center justify-between mb-6 px-2">
+                    <h2 className="text-2xl font-bold text-card-foreground">My Rooms</h2>
+                    <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
+                        <FiX size={24} />
                     </button>
-                </form>
-
-                <div className="flex items-center my-2">
-                    <div className="flex-grow border-t border-card-border"></div>
-                    <span className="flex-shrink mx-2 text-xs text-muted-foreground">{t('or')}</span>
-                    <div className="flex-grow border-t border-card-border"></div>
                 </div>
-                
-                <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary mb-4">
-                    {t('createRoom')}
-                </button>
 
-                <div className="space-y-2">
-                    <button
-                        onClick={handleLogout}
-                        className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted"
-                        aria-label="Logout"
-                    >
-                        <FiLogOut size={16} className="me-2"/>
-                        <span className="font-semibold text-xs">{t('logout')}</span>
+                <nav className="flex-grow overflow-y-auto -mx-2 pr-1 animate-fadeIn">
+                    <ul>
+                        {rooms.map((room, index) => {
+                            const isActive = pathname === `/rooms/${room.id}` || pathname.startsWith(`/rooms/${room.id}/`);
+                            return (
+                                <li key={room.id} style={{ animationDelay: `${index * 50}ms`, opacity: 0 }} className="animate-fadeIn px-2">
+                                    <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
+                                        <Link href={`/rooms/${room.id}`} className="flex-grow p-3 text-sm font-semibold truncate">
+                                            Room #{room.code}
+                                        </Link>
+                                        <div className="flex items-center">
+                                            <button
+                                                onClick={() => handleCopyToClipboard(room.code)}
+                                                className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`}
+                                                title="Copy room code" >
+                                                {copiedCode === room.code 
+                                                    ? <FiCheck className="text-success animate-scaleIn" /> 
+                                                    : <FiCopy className="group-hover:scale-110 transition-transform" />
+                                                }
+                                            </button>
+                                            <button
+                                                onClick={() => openLeaveDialog(room)}
+                                                className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`}
+                                                title="Leave room" >
+                                                <FiXCircle className="group-hover:scale-110 transition-transform text-danger" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </nav>
+
+                <div className="mt-auto pt-4 border-t border-card-border">
+                    {error && <p className="text-danger text-sm text-center mb-2">{error}</p>}
+                    
+                    <form onSubmit={handleJoinRoom} className="mb-4">
+                        <input
+                            type="text"
+                            placeholder={t('roomCode')}
+                            value={roomCode}
+                            onChange={(e) => setRoomCode(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg mb-2 themed-input"
+                        />
+                        <button type="submit" className="w-full py-2 rounded-lg btn-primary">
+                            {t('joinRoom')}
+                        </button>
+                    </form>
+
+                    <div className="flex items-center my-2">
+                        <div className="flex-grow border-t border-card-border"></div>
+                        <span className="flex-shrink mx-2 text-xs text-muted-foreground">{t('or')}</span>
+                        <div className="flex-grow border-t border-card-border"></div>
+                    </div>
+                    
+                    <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary mb-4">
+                        {t('createRoom')}
                     </button>
 
-                    <div className="flex items-center justify-center space-x-2">
-                         <button
-                            onClick={toggleTheme}
-                            className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                            aria-label="Toggle theme" >
-                            {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
+                    <div className="space-y-2">
+                        <button
+                            onClick={handleLogout}
+                            className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted"
+                            aria-label="Logout"
+                        >
+                            <FiLogOut size={16} className="me-2"/>
+                            <span className="font-semibold text-xs">{t('logout')}</span>
                         </button>
-                         <button
-                            onClick={cycleLanguage}
-                            className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                            aria-label="Change language" >
-                            <FiGlobe size={16} className="me-1.5"/>
-                            <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
-                        </button>
+
+                        <div className="flex items-center justify-center space-x-2">
+                             <button
+                                onClick={toggleTheme}
+                                className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
+                                aria-label="Toggle theme" >
+                                {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
+                            </button>
+                             <button
+                                onClick={cycleLanguage}
+                                className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
+                                aria-label="Change language" >
+                                <FiGlobe size={16} className="me-1.5"/>
+                                <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </aside>
+            </aside>
+
+            <ConfirmationDialog
+                isOpen={isLeaveDialogOpen}
+                onClose={() => setIsLeaveDialogOpen(false)}
+                onConfirm={handleLeaveRoom}
+                title="Leave Room"
+            >
+                Are you sure you want to leave Room #{selectedRoomToLeave?.code}? 
+                This action cannot be undone. You will need to join again using the room code.
+            </ConfirmationDialog>
+        </>
     );
 }
