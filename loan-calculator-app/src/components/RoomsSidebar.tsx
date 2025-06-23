@@ -20,6 +20,7 @@ interface RoomsSidebarProps {
 
 export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const t = useTranslations('Rooms');
+    const tAccess = useTranslations('Accessibility');
     const router = useRouter();
     const pathname = usePathname();
     const [rooms, setRooms] = useState<Room[]>([]);
@@ -173,7 +174,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             fetchRooms(); // Refresh the room list
         } else {
             const { message } = await res.json();
-            setError(message || 'Failed to leave room.');
+            setError(message || t('leaveRoomFailed'));
             setIsLeaveDialogOpen(false);
         }
         setSelectedRoomToLeave(null);
@@ -194,7 +195,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         <>
             <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
                 <div className="flex items-center justify-between mb-6 px-2">
-                    <h2 className="text-2xl font-bold text-card-foreground">My Rooms</h2>
+                    <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
                     <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
                         <FiX size={24} />
                     </button>
@@ -214,7 +215,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                                             <button
                                                 onClick={() => handleCopyToClipboard(room.code)}
                                                 className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`}
-                                                title="Copy room code" >
+                                                title={t('copyRoomCode')} >
                                                 {copiedCode === room.code 
                                                     ? <FiCheck className="text-success animate-scaleIn" /> 
                                                     : <FiCopy className="group-hover:scale-110 transition-transform" />
@@ -223,7 +224,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                                             <button
                                                 onClick={() => openLeaveDialog(room)}
                                                 className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`}
-                                                title="Leave room" >
+                                                title={t('leaveRoom')} >
                                                 <FiXCircle className="group-hover:scale-110 transition-transform text-danger" />
                                             </button>
                                         </div>
@@ -264,7 +265,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                         <button
                             onClick={handleLogout}
                             className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted"
-                            aria-label="Logout"
+                            aria-label={t('logout')}
                         >
                             <FiLogOut size={16} className="me-2"/>
                             <span className="font-semibold text-xs">{t('logout')}</span>
@@ -274,13 +275,13 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                              <button
                                 onClick={toggleTheme}
                                 className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                                aria-label="Toggle theme" >
+                                aria-label={tAccess('toggleTheme')} >
                                 {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
                             </button>
                              <button
                                 onClick={cycleLanguage}
                                 className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                                aria-label="Change language" >
+                                aria-label={tAccess('changeLanguage')} >
                                 <FiGlobe size={16} className="me-1.5"/>
                                 <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
                             </button>
@@ -293,10 +294,9 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                 isOpen={isLeaveDialogOpen}
                 onClose={() => setIsLeaveDialogOpen(false)}
                 onConfirm={handleLeaveRoom}
-                title="Leave Room"
+                title={t('leaveRoomTitle')}
             >
-                Are you sure you want to leave Room #{selectedRoomToLeave?.code}? 
-                This action cannot be undone. You will need to join again using the room code.
+                {t('leaveRoomConfirmation', { code: selectedRoomToLeave?.code ?? '' })}
             </ConfirmationDialog>
         </>
     );

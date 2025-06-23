@@ -20,7 +20,15 @@
     "createFailed": "יצירת החדר נכשלה",
     "roomCreated": "החדר נוצר עם הקוד: {code}",
     "copyFailed": "העתקת הקוד נכשלה",
-    "logout": "התנתקות"
+    "logout": "התנתקות",
+    "loadingRooms": "טוען את החדרים שלך...",
+    "selectOrCreateRoomPrompt": "בחר חדר מהחלונית בצד שמאל או צור חדר חדש כדי להתחיל.",
+    "myRooms": "החדרים שלי",
+    "copyRoomCode": "העתק קוד חדר",
+    "leaveRoom": "עזוב חדר",
+    "leaveRoomTitle": "עזיבת חדר",
+    "leaveRoomConfirmation": "האם אתה בטוח שברצונך לעזוב את חדר #{code}? לא ניתן לבטל פעולה זו. תצטרך להצטרף מחדש באמצעות קוד החדר.",
+    "leaveRoomFailed": "עזיבת החדר נכשלה."
   },
   "Room": {
     "balanceTitle": "מאזן",
@@ -34,6 +42,15 @@
     "expense": "הוצאה",
     "loan": "הלוואה",
     "splitEqually": "העלות תחולק באופן שווה בין כל חברי החדר.",
-    "oweFullAmount": "אתה תחוב את הסכום המלא לקבוצה."
+    "oweFullAmount": "אתה תחוב את הסכום המלא לקבוצה.",
+    "roomTitle": "חדר #{code}"
+  },
+  "Dialog": {
+    "cancel": "ביטול",
+    "confirm": "אישור"
+  },
+  "Accessibility": {
+    "toggleTheme": "שנה ערכת נושא",
+    "changeLanguage": "שנה שפה"
   }
 }

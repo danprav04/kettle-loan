@@ -20,7 +20,15 @@
     "createFailed": "Failed to create room",
     "roomCreated": "Room created with code: {code}",
     "copyFailed": "Failed to copy code",
-    "logout": "Logout"
+    "logout": "Logout",
+    "loadingRooms": "Loading your rooms...",
+    "selectOrCreateRoomPrompt": "Select a room from the panel on the left or create a new one to get started.",
+    "myRooms": "My Rooms",
+    "copyRoomCode": "Copy room code",
+    "leaveRoom": "Leave room",
+    "leaveRoomTitle": "Leave Room",
+    "leaveRoomConfirmation": "Are you sure you want to leave Room #{code}? This action cannot be undone. You will need to join again using the room code.",
+    "leaveRoomFailed": "Failed to leave room."
   },
   "Room": {
     "balanceTitle": "Balance",
@@ -34,6 +42,15 @@
     "expense": "Expense",
     "loan": "Loan",
     "splitEqually": "This cost will be split equally among all members.",
-    "oweFullAmount": "You will owe the full amount to the group."
+    "oweFullAmount": "You will owe the full amount to the group.",
+    "roomTitle": "Room #{code}"
+  },
+  "Dialog": {
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  },
+  "Accessibility": {
+    "toggleTheme": "Toggle theme",
+    "changeLanguage": "Change language"
   }
 }

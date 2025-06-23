@@ -2,6 +2,7 @@
 "use client";
 
 import { ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface ConfirmationDialogProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface ConfirmationDialogProps {
 }
 
 export default function ConfirmationDialog({ isOpen, onClose, onConfirm, title, children }: ConfirmationDialogProps) {
+  const t = useTranslations('Dialog');
   if (!isOpen) return null;
 
   return (
@@ -30,10 +32,10 @@ export default function ConfirmationDialog({ isOpen, onClose, onConfirm, title, 
         </div>
         <div className="flex justify-end space-x-4 rtl:space-x-reverse">
           <button onClick={onClose} className="py-2 px-4 rounded-lg font-semibold btn-muted">
-            Cancel
+            {t('cancel')}
           </button>
           <button onClick={onConfirm} className="py-2 px-4 rounded-lg font-semibold btn-danger">
-            Confirm
+            {t('confirm')}
           </button>
         </div>
       </div>

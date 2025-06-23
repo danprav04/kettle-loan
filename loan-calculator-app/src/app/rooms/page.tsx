@@ -56,7 +56,7 @@ export default function RoomsPage() {
         return (
             <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center">
-                    <p className="text-muted-foreground">Loading your rooms...</p>
+                    <p className="text-muted-foreground">{t('loadingRooms')}</p>
                 </div>
             </div>
         );
@@ -69,7 +69,7 @@ export default function RoomsPage() {
                     {t('joinOrCreateRoom')}
                 </h1>
                 <p className="text-muted-foreground mt-2">
-                    Select a room from the panel on the left or create a new one to get started.
+                    {t('selectOrCreateRoomPrompt')}
                 </p>
             </div>
         </div>

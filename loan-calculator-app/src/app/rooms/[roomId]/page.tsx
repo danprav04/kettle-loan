@@ -83,7 +83,7 @@ export default function RoomPage() {
             <div className="p-8">
                 <div className="text-center mb-6">
                     <h1 className="text-xl font-bold text-card-foreground">
-                        Room #{roomCode}
+                        {t('roomTitle', { code: roomCode })}
                     </h1>
                 </div>
 
