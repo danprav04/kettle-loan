@@ -32,6 +32,8 @@
     "allEntries": "All Entries",
     "backToRoom": "Back to Room",
     "expense": "Expense",
-    "loan": "Loan"
+    "loan": "Loan",
+    "splitEqually": "This cost will be split equally among all members.",
+    "oweFullAmount": "You will owe the full amount to the group."
   }
 }

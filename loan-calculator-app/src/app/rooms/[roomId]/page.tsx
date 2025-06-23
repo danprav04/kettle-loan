@@ -146,6 +146,11 @@ export default function RoomPage() {
                             ) : (
                                 <div className="h-[44px] w-full rounded-full bg-muted" />
                             )}
+                             {entryType && (
+                                <p className="text-center text-xs text-muted-foreground mt-2 h-8 flex items-center justify-center px-2 animate-fadeIn">
+                                    {entryType === 'expense' ? t('splitEqually') : t('oweFullAmount')}
+                                </p>
+                            )}
                         </div>
                         <div className="mb-4">
                             <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>

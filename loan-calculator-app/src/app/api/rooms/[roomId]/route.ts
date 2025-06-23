@@ -47,33 +47,66 @@ export async function GET(req: Request) {
         if (membersResult.rows.length === 0) {
            return NextResponse.json({ message: 'No members in room or room does not exist' }, { status: 404 });
         }
-
-        const userTotals: { [key: string]: number } = {};
-        membersResult.rows.forEach(member => {
-            userTotals[member.id] = 0;
+        
+        const members = membersResult.rows;
+        const numMembers = members.length;
+        const finalBalances: { [key: string]: number } = {};
+        members.forEach(member => {
+            finalBalances[member.id] = 0;
         });
 
-        entriesResult.rows.forEach(entry => {
-            userTotals[entry.user_id] += parseFloat(entry.amount);
+        // 1. Process expenses (amount > 0)
+        const expenses = entriesResult.rows.filter(e => parseFloat(e.amount) > 0);
+        const totalExpense = expenses.reduce((acc, entry) => acc + parseFloat(entry.amount), 0);
+        const averageExpenseShare = numMembers > 0 ? totalExpense / numMembers : 0;
+
+        members.forEach(member => {
+            const memberExpensesPaid = expenses
+                .filter(e => e.user_id === member.id)
+                .reduce((acc, entry) => acc + parseFloat(entry.amount), 0);
+            finalBalances[member.id] += (memberExpensesPaid - averageExpenseShare);
         });
 
-        const totalAmount = entriesResult.rows.reduce((acc, entry) => acc + parseFloat(entry.amount), 0);
-        const averageShare = totalAmount / membersResult.rows.length;
+        // 2. Process loans (amount < 0)
+        const loans = entriesResult.rows.filter(e => parseFloat(e.amount) < 0);
+        if (numMembers > 1) {
+            loans.forEach(loan => {
+                const loanAmount = parseFloat(loan.amount); // This is negative
+                const borrowerId = loan.user_id;
+                
+                // Borrower's balance decreases by the loan amount
+                finalBalances[borrowerId] += loanAmount;
 
-        const balances: { [key: string]: number } = {};
-        membersResult.rows.forEach(member => {
+                // Other members' balances increase as they are the lenders
+                const creditPerLender = Math.abs(loanAmount) / (numMembers - 1);
+                members.forEach(member => {
+                    if (member.id !== borrowerId) {
+                        finalBalances[member.id] += creditPerLender;
+                    }
+                });
+            });
+        } else {
+             // If only one member, loans are a direct deduction from their balance.
+             loans.forEach(loan => {
+                const loanAmount = parseFloat(loan.amount);
+                const borrowerId = loan.user_id;
+                finalBalances[borrowerId] += loanAmount;
+            });
+        }
+
+        // Prepare response object
+        const currentUserBalance = finalBalances[user.userId] || 0;
+        const otherUserBalances: { [key: string]: number } = {};
+        members.forEach(member => {
             if (member.id !== user.userId) {
-                balances[member.username] = (userTotals[member.id] || 0) - averageShare;
+                otherUserBalances[member.username] = finalBalances[member.id] || 0;
             }
         });
-
-        const currentUserTotalPaid = userTotals[user.userId] || 0;
-        const currentUserBalance = currentUserTotalPaid - averageShare;
 
         return NextResponse.json({
             code: roomCode,
             entries: entriesResult.rows,
-            balances,
+            balances: otherUserBalances,
             currentUserBalance
         });
     } catch (error) {
