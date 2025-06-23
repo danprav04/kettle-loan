@@ -23,8 +23,8 @@
     "logout": "Logout"
   },
   "Room": {
-    "oweYou": "Owe You",
-    "youOwe": "You Owe",
+    "balanceTitle": "Balance",
+    "newEntryTitle": "New Entry",
     "detailed": "Detailed",
     "amount": "Amount",
     "description": "Description",

@@ -65,57 +65,65 @@ export default function RoomPage() {
                     </h1>
                 </div>
 
-                <div className="text-center mb-4">
-                    <div className={`text-3xl font-bold ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
-                        {balance >= 0 ? `${t('oweYou')}: ${balance.toFixed(2)} ILS` : `${t('youOwe')}: ${Math.abs(balance).toFixed(2)} ILS`}
+                {/* Balance Section */}
+                <div className="text-center mb-6">
+                    <div className="text-lg font-medium text-muted-foreground">{t('balanceTitle')}</div>
+                    <div className={`text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
+                        {balance.toFixed(2)} ILS
                     </div>
-                    <button onClick={() => setShowDetails(!showDetails)} className="text-sm text-muted-foreground flex items-center justify-center mx-auto mt-2">
+                     <button onClick={() => setShowDetails(!showDetails)} className="text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
                         {t('detailed')} <FiArrowDown className={`ms-1 transition-transform rtl:me-1 ${showDetails ? 'rotate-180' : ''}`} />
                     </button>
                     {showDetails && (
-                        <div className="mt-2 text-left bg-muted p-2 rounded animate-fadeIn">
+                        <div className="mt-2 text-left bg-muted p-3 rounded-lg animate-fadeIn">
                             {Object.entries(detailedBalance).map(([username, bal]) => (
-                                <div key={username} className="flex justify-between text-card-foreground">
+                                <div key={username} className="flex justify-between text-card-foreground py-1">
                                     <span>{username}:</span>
-                                    <span className={bal > 0 ? 'text-success' : 'text-danger'}>{bal.toFixed(2)}</span>
+                                    <span className={bal >= 0 ? 'text-success' : 'text-danger'}>{bal.toFixed(2)}</span>
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
 
-                <form onSubmit={handleAddEntry}>
-                    <div className="mb-4">
-                        <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
-                        <input
-                            id="amount"
-                            type="number"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="w-full px-3 py-2 leading-tight rounded-lg themed-input"
-                            required
-                        />
-                    </div>
-                    <div className="mb-6">
-                        <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
-                        <input
-                            id="description"
-                            type="text"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            className="w-full px-3 py-2 mb-3 leading-tight rounded-lg themed-input"
-                            required
-                        />
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary">
-                            {t('addEntry')}
-                        </button>
-                        <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted">
-                            {t('allEntries')}
-                        </button>
-                    </div>
-                </form>
+                <div className="border-t border-card-border my-6"></div>
+
+                {/* New Entry Form Section */}
+                <div>
+                    <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">{t('newEntryTitle')}</h2>
+                    <form onSubmit={handleAddEntry}>
+                        <div className="mb-4">
+                            <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
+                            <input
+                                id="amount"
+                                type="number"
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
+                                className="w-full px-3 py-2 leading-tight rounded-lg themed-input"
+                                required
+                            />
+                        </div>
+                        <div className="mb-6">
+                            <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
+                            <input
+                                id="description"
+                                type="text"
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                className="w-full px-3 py-2 mb-3 leading-tight rounded-lg themed-input"
+                                required
+                            />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary">
+                                {t('addEntry')}
+                            </button>
+                            <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted">
+                                {t('allEntries')}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     );

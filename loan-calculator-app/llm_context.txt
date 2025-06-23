@@ -227,6 +227,7 @@ export default nextConfig;
   --input-bg: #ffffff;
   --input-border: #d1d5db; /* gray-300 */
   --danger: #ef4444; /* red-500 */
+  --danger-hover: #dc2626; /* red-600 */
   --success: #22c55e; /* green-500 */
 }
 
@@ -247,6 +248,7 @@ export default nextConfig;
   --input-bg: #374151; /* gray-700 */
   --input-border: #6b7280; /* gray-500 */
   --danger: #f87171; /* red-400 */
+  --danger-hover: #ef4444; /* red-500 */
   --success: #4ade80; /* green-400 */
 }
 
@@ -317,7 +319,7 @@ button, a, input {
 }
 
 /* Button styles with enhanced hover effects */
-.btn-primary, .btn-secondary, .btn-muted {
+.btn-primary, .btn-secondary, .btn-muted, .btn-danger {
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
@@ -350,6 +352,16 @@ button, a, input {
   background-color: var(--card-border);
   border-color: var(--muted-foreground);
   transform: translateY(-1px);
+}
+
+.btn-danger {
+    background-color: var(--danger);
+    color: var(--primary-foreground);
+}
+.btn-danger:hover {
+    background-color: var(--danger-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--danger) 30%, transparent);
 }
 
 ---
@@ -590,6 +602,12 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
+// Define a type for the potential Postgres error to make our catch block type-safe
+interface PostgresError extends Error {
+    code?: string;
+    constraint?: string;
+}
+
 export async function POST(req: Request) {
     try {
         const token = req.headers.get('authorization')?.split(' ')[1];
@@ -598,31 +616,84 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const { roomCode } = await req.json();
+        let body = {};
+        // The request might not have a body for create room, so we handle that case.
+        try {
+            const text = await req.text();
+            if (text) {
+              body = JSON.parse(text);
+            }
+        } catch (error) {
+            // Ignore error if body is empty or invalid
+        }
+        const { roomCode } = body as { roomCode?: string };
+
 
         if (roomCode) {
-            // Join a room
+            // Join an existing room
             const roomResult = await db.query('SELECT id FROM rooms WHERE code = $1', [roomCode]);
             if (roomResult.rows.length === 0) {
-                return NextResponse.json({ message: 'Room not found' }, { status: 404 });
+                // Using i18n key for consistency
+                return NextResponse.json({ message: 'joinFailed' }, { status: 404 });
             }
             const roomId = roomResult.rows[0].id;
 
-            await db.query('INSERT INTO room_members (user_id, room_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [user.userId, roomId]);
+            // Use ON CONFLICT to gracefully handle cases where the user is already a member.
+            await db.query('INSERT INTO room_members (user_id, room_id) VALUES ($1, $2) ON CONFLICT (user_id, room_id) DO NOTHING', [user.userId, roomId]);
 
             return NextResponse.json({ roomId });
         } else {
-            // Create a room
-            const newCode = Math.random().toString().substring(2, 8);
-            const roomResult = await db.query('INSERT INTO rooms (code, creator_id) VALUES ($1, $2) RETURNING id', [newCode, user.userId]);
-            const roomId = roomResult.rows[0].id;
+            // Create a new room with retry logic to ensure the generated code is unique.
+            const MAX_RETRIES = 5;
+            for (let i = 0; i < MAX_RETRIES; i++) {
+                // Generate a 6-character alphanumeric code.
+                const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+                const client = await db.connect();
+                try {
+                    // Start a transaction
+                    await client.query('BEGIN');
 
-            await db.query('INSERT INTO room_members (user_id, room_id) VALUES ($1, $2)', [user.userId, roomId]);
+                    const roomResult = await client.query(
+                        'INSERT INTO rooms (code, creator_id) VALUES ($1, $2) RETURNING id',
+                        [newCode, user.userId]
+                    );
+                    const roomId = roomResult.rows[0].id;
 
-            return NextResponse.json({ roomId, code: newCode });
+                    // Add the creator as the first member of the new room.
+                    await client.query(
+                        'INSERT INTO room_members (user_id, room_id) VALUES ($1, $2)',
+                        [user.userId, roomId]
+                    );
+
+                    // Commit the transaction
+                    await client.query('COMMIT');
+
+                    // Successfully created room, return the details.
+                    return NextResponse.json({ roomId, code: newCode }, { status: 201 });
+                } catch (e: unknown) {
+                    // Rollback the transaction in case of an error
+                    await client.query('ROLLBACK');
+
+                    const error = e as PostgresError;
+                    // Check if the error is a unique violation on the room code.
+                    if (error.code === '23505' && error.constraint === 'rooms_code_key') {
+                        console.warn(`Attempt ${i + 1}: Duplicate room code generated ('${newCode}'). Retrying...`);
+                        // The loop will continue to the next iteration to try a new code.
+                    } else {
+                        // For any other database error, re-throw it to be caught by the outer handler.
+                        throw error;
+                    }
+                } finally {
+                    client.release();
+                }
+            }
+            // If the loop completes without returning, it means we failed to generate a unique code.
+            console.error(`Failed to create a room after ${MAX_RETRIES} attempts due to duplicate codes.`);
+            return NextResponse.json({ message: 'createFailed' }, { status: 500 });
         }
     } catch (error) {
-        console.error(error);
+        console.error('An error occurred in /api/rooms:', error);
+        // Generic error for the client. The details are logged on the server.
         return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
     }
 }
@@ -711,6 +782,80 @@ export async function GET(req: Request) {
     } catch (error) {
         console.error(error);
         return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
+    }
+}
+
+---
+
+--- File: src/app/api/rooms/[roomId]/members/route.ts ---
+// src/app/api/rooms/[roomId]/members/route.ts
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
+
+export async function DELETE(req: Request) {
+    const client = await db.connect();
+    try {
+        const token = req.headers.get('authorization')?.split(' ')[1];
+        const user = verifyToken(token);
+        if (!user) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
+        // Manually parse the roomId from the request URL.
+        const url = new URL(req.url);
+        const pathnameParts = url.pathname.split('/');
+        // The path is /api/rooms/[roomId]/members, so roomId is the 3rd to last part
+        const roomId = pathnameParts[pathnameParts.length - 2];
+
+        if (!roomId || isNaN(parseInt(roomId, 10))) {
+            return NextResponse.json({ message: 'Invalid Room ID' }, { status: 400 });
+        }
+        const numericRoomId = parseInt(roomId, 10);
+        
+        await client.query('BEGIN');
+
+        // Remove the user from the room
+        const deleteResult = await client.query(
+            'DELETE FROM room_members WHERE user_id = $1 AND room_id = $2',
+            [user.userId, numericRoomId]
+        );
+
+        if (deleteResult.rowCount === 0) {
+            // The user wasn't a member of the room, so there's nothing to do.
+            // We can consider this a successful state.
+            await client.query('COMMIT');
+            return NextResponse.json({ message: 'User already not in room' });
+        }
+
+        // Check if the user was the creator of the room. If so, nullify the creator_id.
+        await client.query(
+            'UPDATE rooms SET creator_id = NULL WHERE id = $1 AND creator_id = $2',
+            [numericRoomId, user.userId]
+        );
+
+        // Check if there are any members left in the room
+        const membersResult = await client.query(
+            'SELECT 1 FROM room_members WHERE room_id = $1 LIMIT 1',
+            [numericRoomId]
+        );
+
+        if (membersResult.rows.length === 0) {
+            // If no members are left, delete the entire room.
+            // Entries will be deleted automatically due to `ON DELETE CASCADE`.
+            await client.query('DELETE FROM rooms WHERE id = $1', [numericRoomId]);
+        }
+        
+        await client.query('COMMIT');
+        
+        return NextResponse.json({ message: 'Successfully left the room' });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Failed to leave room:', error);
+        return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
+    } finally {
+        client.release();
     }
 }
 
@@ -1092,6 +1237,52 @@ export default function EntriesPage() {
 
 ---
 
+--- File: src/components/ConfirmationDialog.tsx ---
+// src/components/ConfirmationDialog.tsx
+"use client";
+
+import { ReactNode } from 'react';
+
+interface ConfirmationDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  children: ReactNode;
+}
+
+export default function ConfirmationDialog({ isOpen, onClose, onConfirm, title, children }: ConfirmationDialogProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      aria-labelledby="confirmation-dialog-title"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="bg-background rounded-xl shadow-lg border border-card-border w-full max-w-md m-4 p-6 animate-scaleIn" role="document">
+        <h2 id="confirmation-dialog-title" className="text-xl font-bold text-card-foreground mb-4">
+          {title}
+        </h2>
+        <div className="text-muted-foreground mb-6">
+          {children}
+        </div>
+        <div className="flex justify-end space-x-4 rtl:space-x-reverse">
+          <button onClick={onClose} className="py-2 px-4 rounded-lg font-semibold btn-muted">
+            Cancel
+          </button>
+          <button onClick={onConfirm} className="py-2 px-4 rounded-lg font-semibold btn-danger">
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+---
+
 --- File: src/components/IntlProvider.tsx ---
 // src/components/IntlProvider.tsx
 "use client";
@@ -1253,9 +1444,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle } from 'react-icons/fi';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
+import ConfirmationDialog from './ConfirmationDialog';
 
 interface Room {
     id: number;
@@ -1276,6 +1468,10 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
+
+    // State for the leave room confirmation dialog
+    const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+    const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
 
     const fetchRooms = useCallback(async () => {
         const token = localStorage.getItem('token');
@@ -1385,10 +1581,42 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             setError(t('createFailed'));
         }
     };
-    
+
     const handleLogout = () => {
         localStorage.removeItem('token');
         router.push('/');
+    };
+    
+    const openLeaveDialog = (room: Room) => {
+        setSelectedRoomToLeave(room);
+        setIsLeaveDialogOpen(true);
+    };
+
+    const handleLeaveRoom = async () => {
+        if (!selectedRoomToLeave) return;
+
+        setError('');
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/rooms/${selectedRoomToLeave.id}/members`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+
+        if (res.ok) {
+            setIsLeaveDialogOpen(false);
+            // If the user is currently in the room they just left, navigate to the base rooms page.
+            if (pathname.includes(`/rooms/${selectedRoomToLeave.id}`)) {
+                router.push('/rooms');
+            }
+            fetchRooms(); // Refresh the room list
+        } else {
+            const { message } = await res.json();
+            setError(message || 'Failed to leave room.');
+            setIsLeaveDialogOpen(false);
+        }
+        setSelectedRoomToLeave(null);
     };
 
     const toggleTheme = () => {
@@ -1403,94 +1631,114 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     }
 
     return (
-        <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
-            <div className="flex items-center justify-between mb-6 px-2">
-                <h2 className="text-2xl font-bold text-card-foreground">My Rooms</h2>
-                <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
-                    <FiX size={24} />
-                </button>
-            </div>
-
-            <nav className="flex-grow overflow-y-auto -mx-2 pr-1 animate-fadeIn">
-                <ul>
-                    {rooms.map((room, index) => {
-                        const isActive = pathname === `/rooms/${room.id}` || pathname.startsWith(`/rooms/${room.id}/`);
-                        return (
-                            <li key={room.id} style={{ animationDelay: `${index * 50}ms`, opacity: 0 }} className="animate-fadeIn px-2">
-                                <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
-                                    <Link href={`/rooms/${room.id}`} className="flex-grow p-3 text-sm font-semibold">
-                                        Room #{room.code}
-                                    </Link>
-                                    <button
-                                        onClick={() => handleCopyToClipboard(room.code)}
-                                        className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`}
-                                        title="Copy room code" >
-                                        {copiedCode === room.code 
-                                            ? <FiCheck className="text-success animate-scaleIn" /> 
-                                            : <FiCopy className="group-hover:scale-110 transition-transform" />
-                                        }
-                                    </button>
-                                </div>
-                            </li>
-                        );
-                    })}
-                </ul>
-            </nav>
-
-            <div className="mt-auto pt-4 border-t border-card-border">
-                {error && <p className="text-danger text-sm text-center mb-2">{error}</p>}
-                
-                <form onSubmit={handleJoinRoom} className="mb-4">
-                    <input
-                        type="text"
-                        placeholder={t('roomCode')}
-                        value={roomCode}
-                        onChange={(e) => setRoomCode(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg mb-2 themed-input"
-                    />
-                    <button type="submit" className="w-full py-2 rounded-lg btn-primary">
-                        {t('joinRoom')}
+        <>
+            <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
+                <div className="flex items-center justify-between mb-6 px-2">
+                    <h2 className="text-2xl font-bold text-card-foreground">My Rooms</h2>
+                    <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
+                        <FiX size={24} />
                     </button>
-                </form>
-
-                <div className="flex items-center my-2">
-                    <div className="flex-grow border-t border-card-border"></div>
-                    <span className="flex-shrink mx-2 text-xs text-muted-foreground">{t('or')}</span>
-                    <div className="flex-grow border-t border-card-border"></div>
                 </div>
-                
-                <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary mb-4">
-                    {t('createRoom')}
-                </button>
 
-                <div className="space-y-2">
-                    <button
-                        onClick={handleLogout}
-                        className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted"
-                        aria-label="Logout"
-                    >
-                        <FiLogOut size={16} className="me-2"/>
-                        <span className="font-semibold text-xs">{t('logout')}</span>
+                <nav className="flex-grow overflow-y-auto -mx-2 pr-1 animate-fadeIn">
+                    <ul>
+                        {rooms.map((room, index) => {
+                            const isActive = pathname === `/rooms/${room.id}` || pathname.startsWith(`/rooms/${room.id}/`);
+                            return (
+                                <li key={room.id} style={{ animationDelay: `${index * 50}ms`, opacity: 0 }} className="animate-fadeIn px-2">
+                                    <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
+                                        <Link href={`/rooms/${room.id}`} className="flex-grow p-3 text-sm font-semibold truncate">
+                                            Room #{room.code}
+                                        </Link>
+                                        <div className="flex items-center">
+                                            <button
+                                                onClick={() => handleCopyToClipboard(room.code)}
+                                                className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`}
+                                                title="Copy room code" >
+                                                {copiedCode === room.code 
+                                                    ? <FiCheck className="text-success animate-scaleIn" /> 
+                                                    : <FiCopy className="group-hover:scale-110 transition-transform" />
+                                                }
+                                            </button>
+                                            <button
+                                                onClick={() => openLeaveDialog(room)}
+                                                className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`}
+                                                title="Leave room" >
+                                                <FiXCircle className="group-hover:scale-110 transition-transform text-danger" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </nav>
+
+                <div className="mt-auto pt-4 border-t border-card-border">
+                    {error && <p className="text-danger text-sm text-center mb-2">{error}</p>}
+                    
+                    <form onSubmit={handleJoinRoom} className="mb-4">
+                        <input
+                            type="text"
+                            placeholder={t('roomCode')}
+                            value={roomCode}
+                            onChange={(e) => setRoomCode(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg mb-2 themed-input"
+                        />
+                        <button type="submit" className="w-full py-2 rounded-lg btn-primary">
+                            {t('joinRoom')}
+                        </button>
+                    </form>
+
+                    <div className="flex items-center my-2">
+                        <div className="flex-grow border-t border-card-border"></div>
+                        <span className="flex-shrink mx-2 text-xs text-muted-foreground">{t('or')}</span>
+                        <div className="flex-grow border-t border-card-border"></div>
+                    </div>
+                    
+                    <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary mb-4">
+                        {t('createRoom')}
                     </button>
 
-                    <div className="flex items-center justify-center space-x-2">
-                         <button
-                            onClick={toggleTheme}
-                            className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                            aria-label="Toggle theme" >
-                            {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
+                    <div className="space-y-2">
+                        <button
+                            onClick={handleLogout}
+                            className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted"
+                            aria-label="Logout"
+                        >
+                            <FiLogOut size={16} className="me-2"/>
+                            <span className="font-semibold text-xs">{t('logout')}</span>
                         </button>
-                         <button
-                            onClick={cycleLanguage}
-                            className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                            aria-label="Change language" >
-                            <FiGlobe size={16} className="me-1.5"/>
-                            <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
-                        </button>
+
+                        <div className="flex items-center justify-center space-x-2">
+                             <button
+                                onClick={toggleTheme}
+                                className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
+                                aria-label="Toggle theme" >
+                                {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
+                            </button>
+                             <button
+                                onClick={cycleLanguage}
+                                className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
+                                aria-label="Change language" >
+                                <FiGlobe size={16} className="me-1.5"/>
+                                <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </aside>
+            </aside>
+
+            <ConfirmationDialog
+                isOpen={isLeaveDialogOpen}
+                onClose={() => setIsLeaveDialogOpen(false)}
+                onConfirm={handleLeaveRoom}
+                title="Leave Room"
+            >
+                Are you sure you want to leave Room #{selectedRoomToLeave?.code}? 
+                This action cannot be undone. You will need to join again using the room code.
+            </ConfirmationDialog>
+        </>
     );
 }
 

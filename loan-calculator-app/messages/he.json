@@ -23,8 +23,8 @@
     "logout": "התנתקות"
   },
   "Room": {
-    "oweYou": "חייבים לך",
-    "youOwe": "אתה חייב",
+    "balanceTitle": "מאזן",
+    "newEntryTitle": "הוספת רשומה חדשה",
     "detailed": "פירוט",
     "amount": "סכום",
     "description": "תיאור",

@@ -23,8 +23,8 @@
     "logout": "Выйти"
   },
   "Room": {
-    "oweYou": "Вам должны",
-    "youOwe": "Вы должны",
+    "balanceTitle": "Баланс",
+    "newEntryTitle": "Новая запись",
     "detailed": "Подробно",
     "amount": "Сумма",
     "description": "Описание",
