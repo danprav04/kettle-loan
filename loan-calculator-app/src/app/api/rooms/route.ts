@@ -23,7 +23,7 @@ export async function POST(req: Request) {
             if (text) {
               body = JSON.parse(text);
             }
-        } catch (error) {
+        } catch (_error) { // The 'error' variable is intentionally unused.
             // Ignore error if body is empty or invalid
         }
         const { roomCode } = body as { roomCode?: string };
