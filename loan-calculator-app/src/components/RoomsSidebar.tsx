@@ -193,7 +193,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
 
     return (
         <>
-            <aside className="w-80 bg-background border-e border-card-border h-full p-4 flex flex-col">
+            <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
                 <div className="flex items-center justify-between mb-6 px-2">
                     <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
                     <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
