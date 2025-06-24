@@ -46,7 +46,8 @@
     "oweFullAmount": "You will owe the full amount to the group.",
     "roomTitle": "Room #{code}",
     "splitWith": "Share cost with:",
-    "everyone": "Everyone"
+    "everyone": "Everyone",
+    "shareWithMe": "Share with me"
   },
   "Dialog": {
     "cancel": "Cancel",

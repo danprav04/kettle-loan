@@ -4,6 +4,46 @@ JWT_SECRET="your-super-secret-and-long-jwt-key"
 
 ---
 
+--- File: dstabse-tables.sql ---
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    last_ip VARCHAR(255)
+);
+
+CREATE TABLE rooms (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(6) UNIQUE NOT NULL,
+    -- If the creator's user account is deleted, we set this to NULL
+    -- rather than deleting the whole room.
+    creator_id INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE room_members (
+    id SERIAL PRIMARY KEY,
+    -- If a user is deleted, remove them from all rooms.
+    -- If a room is deleted, remove all members from it.
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
+    UNIQUE(user_id, room_id)
+);
+
+CREATE TABLE entries (
+    id SERIAL PRIMARY KEY,
+    -- If a room is deleted, all its financial entries are also deleted.
+    room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
+    -- If a user is deleted, their financial entries are also deleted.
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    amount NUMERIC(10, 2) NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    -- This column stores an array of user IDs with whom an expense is shared.
+    split_with_user_ids JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+---
+
 --- File: next.config.ts ---
 import type { NextConfig } from "next";
 
@@ -166,6 +206,7 @@ export default config
   "Room": {
     "balanceTitle": "Balance",
     "newEntryTitle": "New Entry",
+    "simplifiedNewEntryTitle": "Log a New Loan",
     "detailed": "Detailed",
     "amount": "Amount",
     "description": "Description",
@@ -176,7 +217,9 @@ export default config
     "loan": "I Owe",
     "splitEqually": "This cost will be split equally among all members.",
     "oweFullAmount": "You will owe the full amount to the group.",
-    "roomTitle": "Room #{code}"
+    "roomTitle": "Room #{code}",
+    "splitWith": "Share cost with:",
+    "everyone": "Everyone"
   },
   "Dialog": {
     "cancel": "Cancel",
@@ -184,7 +227,8 @@ export default config
   },
   "Accessibility": {
     "toggleTheme": "Toggle theme",
-    "changeLanguage": "Change language"
+    "changeLanguage": "Change language",
+    "toggleSimplifiedLayout": "Toggle simplified Kettle Mode"
   }
 }
 
@@ -226,6 +270,7 @@ export default config
   "Room": {
     "balanceTitle": "מאזן",
     "newEntryTitle": "הוספת רשומה חדשה",
+    "simplifiedNewEntryTitle": "רישום הלוואה חדשה",
     "detailed": "פירוט",
     "amount": "סכום",
     "description": "תיאור",
@@ -236,7 +281,9 @@ export default config
     "loan": "אני חייב",
     "splitEqually": "העלות תחולק באופן שווה בין כל חברי החדר.",
     "oweFullAmount": "אתה תחוב את הסכום המלא לקבוצה.",
-    "roomTitle": "חדר #{code}"
+    "roomTitle": "חדר #{code}",
+    "splitWith": "חלק את העלות עם:",
+    "everyone": "כולם"
   },
   "Dialog": {
     "cancel": "ביטול",
@@ -244,7 +291,8 @@ export default config
   },
   "Accessibility": {
     "toggleTheme": "שנה ערכת נושא",
-    "changeLanguage": "שנה שפה"
+    "changeLanguage": "שנה שפה",
+    "toggleSimplifiedLayout": "החלף מצב קומקום פשוט"
   }
 }
 
@@ -286,6 +334,7 @@ export default config
   "Room": {
     "balanceTitle": "Баланс",
     "newEntryTitle": "Новая запись",
+    "simplifiedNewEntryTitle": "Записать новый долг",
     "detailed": "Подробно",
     "amount": "Сумма",
     "description": "Описание",
@@ -296,7 +345,9 @@ export default config
     "loan": "Я должен",
     "splitEqually": "Эта стоимость будет разделена поровну между всеми участниками комнаты.",
     "oweFullAmount": "Вы будете должны полную сумму группе.",
-    "roomTitle": "Комната #{code}"
+    "roomTitle": "Комната #{code}",
+    "splitWith": "Разделить стоимость с:",
+    "everyone": "Все"
   },
   "Dialog": {
     "cancel": "Отмена",
@@ -304,7 +355,8 @@ export default config
   },
   "Accessibility": {
     "toggleTheme": "Переключить тему",
-    "changeLanguage": "Сменить язык"
+    "changeLanguage": "Сменить язык",
+    "toggleSimplifiedLayout": "Переключить упрощенный режим"
   }
 }
 
@@ -472,6 +524,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import IntlProvider from "@/components/IntlProvider";
 import ThemeProvider from "@/components/ThemeProvider";
+import SimplifiedLayoutProvider from "@/components/SimplifiedLayoutProvider";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -491,7 +544,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <IntlProvider>
-            <main>{children}</main>
+            <SimplifiedLayoutProvider>
+              <main>{children}</main>
+            </SimplifiedLayoutProvider>
           </IntlProvider>
         </ThemeProvider>
       </body>
@@ -684,9 +739,16 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const { roomId, amount, description } = await req.json();
+        const { roomId, amount, description, splitWithUserIds } = await req.json();
 
-        await db.query('INSERT INTO entries (room_id, user_id, amount, description) VALUES ($1, $2, $3, $4)', [roomId, user.userId, amount, description]);
+        // For expenses, splitWithUserIds can be an array of user IDs.
+        // For loans, it will be null.
+        const finalSplitWith = Array.isArray(splitWithUserIds) ? splitWithUserIds : null;
+
+        await db.query(
+            'INSERT INTO entries (room_id, user_id, amount, description, split_with_user_ids) VALUES ($1, $2, $3, $4, $5)',
+            [roomId, user.userId, amount, description, finalSplitWith]
+        );
 
         return NextResponse.json({ message: 'Entry added successfully' });
     } catch (error) {
@@ -805,10 +867,20 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
+// Define an interface for the database entry for better type safety
+interface DbEntry {
+    id: number;
+    room_id: number;
+    user_id: number;
+    amount: string;
+    description: string;
+    created_at: string;
+    username: string;
+    split_with_user_ids: number[] | null;
+}
+
 export async function GET(req: Request) {
     try {
-        // Workaround for the Next.js 15.3.4 params issue:
-        // Manually parse the roomId from the request URL.
         const url = new URL(req.url);
         const pathnameParts = url.pathname.split('/');
         const roomId = pathnameParts[pathnameParts.length - 1];
@@ -819,15 +891,12 @@ export async function GET(req: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if the user is a member of the room
         const memberCheckResult = await db.query(
             'SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2',
             [roomId, user.userId]
         );
 
         if (memberCheckResult.rows.length === 0) {
-            // If user is not a member, deny access.
-            // Returning 404 to not leak information about room existence.
             return NextResponse.json({ message: 'Room not found' }, { status: 404 });
         }
         
@@ -838,7 +907,7 @@ export async function GET(req: Request) {
         const roomCode = roomResult.rows[0].code;
 
         const entriesResult = await db.query(
-            'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at DESC',
+            'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at ASC',
             [roomId]
         );
 
@@ -846,56 +915,63 @@ export async function GET(req: Request) {
             'SELECT u.id, u.username FROM users u JOIN room_members rm ON u.id = rm.user_id WHERE rm.room_id = $1',
             [roomId]
         );
-
-        if (membersResult.rows.length === 0) {
+        
+        const members: { id: number; username: string }[] = membersResult.rows;
+        if (members.length === 0) {
            return NextResponse.json({ message: 'No members in room or room does not exist' }, { status: 404 });
         }
         
-        const members = membersResult.rows;
-        const numMembers = members.length;
         const finalBalances: { [key: string]: number } = {};
         members.forEach(member => {
             finalBalances[member.id] = 0;
         });
 
-        // 1. Process expenses (amount > 0)
-        const expenses = entriesResult.rows.filter(e => parseFloat(e.amount) > 0);
-        const totalExpense = expenses.reduce((acc, entry) => acc + parseFloat(entry.amount), 0);
-        const averageExpenseShare = numMembers > 0 ? totalExpense / numMembers : 0;
+        const entries: DbEntry[] = entriesResult.rows;
 
-        members.forEach(member => {
-            const memberExpensesPaid = expenses
-                .filter(e => e.user_id === member.id)
-                .reduce((acc, entry) => acc + parseFloat(entry.amount), 0);
-            finalBalances[member.id] += (memberExpensesPaid - averageExpenseShare);
+        // Recalculate balances from all entries
+        entries.forEach(entry => {
+            const amount = parseFloat(entry.amount);
+            const payerId = entry.user_id;
+
+            if (amount > 0) { // This is an Expense
+                // If split_with_user_ids is null (older entry), it's split with all members.
+                // Otherwise, it's split with the IDs in the list.
+                const otherParticipantIds = entry.split_with_user_ids === null
+                    ? members.map(m => m.id).filter(id => id !== payerId)
+                    : entry.split_with_user_ids;
+
+                const allParticipantIds = [...new Set([payerId, ...otherParticipantIds])];
+                const numParticipants = allParticipantIds.length;
+
+                if (numParticipants > 0) {
+                    const share = amount / numParticipants;
+                    // The payer gets the money back, less their own share.
+                    finalBalances[payerId] += (amount - share);
+                    // Other participants' balances go down by their share.
+                    otherParticipantIds.forEach(participantId => {
+                        if (finalBalances[participantId] !== undefined) {
+                            finalBalances[participantId] -= share;
+                        }
+                    });
+                }
+            } else if (amount < 0) { // This is a Loan
+                const loanAmount = Math.abs(amount);
+                const borrowerId = payerId;
+                
+                // Borrower's balance goes down by the full loan amount.
+                finalBalances[borrowerId] -= loanAmount;
+
+                // The loan is funded equally by all other members.
+                const lenders = members.filter(m => m.id !== borrowerId);
+                if (lenders.length > 0) {
+                    const creditPerLender = loanAmount / lenders.length;
+                    lenders.forEach(lender => {
+                        finalBalances[lender.id] += creditPerLender;
+                    });
+                }
+            }
         });
 
-        // 2. Process loans (amount < 0)
-        const loans = entriesResult.rows.filter(e => parseFloat(e.amount) < 0);
-        if (numMembers > 1) {
-            loans.forEach(loan => {
-                const loanAmount = parseFloat(loan.amount); // This is negative
-                const borrowerId = loan.user_id;
-                
-                // Borrower's balance decreases by the loan amount
-                finalBalances[borrowerId] += loanAmount;
-
-                // Other members' balances increase as they are the lenders
-                const creditPerLender = Math.abs(loanAmount) / (numMembers - 1);
-                members.forEach(member => {
-                    if (member.id !== borrowerId) {
-                        finalBalances[member.id] += creditPerLender;
-                    }
-                });
-            });
-        } else {
-             // If only one member, loans are a direct deduction from their balance.
-             loans.forEach(loan => {
-                const loanAmount = parseFloat(loan.amount);
-                const borrowerId = loan.user_id;
-                finalBalances[borrowerId] += loanAmount;
-            });
-        }
 
         // Prepare response object
         const currentUserBalance = finalBalances[user.userId] || 0;
@@ -906,11 +982,15 @@ export async function GET(req: Request) {
             }
         });
 
+        const reversedEntries = entries.reverse();
+
         return NextResponse.json({
             code: roomCode,
-            entries: entriesResult.rows,
+            entries: reversedEntries,
             balances: otherUserBalances,
-            currentUserBalance
+            currentUserBalance,
+            members, // Send full member list to the client
+            currentUserId: user.userId // Send the current user's ID
         });
     } catch (error) {
         console.error(error);
@@ -1176,24 +1256,37 @@ export default function RoomsPage() {
 --- File: src/app/rooms/[roomId]/page.tsx ---
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import { FiArrowDown } from 'react-icons/fi';
+
+interface Member {
+    id: number;
+    username: string;
+}
 
 export default function RoomPage() {
     const params = useParams<{ roomId: string }>();
     const { roomId } = params;
     const t = useTranslations('Room');
+    const { isSimplified } = useSimplifiedLayout();
+
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [balance, setBalance] = useState(0);
     const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
     const [showDetails, setShowDetails] = useState(false);
     const [roomCode, setRoomCode] = useState('');
+    const [members, setMembers] = useState<Member[]>([]);
+    const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+    const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const router = useRouter();
-    // Initialize state to null to prevent rendering on the server and before client-side hydration.
-    const [entryType, setEntryType] = useState<'expense' | 'loan' | null>(null);
+    
+    const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
+
+    const otherMembers = useMemo(() => members.filter(m => m.id !== currentUserId), [members, currentUserId]);
 
     const fetchData = useCallback(async () => {
         const token = localStorage.getItem('token');
@@ -1205,10 +1298,14 @@ export default function RoomPage() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
-            const { currentUserBalance, balances, code } = await res.json();
+            const { currentUserBalance, balances, code, members, currentUserId } = await res.json();
             setBalance(currentUserBalance || 0);
             setDetailedBalance(balances || {});
             setRoomCode(code || '');
+            setMembers(members || []);
+            setCurrentUserId(currentUserId || null);
+            // Default to selecting all other members for an expense
+            setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
         } else if (res.status === 401) {
             router.push('/');
         }
@@ -1218,14 +1315,17 @@ export default function RoomPage() {
         fetchData();
     }, [fetchData]);
 
-    // This effect runs once on the client to hydrate the entryType state from localStorage.
     useEffect(() => {
-        const savedEntryType = localStorage.getItem('entryType') as 'expense' | 'loan';
-        // Set state from localStorage, or default to 'expense' if no value is saved.
-        setEntryType(savedEntryType && ['expense', 'loan'].includes(savedEntryType) ? savedEntryType : 'expense');
-    }, []);
+        if (isSimplified) {
+            setEntryType('loan');
+        } else {
+            const savedEntryType = localStorage.getItem('entryType') as 'expense' | 'loan';
+            setEntryType(savedEntryType && ['expense', 'loan'].includes(savedEntryType) ? savedEntryType : 'expense');
+        }
+    }, [isSimplified]);
 
     const handleSetEntryType = (type: 'expense' | 'loan') => {
+        if (isSimplified) return;
         setEntryType(type);
         localStorage.setItem('entryType', type);
     };
@@ -1234,11 +1334,10 @@ export default function RoomPage() {
         e.preventDefault();
         const token = localStorage.getItem('token');
         const parsedAmount = Math.abs(parseFloat(amount));
-        if (isNaN(parsedAmount) || parsedAmount <= 0) {
-            return; 
-        }
+        if (isNaN(parsedAmount) || parsedAmount <= 0) return;
 
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
+        const splitWithUserIds = entryType === 'expense' ? Array.from(selectedMemberIds) : null;
 
         await fetch('/api/entries', {
             method: 'POST',
@@ -1246,13 +1345,32 @@ export default function RoomPage() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ roomId, amount: finalAmount, description }),
+            body: JSON.stringify({ roomId, amount: finalAmount, description, splitWithUserIds }),
         });
         setAmount('');
         setDescription('');
         fetchData(); // Refetch data
     };
 
+    const handleMemberSelection = (memberId: number) => {
+        const newSelection = new Set(selectedMemberIds);
+        if (newSelection.has(memberId)) {
+            newSelection.delete(memberId);
+        } else {
+            newSelection.add(memberId);
+        }
+        setSelectedMemberIds(newSelection);
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedMemberIds(new Set(otherMembers.map(m => m.id)));
+        } else {
+            setSelectedMemberIds(new Set());
+        }
+    };
+    
+    const isAllSelected = otherMembers.length > 0 && selectedMemberIds.size === otherMembers.length;
 
     return (
         <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
@@ -1263,7 +1381,6 @@ export default function RoomPage() {
                     </h1>
                 </div>
 
-                {/* Balance Section */}
                 <div className="text-center mb-6">
                     <div className="text-lg font-medium text-muted-foreground">{t('balanceTitle')}</div>
                     <div className={`text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
@@ -1286,73 +1403,57 @@ export default function RoomPage() {
 
                 <div className="border-t border-card-border my-6"></div>
 
-                {/* New Entry Form Section */}
                 <div>
-                    <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">{t('newEntryTitle')}</h2>
+                    <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">
+                        {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
+                    </h2>
                     <form onSubmit={handleAddEntry}>
-                        {/* High-Contrast Entry Type Toggle */}
-                        <div className="mb-6">
-                            {entryType !== null ? (
+                        {!isSimplified && (
+                            <div className="mb-6">
                                 <div className="relative flex w-full rounded-full bg-muted p-1">
                                     <span
-                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out border-2 border-black dark:border-white
-                                            ${entryType === 'expense' ? 'bg-primary' : 'bg-success'}`
-                                        }
+                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out border-2 border-black dark:border-white ${entryType === 'expense' ? 'bg-primary' : 'bg-success'}`}
                                         style={{ left: entryType === 'loan' ? '50%' : '4px' }}
                                     />
-                                    <button
-                                        type="button"
-                                        onClick={() => handleSetEntryType('expense')}
-                                        className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300
-                                            ${entryType === 'expense' ? 'text-primary-foreground' : 'text-foreground'}`
-                                        }
-                                    >
+                                    <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 ${entryType === 'expense' ? 'text-primary-foreground' : 'text-foreground'}`}>
                                         {t('expense')}
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleSetEntryType('loan')}
-                                        className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300
-                                            ${entryType === 'loan' ? 'text-secondary-foreground' : 'text-foreground'}`
-                                        }
-                                    >
+                                    <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 ${entryType === 'loan' ? 'text-secondary-foreground' : 'text-foreground'}`}>
                                         {t('loan')}
                                     </button>
                                 </div>
-                            ) : (
-                                <div className="h-[44px] w-full rounded-full bg-muted" />
-                            )}
-                             {entryType && (
-                                <p className="text-center text-xs text-muted-foreground mt-2 h-8 flex items-center justify-center px-2 animate-fadeIn">
-                                    {entryType === 'expense' ? t('splitEqually') : t('oweFullAmount')}
-                                </p>
-                            )}
-                        </div>
+                            </div>
+                        )}
                         <div className="mb-4">
                             <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
-                            <input
-                                id="amount"
-                                type="number"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                className="w-full px-3 py-2 leading-tight rounded-lg themed-input"
-                                required
-                                min="0"
-                                step="any"
-                            />
+                            <input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required min="0" step="any" />
                         </div>
-                        <div className="mb-6">
+                        <div className="mb-4">
                             <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
-                            <input
-                                id="description"
-                                type="text"
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                className="w-full px-3 py-2 mb-3 leading-tight rounded-lg themed-input"
-                                required
-                            />
+                            <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required />
                         </div>
-                        <div className="flex items-center justify-between">
+
+                        {entryType === 'expense' && !isSimplified && otherMembers.length > 0 && (
+                            <div className="mb-6 bg-muted/50 p-3 rounded-lg animate-fadeIn">
+                                <label className="block text-muted-foreground text-sm font-bold mb-2">{t('splitWith')}</label>
+                                {otherMembers.length > 1 && (
+                                    <div className="flex items-center ps-1 pb-2 border-b border-card-border mb-2">
+                                        <input id="select-all" type="checkbox" checked={isAllSelected} onChange={(e) => handleSelectAll(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                                        <label htmlFor="select-all" className="ms-2 block text-sm font-medium text-foreground">{t('everyone')}</label>
+                                    </div>
+                                )}
+                                <div className="space-y-2 max-h-32 overflow-y-auto px-1">
+                                    {otherMembers.map(member => (
+                                        <div key={member.id} className="flex items-center">
+                                            <input id={`member-${member.id}`} name="members" type="checkbox" checked={selectedMemberIds.has(member.id)} onChange={() => handleMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                                            <label htmlFor={`member-${member.id}`} className="ms-2 block text-sm text-foreground">{member.username}</label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex items-center justify-between mt-6">
                             <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary">
                                 {t('addEntry')}
                             </button>
@@ -1652,9 +1753,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiCoffee } from 'react-icons/fi';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
+import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import ConfirmationDialog from './ConfirmationDialog';
 
 interface Room {
@@ -1677,8 +1779,8 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
+    const { isSimplified, setIsSimplified } = useSimplifiedLayout();
 
-    // State for the leave room confirmation dialog
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
 
@@ -1773,10 +1875,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         const token = localStorage.getItem('token');
         const res = await fetch('/api/rooms', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({}),
         });
 
@@ -1808,18 +1907,15 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         const token = localStorage.getItem('token');
         const res = await fetch(`/api/rooms/${selectedRoomToLeave.id}/members`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
         });
 
         if (res.ok) {
             setIsLeaveDialogOpen(false);
-            // If the user is currently in the room they just left, navigate to the base rooms page.
             if (pathname.includes(`/rooms/${selectedRoomToLeave.id}`)) {
                 router.push('/rooms');
             }
-            fetchRooms(); // Refresh the room list
+            fetchRooms();
         } else {
             const { message } = await res.json();
             setError(message || t('leaveRoomFailed'));
@@ -1828,16 +1924,16 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         setSelectedRoomToLeave(null);
     };
 
-    const toggleTheme = () => {
-        setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
-    };
+    const toggleTheme = () => setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
     
     const cycleLanguage = () => {
         const languages = ['en', 'ru', 'he'];
         const currentIndex = languages.indexOf(locale);
         const nextIndex = (currentIndex + 1) % languages.length;
         setLocale(languages[nextIndex]);
-    }
+    };
+
+    const toggleSimplifiedLayout = () => setIsSimplified(prev => !prev);
 
     return (
         <>
@@ -1860,19 +1956,10 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                                             Room #{room.code}
                                         </Link>
                                         <div className="flex items-center">
-                                            <button
-                                                onClick={() => handleCopyToClipboard(room.code)}
-                                                className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`}
-                                                title={t('copyRoomCode')} >
-                                                {copiedCode === room.code 
-                                                    ? <FiCheck className="text-success animate-scaleIn" /> 
-                                                    : <FiCopy className="group-hover:scale-110 transition-transform" />
-                                                }
+                                            <button onClick={() => handleCopyToClipboard(room.code)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('copyRoomCode')} >
+                                                {copiedCode === room.code ? <FiCheck className="text-success animate-scaleIn" /> : <FiCopy className="group-hover:scale-110 transition-transform" />}
                                             </button>
-                                            <button
-                                                onClick={() => openLeaveDialog(room)}
-                                                className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`}
-                                                title={t('leaveRoom')} >
+                                            <button onClick={() => openLeaveDialog(room)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('leaveRoom')} >
                                                 <FiXCircle className="group-hover:scale-110 transition-transform text-danger" />
                                             </button>
                                         </div>
@@ -1887,16 +1974,8 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                     {error && <p className="text-danger text-sm text-center mb-2">{error}</p>}
                     
                     <form onSubmit={handleJoinRoom} className="mb-4">
-                        <input
-                            type="text"
-                            placeholder={t('roomCode')}
-                            value={roomCode}
-                            onChange={(e) => setRoomCode(e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg mb-2 themed-input"
-                        />
-                        <button type="submit" className="w-full py-2 rounded-lg btn-primary">
-                            {t('joinRoom')}
-                        </button>
+                        <input type="text" placeholder={t('roomCode')} value={roomCode} onChange={(e) => setRoomCode(e.target.value)} className="w-full px-3 py-2 rounded-lg mb-2 themed-input" />
+                        <button type="submit" className="w-full py-2 rounded-lg btn-primary">{t('joinRoom')}</button>
                     </form>
 
                     <div className="flex items-center my-2">
@@ -1905,49 +1984,83 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                         <div className="flex-grow border-t border-card-border"></div>
                     </div>
                     
-                    <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary mb-4">
-                        {t('createRoom')}
-                    </button>
+                    <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary mb-4">{t('createRoom')}</button>
 
                     <div className="space-y-2">
-                        <button
-                            onClick={handleLogout}
-                            className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted"
-                            aria-label={t('logout')}
-                        >
+                        <button onClick={handleLogout} className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted" aria-label={t('logout')}>
                             <FiLogOut size={16} className="me-2"/>
                             <span className="font-semibold text-xs">{t('logout')}</span>
                         </button>
 
                         <div className="flex items-center justify-center space-x-2">
-                             <button
-                                onClick={toggleTheme}
-                                className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                                aria-label={tAccess('toggleTheme')} >
+                             <button onClick={toggleTheme} className="flex items-center justify-center w-full p-2 rounded-md btn-muted" aria-label={tAccess('toggleTheme')} >
                                 {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
                             </button>
-                             <button
-                                onClick={cycleLanguage}
-                                className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                                aria-label={tAccess('changeLanguage')} >
+                             <button onClick={cycleLanguage} className="flex items-center justify-center w-full p-2 rounded-md btn-muted" aria-label={tAccess('changeLanguage')} >
                                 <FiGlobe size={16} className="me-1.5"/>
                                 <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
+                            </button>
+                             <button onClick={toggleSimplifiedLayout} className={`flex items-center justify-center w-full p-2 rounded-md btn-muted transition-colors ${isSimplified ? 'text-primary' : ''}`} aria-label={tAccess('toggleSimplifiedLayout')} >
+                                <FiCoffee size={16} />
                             </button>
                         </div>
                     </div>
                 </div>
             </aside>
 
-            <ConfirmationDialog
-                isOpen={isLeaveDialogOpen}
-                onClose={() => setIsLeaveDialogOpen(false)}
-                onConfirm={handleLeaveRoom}
-                title={t('leaveRoomTitle')}
-            >
+            <ConfirmationDialog isOpen={isLeaveDialogOpen} onClose={() => setIsLeaveDialogOpen(false)} onConfirm={handleLeaveRoom} title={t('leaveRoomTitle')}>
                 {t('leaveRoomConfirmation', { code: selectedRoomToLeave?.code ?? '' })}
             </ConfirmationDialog>
         </>
     );
+}
+
+---
+
+--- File: src/components/SimplifiedLayoutProvider.tsx ---
+// src/components/SimplifiedLayoutProvider.tsx
+"use client";
+
+import { createContext, useContext, useEffect, useState, ReactNode, Dispatch, SetStateAction } from 'react';
+
+type SimplifiedLayout = boolean;
+
+interface SimplifiedLayoutContextType {
+  isSimplified: SimplifiedLayout;
+  setIsSimplified: Dispatch<SetStateAction<SimplifiedLayout>>;
+}
+
+const SimplifiedLayoutContext = createContext<SimplifiedLayoutContextType | undefined>(undefined);
+
+export default function SimplifiedLayoutProvider({ children }: { children: ReactNode }) {
+  const [isSimplified, setIsSimplified] = useState<SimplifiedLayout>(false);
+
+  // On initial client-side render, load the state from localStorage
+  useEffect(() => {
+    const storedValue = localStorage.getItem('simplifiedLayout');
+    if (storedValue) {
+      setIsSimplified(JSON.parse(storedValue));
+    }
+  }, []);
+
+  // When state changes, update localStorage
+  useEffect(() => {
+    localStorage.setItem('simplifiedLayout', JSON.stringify(isSimplified));
+  }, [isSimplified]);
+
+  return (
+    <SimplifiedLayoutContext.Provider value={{ isSimplified, setIsSimplified }}>
+      {children}
+    </SimplifiedLayoutContext.Provider>
+  );
+}
+
+export function useSimplifiedLayout() {
+  const context = useContext(SimplifiedLayoutContext);
+  if (context === undefined) {
+    throw new Error('useSimplifiedLayout must be used within a SimplifiedLayoutProvider');
+  }
+  return context;
 }
 
 ---

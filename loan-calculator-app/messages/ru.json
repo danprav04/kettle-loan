@@ -46,7 +46,8 @@
     "oweFullAmount": "Вы будете должны полную сумму группе.",
     "roomTitle": "Комната #{code}",
     "splitWith": "Разделить стоимость с:",
-    "everyone": "Все"
+    "everyone": "Все",
+    "shareWithMe": "Поделиться со мной"
   },
   "Dialog": {
     "cancel": "Отмена",

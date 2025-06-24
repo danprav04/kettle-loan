@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
-// Define an interface for the database entry for better type safety
 interface DbEntry {
     id: number;
     room_id: number;
@@ -63,27 +62,33 @@ export async function GET(req: Request) {
 
         const entries: DbEntry[] = entriesResult.rows;
 
-        // Recalculate balances from all entries
         entries.forEach(entry => {
             const amount = parseFloat(entry.amount);
             const payerId = entry.user_id;
 
             if (amount > 0) { // This is an Expense
-                // If split_with_user_ids is null (older entry), it's split with all members.
-                // Otherwise, it's split with the IDs in the list.
-                const otherParticipantIds = entry.split_with_user_ids === null
-                    ? members.map(m => m.id).filter(id => id !== payerId)
-                    : entry.split_with_user_ids;
+                const participants = entry.split_with_user_ids;
 
-                const allParticipantIds = [...new Set([payerId, ...otherParticipantIds])];
-                const numParticipants = allParticipantIds.length;
-
-                if (numParticipants > 0) {
+                // If participants list is null/empty (legacy or error), default to splitting among everyone
+                if (!participants || participants.length === 0) {
+                    const share = amount / members.length;
+                    members.forEach(member => {
+                        if (member.id === payerId) {
+                            finalBalances[member.id] += (amount - share);
+                        } else {
+                            finalBalances[member.id] -= share;
+                        }
+                    });
+                } else {
+                    // New logic: Split only among the specified participants
+                    const numParticipants = participants.length;
                     const share = amount / numParticipants;
-                    // The payer gets the money back, less their own share.
-                    finalBalances[payerId] += (amount - share);
-                    // Other participants' balances go down by their share.
-                    otherParticipantIds.forEach(participantId => {
+
+                    // The payer is always credited the full amount they paid.
+                    finalBalances[payerId] += amount;
+
+                    // Each participant (which may or may not include the payer) is debited their share.
+                    participants.forEach(participantId => {
                         if (finalBalances[participantId] !== undefined) {
                             finalBalances[participantId] -= share;
                         }
@@ -93,10 +98,8 @@ export async function GET(req: Request) {
                 const loanAmount = Math.abs(amount);
                 const borrowerId = payerId;
                 
-                // Borrower's balance goes down by the full loan amount.
                 finalBalances[borrowerId] -= loanAmount;
 
-                // The loan is funded equally by all other members.
                 const lenders = members.filter(m => m.id !== borrowerId);
                 if (lenders.length > 0) {
                     const creditPerLender = loanAmount / lenders.length;
@@ -124,8 +127,8 @@ export async function GET(req: Request) {
             entries: reversedEntries,
             balances: otherUserBalances,
             currentUserBalance,
-            members, // Send full member list to the client
-            currentUserId: user.userId // Send the current user's ID
+            members,
+            currentUserId: user.userId
         });
     } catch (error) {
         console.error(error);

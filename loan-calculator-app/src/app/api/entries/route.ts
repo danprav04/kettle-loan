@@ -12,9 +12,10 @@ export async function POST(req: Request) {
 
         const { roomId, amount, description, splitWithUserIds } = await req.json();
 
-        // For expenses, splitWithUserIds can be an array of user IDs.
+        // For expenses, splitWithUserIds will be an array of user IDs.
+        // We must manually stringify it for the JSONB column.
         // For loans, it will be null.
-        const finalSplitWith = Array.isArray(splitWithUserIds) ? splitWithUserIds : null;
+        const finalSplitWith = Array.isArray(splitWithUserIds) ? JSON.stringify(splitWithUserIds) : null;
 
         await db.query(
             'INSERT INTO entries (room_id, user_id, amount, description, split_with_user_ids) VALUES ($1, $2, $3, $4, $5)',

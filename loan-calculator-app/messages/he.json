@@ -46,7 +46,8 @@
     "oweFullAmount": "אתה תחוב את הסכום המלא לקבוצה.",
     "roomTitle": "חדר #{code}",
     "splitWith": "חלק את העלות עם:",
-    "everyone": "כולם"
+    "everyone": "כולם",
+    "shareWithMe": "שתף איתי"
   },
   "Dialog": {
     "cancel": "ביטול",

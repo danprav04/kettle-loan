@@ -26,6 +26,7 @@ export default function RoomPage() {
     const [members, setMembers] = useState<Member[]>([]);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
+    const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
     const router = useRouter();
     
     const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
@@ -50,6 +51,7 @@ export default function RoomPage() {
             setCurrentUserId(currentUserId || null);
             // Default to selecting all other members for an expense
             setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
+            setIncludeSelfInSplit(true);
         } else if (res.status === 401) {
             router.push('/');
         }
@@ -80,16 +82,28 @@ export default function RoomPage() {
         const parsedAmount = Math.abs(parseFloat(amount));
         if (isNaN(parsedAmount) || parsedAmount <= 0) return;
 
+        let finalSplitWithIds: number[] | null = null;
+        if (entryType === 'expense') {
+            const participants = new Set(selectedMemberIds);
+            if (includeSelfInSplit && currentUserId) {
+                participants.add(currentUserId);
+            }
+            // If no one is selected and the payer doesn't include themselves, it's an invalid state.
+            // However, we prevent this by disabling the button below.
+            if (participants.size > 0) {
+                finalSplitWithIds = Array.from(participants);
+            }
+        }
+        
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
-        const splitWithUserIds = entryType === 'expense' ? Array.from(selectedMemberIds) : null;
-
+        
         await fetch('/api/entries', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ roomId, amount: finalAmount, description, splitWithUserIds }),
+            body: JSON.stringify({ roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds }),
         });
         setAmount('');
         setDescription('');
@@ -105,16 +119,8 @@ export default function RoomPage() {
         }
         setSelectedMemberIds(newSelection);
     };
-
-    const handleSelectAll = (checked: boolean) => {
-        if (checked) {
-            setSelectedMemberIds(new Set(otherMembers.map(m => m.id)));
-        } else {
-            setSelectedMemberIds(new Set());
-        }
-    };
     
-    const isAllSelected = otherMembers.length > 0 && selectedMemberIds.size === otherMembers.length;
+    const isSubmitDisabled = entryType === 'expense' && !includeSelfInSplit && selectedMemberIds.size === 0;
 
     return (
         <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
@@ -179,13 +185,13 @@ export default function RoomPage() {
 
                         {entryType === 'expense' && !isSimplified && otherMembers.length > 0 && (
                             <div className="mb-6 bg-muted/50 p-3 rounded-lg animate-fadeIn">
-                                <label className="block text-muted-foreground text-sm font-bold mb-2">{t('splitWith')}</label>
-                                {otherMembers.length > 1 && (
-                                    <div className="flex items-center ps-1 pb-2 border-b border-card-border mb-2">
-                                        <input id="select-all" type="checkbox" checked={isAllSelected} onChange={(e) => handleSelectAll(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
-                                        <label htmlFor="select-all" className="ms-2 block text-sm font-medium text-foreground">{t('everyone')}</label>
-                                    </div>
-                                )}
+                                <div className="flex justify-between items-center pb-2 border-b border-card-border mb-2">
+                                     <label className="block text-muted-foreground text-sm font-bold">{t('splitWith')}</label>
+                                     <div className="flex items-center">
+                                         <input id="share-with-me" type="checkbox" checked={includeSelfInSplit} onChange={(e) => setIncludeSelfInSplit(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                                         <label htmlFor="share-with-me" className="ms-2 block text-sm font-medium text-foreground">{t('shareWithMe')}</label>
+                                     </div>
+                                </div>
                                 <div className="space-y-2 max-h-32 overflow-y-auto px-1">
                                     {otherMembers.map(member => (
                                         <div key={member.id} className="flex items-center">
@@ -198,7 +204,7 @@ export default function RoomPage() {
                         )}
 
                         <div className="flex items-center justify-between mt-6">
-                            <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary">
+                            <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}>
                                 {t('addEntry')}
                             </button>
                             <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted">
