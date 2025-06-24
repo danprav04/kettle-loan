@@ -34,7 +34,7 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
                     isSidebarOpen ? "translate-x-0" : "-translate-x-full"
                 }`}
                 style={{
-                    backgroundColor: 'var(--card)'
+                    backgroundColor: 'var(--background)'
                 }}
             >
                 <RoomsSidebar closeSidebar={() => setIsSidebarOpen(false)} />
