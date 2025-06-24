@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiCoffee } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle } from 'react-icons/fi';
+import Icon from '@mdi/react';
+import { mdiKettle } from '@mdi/js';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
@@ -252,7 +254,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                                 <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
                             </button>
                              <button onClick={toggleSimplifiedLayout} className={`flex items-center justify-center w-full p-2 rounded-md btn-muted transition-colors ${isSimplified ? 'text-primary' : ''}`} aria-label={tAccess('toggleSimplifiedLayout')} >
-                                <FiCoffee size={16} />
+                                 <Icon path={mdiKettle} size={0.75} />
                             </button>
                         </div>
                     </div>

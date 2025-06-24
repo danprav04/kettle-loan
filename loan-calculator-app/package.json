@@ -10,6 +10,8 @@
     "build:local": "env-cmd -f .env.local next build"
   },
   "dependencies": {
+    "@mdi/js": "^7.4.47",
+    "@mdi/react": "^1.6.1",
     "bcryptjs": "^3.0.2",
     "i18next": "^25.2.1",
     "jsonwebtoken": "^9.0.2",
