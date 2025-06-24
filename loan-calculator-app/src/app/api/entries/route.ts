@@ -10,9 +10,16 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const { roomId, amount, description } = await req.json();
+        const { roomId, amount, description, splitWithUserIds } = await req.json();
 
-        await db.query('INSERT INTO entries (room_id, user_id, amount, description) VALUES ($1, $2, $3, $4)', [roomId, user.userId, amount, description]);
+        // For expenses, splitWithUserIds can be an array of user IDs.
+        // For loans, it will be null.
+        const finalSplitWith = Array.isArray(splitWithUserIds) ? splitWithUserIds : null;
+
+        await db.query(
+            'INSERT INTO entries (room_id, user_id, amount, description, split_with_user_ids) VALUES ($1, $2, $3, $4, $5)',
+            [roomId, user.userId, amount, description, finalSplitWith]
+        );
 
         return NextResponse.json({ message: 'Entry added successfully' });
     } catch (error) {

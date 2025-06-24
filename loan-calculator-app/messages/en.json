@@ -33,6 +33,7 @@
   "Room": {
     "balanceTitle": "Balance",
     "newEntryTitle": "New Entry",
+    "simplifiedNewEntryTitle": "Log a New Loan",
     "detailed": "Detailed",
     "amount": "Amount",
     "description": "Description",
@@ -43,7 +44,9 @@
     "loan": "I Owe",
     "splitEqually": "This cost will be split equally among all members.",
     "oweFullAmount": "You will owe the full amount to the group.",
-    "roomTitle": "Room #{code}"
+    "roomTitle": "Room #{code}",
+    "splitWith": "Share cost with:",
+    "everyone": "Everyone"
   },
   "Dialog": {
     "cancel": "Cancel",
@@ -51,6 +54,7 @@
   },
   "Accessibility": {
     "toggleTheme": "Toggle theme",
-    "changeLanguage": "Change language"
+    "changeLanguage": "Change language",
+    "toggleSimplifiedLayout": "Toggle simplified Kettle Mode"
   }
 }

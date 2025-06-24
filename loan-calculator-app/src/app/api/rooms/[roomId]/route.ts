@@ -2,10 +2,20 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
+// Define an interface for the database entry for better type safety
+interface DbEntry {
+    id: number;
+    room_id: number;
+    user_id: number;
+    amount: string;
+    description: string;
+    created_at: string;
+    username: string;
+    split_with_user_ids: number[] | null;
+}
+
 export async function GET(req: Request) {
     try {
-        // Workaround for the Next.js 15.3.4 params issue:
-        // Manually parse the roomId from the request URL.
         const url = new URL(req.url);
         const pathnameParts = url.pathname.split('/');
         const roomId = pathnameParts[pathnameParts.length - 1];
@@ -16,15 +26,12 @@ export async function GET(req: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if the user is a member of the room
         const memberCheckResult = await db.query(
             'SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2',
             [roomId, user.userId]
         );
 
         if (memberCheckResult.rows.length === 0) {
-            // If user is not a member, deny access.
-            // Returning 404 to not leak information about room existence.
             return NextResponse.json({ message: 'Room not found' }, { status: 404 });
         }
         
@@ -35,7 +42,7 @@ export async function GET(req: Request) {
         const roomCode = roomResult.rows[0].code;
 
         const entriesResult = await db.query(
-            'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at DESC',
+            'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at ASC',
             [roomId]
         );
 
@@ -43,56 +50,63 @@ export async function GET(req: Request) {
             'SELECT u.id, u.username FROM users u JOIN room_members rm ON u.id = rm.user_id WHERE rm.room_id = $1',
             [roomId]
         );
-
-        if (membersResult.rows.length === 0) {
+        
+        const members: { id: number; username: string }[] = membersResult.rows;
+        if (members.length === 0) {
            return NextResponse.json({ message: 'No members in room or room does not exist' }, { status: 404 });
         }
         
-        const members = membersResult.rows;
-        const numMembers = members.length;
         const finalBalances: { [key: string]: number } = {};
         members.forEach(member => {
             finalBalances[member.id] = 0;
         });
 
-        // 1. Process expenses (amount > 0)
-        const expenses = entriesResult.rows.filter(e => parseFloat(e.amount) > 0);
-        const totalExpense = expenses.reduce((acc, entry) => acc + parseFloat(entry.amount), 0);
-        const averageExpenseShare = numMembers > 0 ? totalExpense / numMembers : 0;
+        const entries: DbEntry[] = entriesResult.rows;
 
-        members.forEach(member => {
-            const memberExpensesPaid = expenses
-                .filter(e => e.user_id === member.id)
-                .reduce((acc, entry) => acc + parseFloat(entry.amount), 0);
-            finalBalances[member.id] += (memberExpensesPaid - averageExpenseShare);
+        // Recalculate balances from all entries
+        entries.forEach(entry => {
+            const amount = parseFloat(entry.amount);
+            const payerId = entry.user_id;
+
+            if (amount > 0) { // This is an Expense
+                // If split_with_user_ids is null (older entry), it's split with all members.
+                // Otherwise, it's split with the IDs in the list.
+                const otherParticipantIds = entry.split_with_user_ids === null
+                    ? members.map(m => m.id).filter(id => id !== payerId)
+                    : entry.split_with_user_ids;
+
+                const allParticipantIds = [...new Set([payerId, ...otherParticipantIds])];
+                const numParticipants = allParticipantIds.length;
+
+                if (numParticipants > 0) {
+                    const share = amount / numParticipants;
+                    // The payer gets the money back, less their own share.
+                    finalBalances[payerId] += (amount - share);
+                    // Other participants' balances go down by their share.
+                    otherParticipantIds.forEach(participantId => {
+                        if (finalBalances[participantId] !== undefined) {
+                            finalBalances[participantId] -= share;
+                        }
+                    });
+                }
+            } else if (amount < 0) { // This is a Loan
+                const loanAmount = Math.abs(amount);
+                const borrowerId = payerId;
+                
+                // Borrower's balance goes down by the full loan amount.
+                finalBalances[borrowerId] -= loanAmount;
+
+                // The loan is funded equally by all other members.
+                const lenders = members.filter(m => m.id !== borrowerId);
+                if (lenders.length > 0) {
+                    const creditPerLender = loanAmount / lenders.length;
+                    lenders.forEach(lender => {
+                        finalBalances[lender.id] += creditPerLender;
+                    });
+                }
+            }
         });
 
-        // 2. Process loans (amount < 0)
-        const loans = entriesResult.rows.filter(e => parseFloat(e.amount) < 0);
-        if (numMembers > 1) {
-            loans.forEach(loan => {
-                const loanAmount = parseFloat(loan.amount); // This is negative
-                const borrowerId = loan.user_id;
-                
-                // Borrower's balance decreases by the loan amount
-                finalBalances[borrowerId] += loanAmount;
-
-                // Other members' balances increase as they are the lenders
-                const creditPerLender = Math.abs(loanAmount) / (numMembers - 1);
-                members.forEach(member => {
-                    if (member.id !== borrowerId) {
-                        finalBalances[member.id] += creditPerLender;
-                    }
-                });
-            });
-        } else {
-             // If only one member, loans are a direct deduction from their balance.
-             loans.forEach(loan => {
-                const loanAmount = parseFloat(loan.amount);
-                const borrowerId = loan.user_id;
-                finalBalances[borrowerId] += loanAmount;
-            });
-        }
 
         // Prepare response object
         const currentUserBalance = finalBalances[user.userId] || 0;
@@ -103,11 +117,15 @@ export async function GET(req: Request) {
             }
         });
 
+        const reversedEntries = entries.reverse();
+
         return NextResponse.json({
             code: roomCode,
-            entries: entriesResult.rows,
+            entries: reversedEntries,
             balances: otherUserBalances,
-            currentUserBalance
+            currentUserBalance,
+            members, // Send full member list to the client
+            currentUserId: user.userId // Send the current user's ID
         });
     } catch (error) {
         console.error(error);

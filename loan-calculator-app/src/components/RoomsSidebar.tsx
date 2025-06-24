@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiCoffee } from 'react-icons/fi';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
+import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import ConfirmationDialog from './ConfirmationDialog';
 
 interface Room {
@@ -29,8 +30,8 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
+    const { isSimplified, setIsSimplified } = useSimplifiedLayout();
 
-    // State for the leave room confirmation dialog
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
 
@@ -125,10 +126,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         const token = localStorage.getItem('token');
         const res = await fetch('/api/rooms', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({}),
         });
 
@@ -160,18 +158,15 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         const token = localStorage.getItem('token');
         const res = await fetch(`/api/rooms/${selectedRoomToLeave.id}/members`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
         });
 
         if (res.ok) {
             setIsLeaveDialogOpen(false);
-            // If the user is currently in the room they just left, navigate to the base rooms page.
             if (pathname.includes(`/rooms/${selectedRoomToLeave.id}`)) {
                 router.push('/rooms');
             }
-            fetchRooms(); // Refresh the room list
+            fetchRooms();
         } else {
             const { message } = await res.json();
             setError(message || t('leaveRoomFailed'));
@@ -180,16 +175,16 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         setSelectedRoomToLeave(null);
     };
 
-    const toggleTheme = () => {
-        setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
-    };
+    const toggleTheme = () => setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
     
     const cycleLanguage = () => {
         const languages = ['en', 'ru', 'he'];
         const currentIndex = languages.indexOf(locale);
         const nextIndex = (currentIndex + 1) % languages.length;
         setLocale(languages[nextIndex]);
-    }
+    };
+
+    const toggleSimplifiedLayout = () => setIsSimplified(prev => !prev);
 
     return (
         <>
@@ -212,19 +207,10 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                                             Room #{room.code}
                                         </Link>
                                         <div className="flex items-center">
-                                            <button
-                                                onClick={() => handleCopyToClipboard(room.code)}
-                                                className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`}
-                                                title={t('copyRoomCode')} >
-                                                {copiedCode === room.code 
-                                                    ? <FiCheck className="text-success animate-scaleIn" /> 
-                                                    : <FiCopy className="group-hover:scale-110 transition-transform" />
-                                                }
+                                            <button onClick={() => handleCopyToClipboard(room.code)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('copyRoomCode')} >
+                                                {copiedCode === room.code ? <FiCheck className="text-success animate-scaleIn" /> : <FiCopy className="group-hover:scale-110 transition-transform" />}
                                             </button>
-                                            <button
-                                                onClick={() => openLeaveDialog(room)}
-                                                className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`}
-                                                title={t('leaveRoom')} >
+                                            <button onClick={() => openLeaveDialog(room)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('leaveRoom')} >
                                                 <FiXCircle className="group-hover:scale-110 transition-transform text-danger" />
                                             </button>
                                         </div>
@@ -239,16 +225,8 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                     {error && <p className="text-danger text-sm text-center mb-2">{error}</p>}
                     
                     <form onSubmit={handleJoinRoom} className="mb-4">
-                        <input
-                            type="text"
-                            placeholder={t('roomCode')}
-                            value={roomCode}
-                            onChange={(e) => setRoomCode(e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg mb-2 themed-input"
-                        />
-                        <button type="submit" className="w-full py-2 rounded-lg btn-primary">
-                            {t('joinRoom')}
-                        </button>
+                        <input type="text" placeholder={t('roomCode')} value={roomCode} onChange={(e) => setRoomCode(e.target.value)} className="w-full px-3 py-2 rounded-lg mb-2 themed-input" />
+                        <button type="submit" className="w-full py-2 rounded-lg btn-primary">{t('joinRoom')}</button>
                     </form>
 
                     <div className="flex items-center my-2">
@@ -257,45 +235,31 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                         <div className="flex-grow border-t border-card-border"></div>
                     </div>
                     
-                    <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary mb-4">
-                        {t('createRoom')}
-                    </button>
+                    <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary mb-4">{t('createRoom')}</button>
 
                     <div className="space-y-2">
-                        <button
-                            onClick={handleLogout}
-                            className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted"
-                            aria-label={t('logout')}
-                        >
+                        <button onClick={handleLogout} className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted" aria-label={t('logout')}>
                             <FiLogOut size={16} className="me-2"/>
                             <span className="font-semibold text-xs">{t('logout')}</span>
                         </button>
 
                         <div className="flex items-center justify-center space-x-2">
-                             <button
-                                onClick={toggleTheme}
-                                className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                                aria-label={tAccess('toggleTheme')} >
+                             <button onClick={toggleTheme} className="flex items-center justify-center w-full p-2 rounded-md btn-muted" aria-label={tAccess('toggleTheme')} >
                                 {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
                             </button>
-                             <button
-                                onClick={cycleLanguage}
-                                className="flex items-center justify-center w-full p-2 rounded-md btn-muted"
-                                aria-label={tAccess('changeLanguage')} >
+                             <button onClick={cycleLanguage} className="flex items-center justify-center w-full p-2 rounded-md btn-muted" aria-label={tAccess('changeLanguage')} >
                                 <FiGlobe size={16} className="me-1.5"/>
                                 <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
+                            </button>
+                             <button onClick={toggleSimplifiedLayout} className={`flex items-center justify-center w-full p-2 rounded-md btn-muted transition-colors ${isSimplified ? 'text-primary' : ''}`} aria-label={tAccess('toggleSimplifiedLayout')} >
+                                <FiCoffee size={16} />
                             </button>
                         </div>
                     </div>
                 </div>
             </aside>
 
-            <ConfirmationDialog
-                isOpen={isLeaveDialogOpen}
-                onClose={() => setIsLeaveDialogOpen(false)}
-                onConfirm={handleLeaveRoom}
-                title={t('leaveRoomTitle')}
-            >
+            <ConfirmationDialog isOpen={isLeaveDialogOpen} onClose={() => setIsLeaveDialogOpen(false)} onConfirm={handleLeaveRoom} title={t('leaveRoomTitle')}>
                 {t('leaveRoomConfirmation', { code: selectedRoomToLeave?.code ?? '' })}
             </ConfirmationDialog>
         </>

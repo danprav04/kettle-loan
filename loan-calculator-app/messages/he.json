@@ -33,6 +33,7 @@
   "Room": {
     "balanceTitle": "מאזן",
     "newEntryTitle": "הוספת רשומה חדשה",
+    "simplifiedNewEntryTitle": "רישום הלוואה חדשה",
     "detailed": "פירוט",
     "amount": "סכום",
     "description": "תיאור",
@@ -43,7 +44,9 @@
     "loan": "אני חייב",
     "splitEqually": "העלות תחולק באופן שווה בין כל חברי החדר.",
     "oweFullAmount": "אתה תחוב את הסכום המלא לקבוצה.",
-    "roomTitle": "חדר #{code}"
+    "roomTitle": "חדר #{code}",
+    "splitWith": "חלק את העלות עם:",
+    "everyone": "כולם"
   },
   "Dialog": {
     "cancel": "ביטול",
@@ -51,6 +54,7 @@
   },
   "Accessibility": {
     "toggleTheme": "שנה ערכת נושא",
-    "changeLanguage": "שנה שפה"
+    "changeLanguage": "שנה שפה",
+    "toggleSimplifiedLayout": "החלף מצב קומקום פשוט"
   }
 }

@@ -1,23 +1,36 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import { FiArrowDown } from 'react-icons/fi';
+
+interface Member {
+    id: number;
+    username: string;
+}
 
 export default function RoomPage() {
     const params = useParams<{ roomId: string }>();
     const { roomId } = params;
     const t = useTranslations('Room');
+    const { isSimplified } = useSimplifiedLayout();
+
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [balance, setBalance] = useState(0);
     const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
     const [showDetails, setShowDetails] = useState(false);
     const [roomCode, setRoomCode] = useState('');
+    const [members, setMembers] = useState<Member[]>([]);
+    const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+    const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const router = useRouter();
-    // Initialize state to null to prevent rendering on the server and before client-side hydration.
-    const [entryType, setEntryType] = useState<'expense' | 'loan' | null>(null);
+    
+    const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
+
+    const otherMembers = useMemo(() => members.filter(m => m.id !== currentUserId), [members, currentUserId]);
 
     const fetchData = useCallback(async () => {
         const token = localStorage.getItem('token');
@@ -29,10 +42,14 @@ export default function RoomPage() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
-            const { currentUserBalance, balances, code } = await res.json();
+            const { currentUserBalance, balances, code, members, currentUserId } = await res.json();
             setBalance(currentUserBalance || 0);
             setDetailedBalance(balances || {});
             setRoomCode(code || '');
+            setMembers(members || []);
+            setCurrentUserId(currentUserId || null);
+            // Default to selecting all other members for an expense
+            setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
         } else if (res.status === 401) {
             router.push('/');
         }
@@ -42,14 +59,17 @@ export default function RoomPage() {
         fetchData();
     }, [fetchData]);
 
-    // This effect runs once on the client to hydrate the entryType state from localStorage.
     useEffect(() => {
-        const savedEntryType = localStorage.getItem('entryType') as 'expense' | 'loan';
-        // Set state from localStorage, or default to 'expense' if no value is saved.
-        setEntryType(savedEntryType && ['expense', 'loan'].includes(savedEntryType) ? savedEntryType : 'expense');
-    }, []);
+        if (isSimplified) {
+            setEntryType('loan');
+        } else {
+            const savedEntryType = localStorage.getItem('entryType') as 'expense' | 'loan';
+            setEntryType(savedEntryType && ['expense', 'loan'].includes(savedEntryType) ? savedEntryType : 'expense');
+        }
+    }, [isSimplified]);
 
     const handleSetEntryType = (type: 'expense' | 'loan') => {
+        if (isSimplified) return;
         setEntryType(type);
         localStorage.setItem('entryType', type);
     };
@@ -58,11 +78,10 @@ export default function RoomPage() {
         e.preventDefault();
         const token = localStorage.getItem('token');
         const parsedAmount = Math.abs(parseFloat(amount));
-        if (isNaN(parsedAmount) || parsedAmount <= 0) {
-            return; 
-        }
+        if (isNaN(parsedAmount) || parsedAmount <= 0) return;
 
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
+        const splitWithUserIds = entryType === 'expense' ? Array.from(selectedMemberIds) : null;
 
         await fetch('/api/entries', {
             method: 'POST',
@@ -70,13 +89,32 @@ export default function RoomPage() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ roomId, amount: finalAmount, description }),
+            body: JSON.stringify({ roomId, amount: finalAmount, description, splitWithUserIds }),
         });
         setAmount('');
         setDescription('');
         fetchData(); // Refetch data
     };
 
+    const handleMemberSelection = (memberId: number) => {
+        const newSelection = new Set(selectedMemberIds);
+        if (newSelection.has(memberId)) {
+            newSelection.delete(memberId);
+        } else {
+            newSelection.add(memberId);
+        }
+        setSelectedMemberIds(newSelection);
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedMemberIds(new Set(otherMembers.map(m => m.id)));
+        } else {
+            setSelectedMemberIds(new Set());
+        }
+    };
+    
+    const isAllSelected = otherMembers.length > 0 && selectedMemberIds.size === otherMembers.length;
 
     return (
         <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
@@ -87,7 +125,6 @@ export default function RoomPage() {
                     </h1>
                 </div>
 
-                {/* Balance Section */}
                 <div className="text-center mb-6">
                     <div className="text-lg font-medium text-muted-foreground">{t('balanceTitle')}</div>
                     <div className={`text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
@@ -110,73 +147,57 @@ export default function RoomPage() {
 
                 <div className="border-t border-card-border my-6"></div>
 
-                {/* New Entry Form Section */}
                 <div>
-                    <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">{t('newEntryTitle')}</h2>
+                    <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">
+                        {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
+                    </h2>
                     <form onSubmit={handleAddEntry}>
-                        {/* High-Contrast Entry Type Toggle */}
-                        <div className="mb-6">
-                            {entryType !== null ? (
+                        {!isSimplified && (
+                            <div className="mb-6">
                                 <div className="relative flex w-full rounded-full bg-muted p-1">
                                     <span
-                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out border-2 border-black dark:border-white
-                                            ${entryType === 'expense' ? 'bg-primary' : 'bg-success'}`
-                                        }
+                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out border-2 border-black dark:border-white ${entryType === 'expense' ? 'bg-primary' : 'bg-success'}`}
                                         style={{ left: entryType === 'loan' ? '50%' : '4px' }}
                                     />
-                                    <button
-                                        type="button"
-                                        onClick={() => handleSetEntryType('expense')}
-                                        className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300
-                                            ${entryType === 'expense' ? 'text-primary-foreground' : 'text-foreground'}`
-                                        }
-                                    >
+                                    <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 ${entryType === 'expense' ? 'text-primary-foreground' : 'text-foreground'}`}>
                                         {t('expense')}
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleSetEntryType('loan')}
-                                        className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300
-                                            ${entryType === 'loan' ? 'text-secondary-foreground' : 'text-foreground'}`
-                                        }
-                                    >
+                                    <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 ${entryType === 'loan' ? 'text-secondary-foreground' : 'text-foreground'}`}>
                                         {t('loan')}
                                     </button>
                                 </div>
-                            ) : (
-                                <div className="h-[44px] w-full rounded-full bg-muted" />
-                            )}
-                             {entryType && (
-                                <p className="text-center text-xs text-muted-foreground mt-2 h-8 flex items-center justify-center px-2 animate-fadeIn">
-                                    {entryType === 'expense' ? t('splitEqually') : t('oweFullAmount')}
-                                </p>
-                            )}
-                        </div>
+                            </div>
+                        )}
                         <div className="mb-4">
                             <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
-                            <input
-                                id="amount"
-                                type="number"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                className="w-full px-3 py-2 leading-tight rounded-lg themed-input"
-                                required
-                                min="0"
-                                step="any"
-                            />
+                            <input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required min="0" step="any" />
                         </div>
-                        <div className="mb-6">
+                        <div className="mb-4">
                             <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
-                            <input
-                                id="description"
-                                type="text"
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                className="w-full px-3 py-2 mb-3 leading-tight rounded-lg themed-input"
-                                required
-                            />
+                            <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required />
                         </div>
-                        <div className="flex items-center justify-between">
+
+                        {entryType === 'expense' && !isSimplified && otherMembers.length > 0 && (
+                            <div className="mb-6 bg-muted/50 p-3 rounded-lg animate-fadeIn">
+                                <label className="block text-muted-foreground text-sm font-bold mb-2">{t('splitWith')}</label>
+                                {otherMembers.length > 1 && (
+                                    <div className="flex items-center ps-1 pb-2 border-b border-card-border mb-2">
+                                        <input id="select-all" type="checkbox" checked={isAllSelected} onChange={(e) => handleSelectAll(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                                        <label htmlFor="select-all" className="ms-2 block text-sm font-medium text-foreground">{t('everyone')}</label>
+                                    </div>
+                                )}
+                                <div className="space-y-2 max-h-32 overflow-y-auto px-1">
+                                    {otherMembers.map(member => (
+                                        <div key={member.id} className="flex items-center">
+                                            <input id={`member-${member.id}`} name="members" type="checkbox" checked={selectedMemberIds.has(member.id)} onChange={() => handleMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                                            <label htmlFor={`member-${member.id}`} className="ms-2 block text-sm text-foreground">{member.username}</label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex items-center justify-between mt-6">
                             <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary">
                                 {t('addEntry')}
                             </button>

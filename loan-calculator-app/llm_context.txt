@@ -59,6 +59,46 @@ export default nextConfig;
 
 ---
 
+--- File: tailwind.config.ts ---
+import type { Config } from 'tailwindcss'
+
+const config: Config = {
+  darkMode: ['class', '[data-theme="dark"]'],
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        background: 'var(--background)',
+        foreground: 'var(--foreground)',
+        card: 'var(--card)',
+        'card-border': 'var(--card-border)',
+        'card-foreground': 'var(--card-foreground)',
+        primary: 'var(--primary)',
+        'primary-hover': 'var(--primary-hover)',
+        'primary-foreground': 'var(--primary-foreground)',
+        secondary: 'var(--secondary)',
+        'secondary-hover': 'var(--secondary-hover)',
+        'secondary-foreground': 'var(--secondary-foreground)',
+        muted: 'var(--muted)',
+        'muted-foreground': 'var(--muted-foreground)',
+        'input-bg': 'var(--input-bg)',
+        'input-border': 'var(--input-border)',
+        danger: 'var(--danger)',
+        'danger-hover': 'var(--danger-hover)',
+        success: 'var(--success)',
+      },
+    },
+  },
+  plugins: [],
+}
+export default config
+
+---
+
 --- File: tsconfig.json ---
 {
   "compilerOptions": {
@@ -1019,9 +1059,12 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
 
             {/* Sidebar container. Handles mobile slide-in and static desktop display. */}
             <div
-                className={`fixed top-0 left-0 h-full z-40 transform transition-transform duration-300 ease-in-out bg-background md:static md:translate-x-0 md:shrink-0 ${
+                className={`fixed top-0 left-0 h-full z-40 transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 md:shrink-0 ${
                     isSidebarOpen ? "translate-x-0" : "-translate-x-full"
                 }`}
+                style={{
+                    backgroundColor: 'var(--background)'
+                }}
             >
                 <RoomsSidebar closeSidebar={() => setIsSidebarOpen(false)} />
             </div>

@@ -33,6 +33,7 @@
   "Room": {
     "balanceTitle": "Баланс",
     "newEntryTitle": "Новая запись",
+    "simplifiedNewEntryTitle": "Записать новый долг",
     "detailed": "Подробно",
     "amount": "Сумма",
     "description": "Описание",
@@ -43,7 +44,9 @@
     "loan": "Я должен",
     "splitEqually": "Эта стоимость будет разделена поровну между всеми участниками комнаты.",
     "oweFullAmount": "Вы будете должны полную сумму группе.",
-    "roomTitle": "Комната #{code}"
+    "roomTitle": "Комната #{code}",
+    "splitWith": "Разделить стоимость с:",
+    "everyone": "Все"
   },
   "Dialog": {
     "cancel": "Отмена",
@@ -51,6 +54,7 @@
   },
   "Accessibility": {
     "toggleTheme": "Переключить тему",
-    "changeLanguage": "Сменить язык"
+    "changeLanguage": "Сменить язык",
+    "toggleSimplifiedLayout": "Переключить упрощенный режим"
   }
 }
