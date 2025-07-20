@@ -1,7 +1,5 @@
 # Kettle - Shared Expense Tracker
 
-![Kettle Logo](https://raw.githubusercontent.com/user-attachments/assets/19515433-4f8a-493a-8610-ed7856b3e0c0)
-
 Kettle is a modern, intuitive web application designed to simplify expense tracking for groups. Whether you're splitting bills with roommates, managing vacation costs, or tracking shared project expenses, Kettle provides a clear and collaborative platform to see who paid for what and who owes whom.
 
 The application is built with a focus on simplicity and user experience, featuring real-time balance calculations, multi-language support, and a clean, responsive interface that works beautifully on all devices.
