@@ -1,19 +1,24 @@
-// types/next-pwa.d.ts
-declare module 'next-pwa' {
-  import { NextConfig } from 'next';
+// next.config.ts
+import type { NextConfig } from 'next';
+import withPWAInit from '@ducanh2912/next-pwa';
 
-  // Define the options for next-pwa based on its documentation
-  interface PWAConfig {
-    dest?: string;
-    register?: boolean;
-    skipWaiting?: boolean;
-    disable?: boolean;
-    sw?: string;
-    // Add other next-pwa options here as you use them
-  }
+const withPWA = withPWAInit({
+  dest: 'public',
+  disable: process.env.NODE_ENV === 'development',
+  register: true,
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
+  workboxOptions: {
+    disableDevLogs: true,
+    skipWaiting: true,
+  },
+});
 
-  // Define the function signature for the default export
-  function withPWA(config: PWAConfig): (nextConfig: NextConfig) => NextConfig;
+const nextConfig: NextConfig = {
+  // swcMinify is a Next.js compiler option, not a PWA option.
+  // It is enabled by default in recent versions of Next.js, but explicitly setting it is fine.
+  swcMinify: true, 
+};
 
-  export = withPWA;
-}
+export default withPWA(nextConfig);
