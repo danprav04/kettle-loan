@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import { FiArrowDown } from 'react-icons/fi';
+import { handleApi } from '@/lib/api';
 
 interface Member {
     id: number;
@@ -39,26 +40,32 @@ export default function RoomPage() {
             router.push('/');
             return;
         }
-        const res = await fetch(`/api/rooms/${roomId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-            const { currentUserBalance, balances, code, members, currentUserId } = await res.json();
-            setBalance(currentUserBalance || 0);
-            setDetailedBalance(balances || {});
-            setRoomCode(code || '');
-            setMembers(members || []);
-            setCurrentUserId(currentUserId || null);
-            // Default to selecting all other members for an expense
-            setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
-            setIncludeSelfInSplit(true);
-        } else if (res.status === 401) {
-            router.push('/');
+        try {
+            const res = await fetch(`/api/rooms/${roomId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const { currentUserBalance, balances, code, members, currentUserId } = await res.json();
+                setBalance(currentUserBalance || 0);
+                setDetailedBalance(balances || {});
+                setRoomCode(code || '');
+                setMembers(members || []);
+                setCurrentUserId(currentUserId || null);
+                setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
+                setIncludeSelfInSplit(true);
+            } else if (res.status === 401) {
+                router.push('/');
+            }
+        } catch (e) {
+            console.error("Failed to fetch room data. Possibly offline.", e);
         }
     }, [roomId, router]);
 
     useEffect(() => {
         fetchData();
+        // Add event listener for when sync completes to refetch data
+        window.addEventListener('syncdone', fetchData);
+        return () => window.removeEventListener('syncdone', fetchData);
     }, [fetchData]);
 
     useEffect(() => {
@@ -78,7 +85,6 @@ export default function RoomPage() {
 
     const handleAddEntry = async (e: React.FormEvent) => {
         e.preventDefault();
-        const token = localStorage.getItem('token');
         const parsedAmount = Math.abs(parseFloat(amount));
         if (isNaN(parsedAmount) || parsedAmount <= 0) return;
 
@@ -88,8 +94,6 @@ export default function RoomPage() {
             if (includeSelfInSplit && currentUserId) {
                 participants.add(currentUserId);
             }
-            // If no one is selected and the payer doesn't include themselves, it's an invalid state.
-            // However, we prevent this by disabling the button below.
             if (participants.size > 0) {
                 finalSplitWithIds = Array.from(participants);
             }
@@ -97,26 +101,24 @@ export default function RoomPage() {
         
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
         
-        await fetch('/api/entries', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds }),
-        });
-        setAmount('');
-        setDescription('');
-        fetchData(); // Refetch data
+        try {
+            await handleApi({
+                method: 'POST',
+                url: '/api/entries',
+                body: { roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds },
+            });
+            setAmount('');
+            setDescription('');
+            fetchData(); // Refetch data immediately after submission
+        } catch (error) {
+            console.error("Failed to add entry:", error);
+            // Optionally show an error toast to the user
+        }
     };
 
     const handleMemberSelection = (memberId: number) => {
         const newSelection = new Set(selectedMemberIds);
-        if (newSelection.has(memberId)) {
-            newSelection.delete(memberId);
-        } else {
-            newSelection.add(memberId);
-        }
+        newSelection.has(memberId) ? newSelection.delete(memberId) : newSelection.add(memberId);
         setSelectedMemberIds(newSelection);
     };
     

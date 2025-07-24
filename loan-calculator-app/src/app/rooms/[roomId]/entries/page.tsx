@@ -25,19 +25,28 @@ export default function EntriesPage() {
             router.push('/');
             return;
         }
-        const res = await fetch(`/api/rooms/${roomId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-            const { entries } = await res.json();
-            setEntries(entries);
-        } else if (res.status === 401) {
-            router.push('/');
+        try {
+            const res = await fetch(`/api/rooms/${roomId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const { entries } = await res.json();
+                setEntries(entries);
+            } else if (res.status === 401) {
+                router.push('/');
+            }
+        } catch (e) {
+            console.error("Failed to fetch entries. Possibly offline.", e);
         }
     }, [roomId, router]);
 
     useEffect(() => {
         fetchEntries();
+        // Add event listener for when sync completes to refetch entries
+        window.addEventListener('syncdone', fetchEntries);
+        return () => {
+            window.removeEventListener('syncdone', fetchEntries);
+        };
     }, [fetchEntries]);
 
     return (
@@ -59,7 +68,7 @@ export default function EntriesPage() {
                                 </p>
                             </div>
                             <div className="text-lg font-bold text-card-foreground">
-                                {entry.amount} ILS
+                                {parseFloat(entry.amount).toFixed(2)} ILS
                             </div>
                         </li>
                     ))}

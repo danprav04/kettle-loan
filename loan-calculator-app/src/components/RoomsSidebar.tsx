@@ -4,13 +4,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff } from 'react-icons/fi';
 import Icon from '@mdi/react';
 import { mdiKettle } from '@mdi/js';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import ConfirmationDialog from './ConfirmationDialog';
+import { useSync } from './SyncProvider';
+import { handleApi } from '@/lib/api';
 
 interface Room {
     id: number;
@@ -33,6 +35,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
     const { isSimplified, setIsSimplified } = useSimplifiedLayout();
+    const { isOnline } = useSync();
 
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
@@ -43,103 +46,82 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             router.push('/');
             return;
         }
-        const res = await fetch('/api/user/rooms', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        try {
+            const res = await fetch('/api/user/rooms', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-        if (res.ok) {
-            const data = await res.json();
-            setRooms(data);
-        } else if (res.status === 401) {
-            router.push('/');
+            if (res.ok) {
+                const data = await res.json();
+                setRooms(data);
+            } else if (res.status === 401) {
+                handleLogout();
+            }
+        } catch (e) {
+            console.error("Could not fetch rooms, possibly offline.", e);
         }
     }, [router]);
 
     useEffect(() => {
         fetchRooms();
+        window.addEventListener('syncdone', fetchRooms);
+        return () => window.removeEventListener('syncdone', fetchRooms);
     }, [fetchRooms, pathname]);
 
     const handleCopyToClipboard = (code: string) => {
-        setError('');
-        const fallbackCopy = (text: string) => {
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.top = "0";
-            textArea.style.left = "0";
-            textArea.style.position = "fixed";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    setCopiedCode(code);
-                    setTimeout(() => setCopiedCode(null), 2000);
-                } else {
-                     setError(t('copyFailed'));
-                }
-            } catch (err) {
-                console.error('Fallback: Oops, unable to copy', err);
-                setError(t('copyFailed'));
-            }
-            document.body.removeChild(textArea);
-        }
-
-        if (!navigator.clipboard) {
-            fallbackCopy(code);
-            return;
-        }
         navigator.clipboard.writeText(code).then(() => {
             setCopiedCode(code);
             setTimeout(() => setCopiedCode(null), 2000);
-        }).catch(err => {
-            console.error('Could not copy text: ', err);
-            fallbackCopy(code);
-        });
+        }).catch(() => setError(t('copyFailed')));
     };
 
     const handleJoinRoom = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/rooms', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ roomCode }),
-        });
+        try {
+            const result = await handleApi({
+                method: 'POST',
+                url: '/api/rooms',
+                body: { roomCode },
+            });
 
-        if (res.ok) {
-            const { roomId } = await res.json();
-            setRoomCode('');
-            router.push(`/rooms/${roomId}`);
-            closeSidebar();
-        } else {
-            const { message } = await res.json();
-            console.error("Join failed:", message);
-            setError(t('joinFailed'));
+            if (result?.optimistic) {
+                setError("Request queued while offline.");
+                return;
+            }
+            if (result.roomId) {
+                setRoomCode('');
+                router.push(`/rooms/${result.roomId}`);
+                closeSidebar();
+            } else {
+                setError(t('joinFailed'));
+            }
+        } catch (err: any) {
+            setError(err.message || t('joinFailed'));
         }
     };
 
     const handleCreateRoom = async () => {
         setError('');
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/rooms', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({}),
-        });
+        try {
+            const result = await handleApi({
+                method: 'POST',
+                url: '/api/rooms',
+                body: {},
+            });
 
-        if (res.ok) {
-            const { roomId } = await res.json();
-            router.push(`/rooms/${roomId}`);
-            closeSidebar();
-        } else {
-            const { message } = await res.json();
-            console.error("Create failed:", message);
-            setError(t('createFailed'));
+            if (result?.optimistic) {
+                setError("Request queued while offline.");
+                return;
+            }
+            if (result.roomId) {
+                router.push(`/rooms/${result.roomId}`);
+                closeSidebar();
+            } else {
+                setError(t('createFailed'));
+            }
+        } catch (err: any) {
+            setError(err.message || t('createFailed'));
         }
     };
 
@@ -155,44 +137,42 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
 
     const handleLeaveRoom = async () => {
         if (!selectedRoomToLeave) return;
-
         setError('');
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/rooms/${selectedRoomToLeave.id}/members`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
-
-        if (res.ok) {
-            setIsLeaveDialogOpen(false);
-            if (pathname.includes(`/rooms/${selectedRoomToLeave.id}`)) {
-                router.push('/rooms');
-            }
-            fetchRooms();
-        } else {
-            const { message } = await res.json();
-            setError(message || t('leaveRoomFailed'));
-            setIsLeaveDialogOpen(false);
+        
+        // Optimistic UI update
+        const originalRooms = rooms;
+        setRooms(prev => prev.filter(r => r.id !== selectedRoomToLeave!.id));
+        setIsLeaveDialogOpen(false);
+        if (pathname.includes(`/rooms/${selectedRoomToLeave.id}`)) {
+            router.push('/rooms');
         }
-        setSelectedRoomToLeave(null);
+
+        try {
+            await handleApi({
+                method: 'DELETE',
+                url: `/api/rooms/${selectedRoomToLeave.id}/members`,
+            });
+        } catch (err: any) {
+            setError(err.message || t('leaveRoomFailed'));
+            // Revert optimistic update on failure
+            setRooms(originalRooms);
+        } finally {
+            setSelectedRoomToLeave(null);
+        }
     };
 
-    const toggleTheme = () => setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
-    
-    const cycleLanguage = () => {
-        const languages = ['en', 'ru', 'he'];
-        const currentIndex = languages.indexOf(locale);
-        const nextIndex = (currentIndex + 1) % languages.length;
-        setLocale(languages[nextIndex]);
-    };
-
+    const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+    const cycleLanguage = () => setLocale(l => (l === 'en' ? 'ru' : l === 'ru' ? 'he' : 'en'));
     const toggleSimplifiedLayout = () => setIsSimplified(prev => !prev);
 
     return (
         <>
             <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
                 <div className="flex items-center justify-between mb-6 px-2">
-                    <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
+                    <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                        <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
+                        {!isOnline && <FiWifiOff className="text-danger" title="You are offline" />}
+                    </div>
                     <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
                         <FiX size={24} />
                     </button>
