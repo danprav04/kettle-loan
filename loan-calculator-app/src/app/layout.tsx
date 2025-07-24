@@ -1,5 +1,5 @@
 // src/app/layout.tsx
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import IntlProvider from "@/components/IntlProvider";
 import ThemeProvider from "@/components/ThemeProvider";
@@ -11,14 +11,18 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Loan Calculator",
-  description: "A simple loan calculator app",
+  description: "A simple loan calculator app with offline support.",
   manifest: "/manifest.json",
-  themeColor: "#3b82f6",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Loan Calculator",
   },
+};
+
+// Add this new viewport export
+export const viewport: Viewport = {
+  themeColor: "#3b82f6",
 };
 
 export default function RootLayout({

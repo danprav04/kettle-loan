@@ -1,18 +1,19 @@
-import type { NextConfig } from "next";
-import withPWA from "next-pwa";
+// types/next-pwa.d.ts
+declare module 'next-pwa' {
+  import { NextConfig } from 'next';
 
-const pwaConfig = withPWA({
-  dest: "public",
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === "development",
-});
+  // Define the options for next-pwa based on its documentation
+  interface PWAConfig {
+    dest?: string;
+    register?: boolean;
+    skipWaiting?: boolean;
+    disable?: boolean;
+    sw?: string;
+    // Add other next-pwa options here as you use them
+  }
 
-const nextConfig: NextConfig = {
-  /* config options here */
-  output: 'standalone',
-};
+  // Define the function signature for the default export
+  function withPWA(config: PWAConfig): (nextConfig: NextConfig) => NextConfig;
 
-// We use 'as any' here to resolve a type conflict between next-pwa and the latest Next.js types.
-// This is a safe workaround as the underlying configuration objects are compatible.
-export default pwaConfig(nextConfig as any);
+  export = withPWA;
+}

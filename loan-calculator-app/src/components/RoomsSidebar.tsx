@@ -83,6 +83,13 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const handleJoinRoom = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+
+        // Client-side validation to prevent empty submissions
+        if (!roomCode.trim()) {
+            setError(t('joinFailed')); // Use a generic "failed" message or create a new one
+            return;
+        }
+
         try {
             const result = await handleApi({
                 method: 'POST',
@@ -101,7 +108,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             } else {
                 setError(t('joinFailed'));
             }
-        } catch (err: unknown) { // Changed from any to unknown
+        } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
             setError(message || t('joinFailed'));
         }
@@ -113,7 +120,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             const result = await handleApi({
                 method: 'POST',
                 url: '/api/rooms',
-                body: {},
+                body: {}, // Send an empty body to signify creation
             });
 
             if (result?.optimistic) {
@@ -126,7 +133,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             } else {
                 setError(t('createFailed'));
             }
-        } catch (err: unknown) { // Changed from any to unknown
+        } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
             setError(message || t('createFailed'));
         }
@@ -153,7 +160,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                 method: 'DELETE',
                 url: `/api/rooms/${selectedRoomToLeave.id}/members`,
             });
-        } catch (err: unknown) { // Changed from any to unknown
+        } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
             setError(message || t('leaveRoomFailed'));
             setRooms(originalRooms);
