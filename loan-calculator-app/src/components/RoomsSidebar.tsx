@@ -1,10 +1,11 @@
+// src/components/RoomsSidebar.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff, FiLoader } from 'react-icons/fi';
 import Icon from '@mdi/react';
 import { mdiKettle } from '@mdi/js';
 import { useTheme } from '@/components/ThemeProvider';
@@ -35,7 +36,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
     const { isSimplified, setIsSimplified } = useSimplifiedLayout();
-    const { isOnline } = useSync();
+    const { isOnline, isSyncing, pendingRequestCount } = useSync();
 
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
@@ -62,8 +63,8 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             } else if (res.status === 401) {
                 handleLogout();
             }
-        } catch (e) {
-            console.error("Could not fetch rooms, possibly offline.", e);
+        } catch {
+            console.error("Could not fetch rooms, possibly offline.");
         }
     }, [router, handleLogout]);
 
@@ -83,10 +84,8 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const handleJoinRoom = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-
-        // Client-side validation to prevent empty submissions
         if (!roomCode.trim()) {
-            setError(t('joinFailed')); // Use a generic "failed" message or create a new one
+            setError(t('joinFailed'));
             return;
         }
 
@@ -98,19 +97,20 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             });
 
             if (result?.optimistic) {
-                setError("Request queued while offline.");
+                setError("Join request queued offline.");
+                setRoomCode('');
                 return;
             }
             if (result.roomId) {
                 setRoomCode('');
+                fetchRooms();
                 router.push(`/rooms/${result.roomId}`);
                 closeSidebar();
             } else {
                 setError(t('joinFailed'));
             }
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
-            setError(message || t('joinFailed'));
+        } catch {
+            setError(t('joinFailed'));
         }
     };
 
@@ -120,22 +120,22 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             const result = await handleApi({
                 method: 'POST',
                 url: '/api/rooms',
-                body: {}, // Send an empty body to signify creation
+                body: {},
             });
 
             if (result?.optimistic) {
-                setError("Request queued while offline.");
+                setError("Create room request queued offline.");
                 return;
             }
             if (result.roomId) {
+                fetchRooms();
                 router.push(`/rooms/${result.roomId}`);
                 closeSidebar();
             } else {
                 setError(t('createFailed'));
             }
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
-            setError(message || t('createFailed'));
+        } catch {
+            setError(t('createFailed'));
         }
     };
     
@@ -156,13 +156,15 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         }
 
         try {
-            await handleApi({
+            const result = await handleApi({
                 method: 'DELETE',
                 url: `/api/rooms/${selectedRoomToLeave.id}/members`,
             });
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
-            setError(message || t('leaveRoomFailed'));
+            if (result?.optimistic) {
+                setError("Leave room request queued offline.");
+            }
+        } catch {
+            setError(t('leaveRoomFailed'));
             setRooms(originalRooms);
         } finally {
             setSelectedRoomToLeave(null);
@@ -179,7 +181,18 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                 <div className="flex items-center justify-between mb-6 px-2">
                     <div className="flex items-center space-x-2 rtl:space-x-reverse">
                         <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
-                        {!isOnline && <FiWifiOff className="text-danger" title="You are offline" />}
+                        {isSyncing ? (
+                            <FiLoader className="animate-spin text-primary" title="Syncing..." />
+                        ) : !isOnline && (
+                             <div className="flex items-center space-x-1 text-danger" title={`You are offline. ${pendingRequestCount} request(s) pending.`}>
+                                <FiWifiOff />
+                                {pendingRequestCount > 0 && (
+                                    <span className="text-xs font-bold bg-danger text-white rounded-full h-4 w-4 flex items-center justify-center">
+                                        {pendingRequestCount}
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
                         <FiX size={24} />
@@ -212,10 +225,10 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                 </nav>
 
                 <div className="mt-auto pt-4 border-t border-card-border">
-                    {error && <p className="text-danger text-sm text-center mb-2">{error}</p>}
+                    {error && <p className="text-blue-600 dark:text-blue-400 text-sm text-center mb-2 animate-fadeIn">{error}</p>}
                     
                     <form onSubmit={handleJoinRoom} className="mb-4">
-                        <input type="text" placeholder={t('roomCode')} value={roomCode} onChange={(e) => setRoomCode(e.target.value)} className="w-full px-3 py-2 rounded-lg mb-2 themed-input" />
+                        <input type="text" placeholder={t('roomCode')} value={roomCode} onChange={(e) => setRoomCode(e.target.value.toUpperCase())} className="w-full px-3 py-2 rounded-lg mb-2 themed-input" />
                         <button type="submit" className="w-full py-2 rounded-lg btn-primary">{t('joinRoom')}</button>
                     </form>
 

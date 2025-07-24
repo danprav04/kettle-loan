@@ -11,7 +11,7 @@ interface OutboxRequest {
     id: string;
     url: string;
     method: HttpMethod;
-    body: unknown; // Changed from 'any' to 'unknown'
+    body: unknown;
     timestamp: number;
     token: string | null;
 }
@@ -49,6 +49,10 @@ export async function addToOutbox(request: Omit<OutboxRequest, 'id' | 'timestamp
     await tx.store.add(outboxRequest);
     await tx.done;
     console.log('Request added to outbox:', outboxRequest);
+    
+    // Dispatch a custom event so the UI can update its pending count
+    window.dispatchEvent(new Event('outboxchange'));
+    
     return outboxRequest;
 }
 
@@ -76,9 +80,12 @@ export async function syncOutbox(): Promise<boolean> {
                 body: JSON.stringify(req.body),
             });
 
+            // If request succeeded or was a client error (like 404, 409), remove it.
+            // Server errors (5xx) will be retried.
             if (response.ok || (response.status >= 400 && response.status < 500)) {
                 await db.delete(OUTBOX_STORE, req.id);
                 console.log(`Request ${req.id} synced and removed from outbox.`);
+                window.dispatchEvent(new Event('outboxchange'));
             } else {
                  console.warn(`Request ${req.id} failed with status ${response.status}. Will retry later.`);
                  allSucceeded = false;
@@ -86,9 +93,14 @@ export async function syncOutbox(): Promise<boolean> {
         } catch (error) {
             console.error(`Network error syncing request ${req.id}. Will retry later.`, error);
             allSucceeded = false;
-            break;
+            break; // Stop syncing if a network error occurs
         }
     }
 
     return allSucceeded;
+}
+
+export async function getOutboxCount(): Promise<number> {
+    const db = await getDb();
+    return db.count(OUTBOX_STORE);
 }

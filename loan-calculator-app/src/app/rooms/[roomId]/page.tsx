@@ -1,10 +1,11 @@
+// src/app/rooms/[roomId]/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
-import { FiArrowDown } from 'react-icons/fi';
+import { FiArrowDown, FiInfo } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
 
 interface Member {
@@ -28,6 +29,7 @@ export default function RoomPage() {
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
+    const [notification, setNotification] = useState<string | null>(null);
     const router = useRouter();
     
     const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
@@ -66,6 +68,13 @@ export default function RoomPage() {
         window.addEventListener('syncdone', fetchData);
         return () => window.removeEventListener('syncdone', fetchData);
     }, [fetchData]);
+    
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
 
     useEffect(() => {
         if (isSimplified) {
@@ -84,6 +93,7 @@ export default function RoomPage() {
 
     const handleAddEntry = async (e: React.FormEvent) => {
         e.preventDefault();
+        setNotification(null);
         const parsedAmount = Math.abs(parseFloat(amount));
         if (isNaN(parsedAmount) || parsedAmount <= 0) return;
 
@@ -101,16 +111,23 @@ export default function RoomPage() {
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
         
         try {
-            await handleApi({
+            const result = await handleApi({
                 method: 'POST',
                 url: '/api/entries',
                 body: { roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds },
             });
+
+            if (result?.optimistic) {
+                setNotification("Request queued offline. It will sync when you're back online.");
+            } else {
+                fetchData(); // Only refetch data on successful online submission
+            }
             setAmount('');
             setDescription('');
-            fetchData();
+
         } catch (error) {
             console.error("Failed to add entry:", error);
+            setNotification('Failed to add entry. Please try again.');
         }
     };
 
@@ -124,7 +141,7 @@ export default function RoomPage() {
         setSelectedMemberIds(newSelection);
     };
     
-    const isSubmitDisabled = entryType === 'expense' && !includeSelfInSplit && selectedMemberIds.size === 0;
+    const isSubmitDisabled = amount === '' || description === '' || (entryType === 'expense' && !includeSelfInSplit && selectedMemberIds.size === 0);
 
     return (
         <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
@@ -145,12 +162,12 @@ export default function RoomPage() {
                     </button>
                     {showDetails && (
                         <div className="mt-2 text-left bg-muted p-3 rounded-lg animate-fadeIn">
-                            {Object.entries(detailedBalance).map(([username, bal]) => (
+                            {Object.entries(detailedBalance).length > 0 ? Object.entries(detailedBalance).map(([username, bal]) => (
                                 <div key={username} className="flex justify-between text-card-foreground py-1">
                                     <span>{username}:</span>
                                     <span className={bal >= 0 ? 'text-success' : 'text-danger'}>{bal.toFixed(2)}</span>
                                 </div>
-                            ))}
+                            )) : <p className="text-muted-foreground text-center text-sm">No other members in this room.</p>}
                         </div>
                     )}
                 </div>
@@ -158,6 +175,12 @@ export default function RoomPage() {
                 <div className="border-t border-card-border my-6"></div>
 
                 <div>
+                    {notification && (
+                        <div className="mb-4 p-3 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-sm border border-blue-200 dark:border-blue-800 flex items-center animate-fadeIn">
+                            <FiInfo className="me-2 shrink-0"/>
+                            <span>{notification}</span>
+                        </div>
+                    )}
                     <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">
                         {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
                     </h2>
@@ -166,13 +189,13 @@ export default function RoomPage() {
                             <div className="mb-6">
                                 <div className="relative flex w-full rounded-full bg-muted p-1">
                                     <span
-                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out border-2 border-black dark:border-white ${entryType === 'expense' ? 'bg-primary' : 'bg-success'}`}
-                                        style={{ left: entryType === 'loan' ? '50%' : '4px' }}
+                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
+                                        style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }}
                                     />
-                                    <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 ${entryType === 'expense' ? 'text-primary-foreground' : 'text-foreground'}`}>
+                                    <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
                                         {t('expense')}
                                     </button>
-                                    <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 ${entryType === 'loan' ? 'text-secondary-foreground' : 'text-foreground'}`}>
+                                    <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
                                         {t('loan')}
                                     </button>
                                 </div>
