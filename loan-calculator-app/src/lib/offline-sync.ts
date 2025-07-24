@@ -8,10 +8,10 @@ const OUTBOX_STORE = 'outbox';
 type HttpMethod = 'POST' | 'DELETE' | 'PUT';
 
 interface OutboxRequest {
-    id: string; // A unique ID for the request
+    id: string;
     url: string;
     method: HttpMethod;
-    body: any;
+    body: unknown; // Changed from 'any' to 'unknown'
     timestamp: number;
     token: string | null;
 }

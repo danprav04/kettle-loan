@@ -3,10 +3,20 @@ import { addToOutbox } from './offline-sync';
 
 type HttpMethod = 'POST' | 'GET' | 'DELETE' | 'PUT';
 
+// This interface is updated to be more specific, as you suggested.
+// This is the best fix as it enforces type safety at the call site.
 interface ApiRequestOptions {
     method: HttpMethod;
     url: string;
-    body?: any;
+    body?: Record<string, unknown>; // More specific than 'unknown'
+}
+
+class ApiError extends Error {
+    status: number;
+    constructor(message: string, status: number) {
+        super(message);
+        this.status = status;
+    }
 }
 
 export async function handleApi(options: ApiRequestOptions) {
@@ -31,21 +41,22 @@ export async function handleApi(options: ApiRequestOptions) {
         }
 
         const errorData = await response.json().catch(() => ({ message: 'API Error' }));
-        const error = new Error(errorData.message);
-        (error as any).status = response.status;
-        throw error;
+        throw new ApiError(errorData.message, response.status);
 
-    } catch (error: any) {
-        const isOffline = !navigator.onLine || (error instanceof TypeError && error.message === 'Failed to fetch');
-
-        if (isOffline && method !== 'GET') {
-            console.log('Offline or network error. Adding request to outbox.');
-            await addToOutbox({ url, method, body, token });
-            // Return a special object for optimistic updates.
-            return {
-                ...body,
-                optimistic: true,
-            };
+    } catch (error: unknown) {
+        const isNetworkError = error instanceof TypeError && error.message === 'Failed to fetch';
+        
+        if (!navigator.onLine || isNetworkError) {
+             if (method !== 'GET') {
+                console.log('Offline or network error. Adding request to outbox.');
+                await addToOutbox({ url, method, body, token });
+                
+                // This now works perfectly because TypeScript knows 'body' is a spreadable object or undefined.
+                return {
+                    ...(body || {}),
+                    optimistic: true,
+                };
+            }
         }
         
         throw error;

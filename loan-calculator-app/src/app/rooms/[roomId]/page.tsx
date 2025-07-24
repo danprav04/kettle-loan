@@ -63,7 +63,6 @@ export default function RoomPage() {
 
     useEffect(() => {
         fetchData();
-        // Add event listener for when sync completes to refetch data
         window.addEventListener('syncdone', fetchData);
         return () => window.removeEventListener('syncdone', fetchData);
     }, [fetchData]);
@@ -109,16 +108,19 @@ export default function RoomPage() {
             });
             setAmount('');
             setDescription('');
-            fetchData(); // Refetch data immediately after submission
+            fetchData();
         } catch (error) {
             console.error("Failed to add entry:", error);
-            // Optionally show an error toast to the user
         }
     };
 
     const handleMemberSelection = (memberId: number) => {
         const newSelection = new Set(selectedMemberIds);
-        newSelection.has(memberId) ? newSelection.delete(memberId) : newSelection.add(memberId);
+        if (newSelection.has(memberId)) {
+            newSelection.delete(memberId);
+        } else {
+            newSelection.add(memberId);
+        }
         setSelectedMemberIds(newSelection);
     };
     

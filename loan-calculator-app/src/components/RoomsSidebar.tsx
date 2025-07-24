@@ -40,6 +40,11 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
 
+    const handleLogout = useCallback(() => {
+        localStorage.removeItem('token');
+        router.push('/');
+    }, [router]);
+
     const fetchRooms = useCallback(async () => {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -60,7 +65,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         } catch (e) {
             console.error("Could not fetch rooms, possibly offline.", e);
         }
-    }, [router]);
+    }, [router, handleLogout]);
 
     useEffect(() => {
         fetchRooms();
@@ -96,8 +101,9 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             } else {
                 setError(t('joinFailed'));
             }
-        } catch (err: any) {
-            setError(err.message || t('joinFailed'));
+        } catch (err: unknown) { // Changed from any to unknown
+            const message = err instanceof Error ? err.message : String(err);
+            setError(message || t('joinFailed'));
         }
     };
 
@@ -120,14 +126,10 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             } else {
                 setError(t('createFailed'));
             }
-        } catch (err: any) {
-            setError(err.message || t('createFailed'));
+        } catch (err: unknown) { // Changed from any to unknown
+            const message = err instanceof Error ? err.message : String(err);
+            setError(message || t('createFailed'));
         }
-    };
-
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        router.push('/');
     };
     
     const openLeaveDialog = (room: Room) => {
@@ -139,7 +141,6 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         if (!selectedRoomToLeave) return;
         setError('');
         
-        // Optimistic UI update
         const originalRooms = rooms;
         setRooms(prev => prev.filter(r => r.id !== selectedRoomToLeave!.id));
         setIsLeaveDialogOpen(false);
@@ -152,9 +153,9 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                 method: 'DELETE',
                 url: `/api/rooms/${selectedRoomToLeave.id}/members`,
             });
-        } catch (err: any) {
-            setError(err.message || t('leaveRoomFailed'));
-            // Revert optimistic update on failure
+        } catch (err: unknown) { // Changed from any to unknown
+            const message = err instanceof Error ? err.message : String(err);
+            setError(message || t('leaveRoomFailed'));
             setRooms(originalRooms);
         } finally {
             setSelectedRoomToLeave(null);
