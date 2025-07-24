@@ -12,7 +12,7 @@ const config: Config = {
       colors: {
         background: 'var(--background)',
         foreground: 'var(--foreground)',
-        card: 'var(--card)',
+        'card': 'var(--card)',
         'card-border': 'var(--card-border)',
         'card-foreground': 'var(--card-foreground)',
         primary: 'var(--primary)',

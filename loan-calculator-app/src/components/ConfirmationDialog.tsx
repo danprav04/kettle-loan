@@ -23,7 +23,10 @@ export default function ConfirmationDialog({ isOpen, onClose, onConfirm, title, 
       role="dialog"
       aria-modal="true"
     >
-      <div className="bg-background rounded-xl shadow-lg border border-card-border w-full max-w-md m-4 p-6 animate-scaleIn" role="document">
+      <div 
+        className="rounded-xl shadow-lg border border-card-border bg-background w-full max-w-md m-4 p-6 animate-scaleIn" 
+        role="document"
+      >
         <h2 id="confirmation-dialog-title" className="text-xl font-bold text-card-foreground mb-4">
           {title}
         </h2>
