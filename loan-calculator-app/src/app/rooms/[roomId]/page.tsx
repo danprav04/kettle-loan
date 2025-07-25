@@ -47,7 +47,6 @@ export default function RoomPage() {
         setMembers(data.members || []);
         setCurrentUserId(data.currentUserId || null);
         
-        // Initialize member selection only once
         if (members.length === 0 && data.members.length > 0) {
             const initialSelected = (data.members || [])
                 .filter((m: Member) => m.id !== data.currentUserId)
@@ -131,20 +130,19 @@ export default function RoomPage() {
         if (entryType === 'expense') {
             const participants = new Set(selectedMemberIds);
             if (includeSelfInSplit) participants.add(currentUserId);
-            // If no one is selected, by default it's split with everyone
             finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.map(m => m.id);
         }
 
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
 
-        // --- Optimistic Update Calculation ---
         const optimisticEntry: Entry = {
             id: `temp-${Date.now()}`,
             amount: finalAmount.toFixed(2),
             description,
             created_at: new Date().toISOString(),
             username: currentUser.username,
-            split_with_user_ids: finalSplitWithIds
+            split_with_user_ids: finalSplitWithIds,
+            offline_timestamp: Date.now() // Set the offline timestamp
         };
         
         let newBalance = balance;
@@ -152,24 +150,20 @@ export default function RoomPage() {
         const share = parsedAmount / (numParticipants > 0 ? numParticipants : 1);
 
         if (entryType === 'expense') {
-            newBalance += parsedAmount; // User is credited the full amount they paid
+            newBalance += parsedAmount;
             if (finalSplitWithIds?.includes(currentUserId)) {
-                newBalance -= share; // User is debited their share
+                newBalance -= share;
             }
-        } else { // Loan
-            newBalance -= parsedAmount; // User owes the full amount
+        } else {
+            newBalance -= parsedAmount;
         }
         
-        // Persist the optimistic update to IndexedDB
         await addLocalEntry(roomId, optimisticEntry, { currentUserBalance: newBalance, otherBalances: detailedBalance });
-
-        // Force a state update from the now-updated local DB
         await fetchData({ forceLocal: true });
         
         setAmount('');
         setDescription('');
 
-        // --- API Call ---
         try {
             const result = await handleApi({
                 method: 'POST',
@@ -180,13 +174,12 @@ export default function RoomPage() {
             if (result?.optimistic) {
                 setNotification("Request queued. It will sync when you're back online.");
             } else if (isOnline) {
-                // If we were online and the request succeeded, refetch for consistency
                 fetchData();
             }
         } catch (error) {
             console.error("Failed to add entry:", error);
             setNotification('Failed to add entry. Please try again.');
-            fetchData(); // Revert optimistic update by fetching from server
+            fetchData();
         }
     };
 

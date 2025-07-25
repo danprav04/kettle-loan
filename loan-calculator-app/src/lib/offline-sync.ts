@@ -2,10 +2,10 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'loan-calculator-db';
-const DB_VERSION = 3; // Bump version for new schema
+const DB_VERSION = 3;
 const OUTBOX_STORE = 'outbox';
 const ROOM_DATA_STORE = 'room-data';
-const ROOMS_LIST_STORE = 'rooms-list'; // New store for the user's room list
+const ROOMS_LIST_STORE = 'rooms-list';
 
 // --- Type Definitions ---
 type HttpMethod = 'POST' | 'DELETE' | 'PUT';
@@ -25,12 +25,13 @@ interface Member {
 }
 
 export interface Entry {
-    id: number | string; // ID can be a temporary string for optimistic updates
+    id: number | string;
     amount: string;
     description: string;
     created_at: string;
     username: string;
     split_with_user_ids: number[] | null;
+    offline_timestamp?: number; // Added field for offline creation time
 }
 
 export interface LocalRoomData {
@@ -59,7 +60,7 @@ interface OfflineDB extends DBSchema {
     value: LocalRoomData;
   };
   [ROOMS_LIST_STORE]: {
-      key: 'user-rooms'; // Use a static key for the single list
+      key: 'user-rooms';
       value: { rooms: LocalRoomListItem[] };
   };
 }
@@ -140,7 +141,6 @@ export async function getOutboxCount(): Promise<number> {
 
 // --- Local Data Management ---
 
-// Room List
 export async function saveRoomsList(rooms: LocalRoomListItem[]) {
     const db = await getDb();
     await db.put(ROOMS_LIST_STORE, { rooms }, 'user-rooms');
@@ -152,7 +152,6 @@ export async function getRoomsList(): Promise<LocalRoomListItem[]> {
     return result?.rooms || [];
 }
 
-// Single Room Data
 export async function saveRoomData(roomId: string, data: Omit<LocalRoomData, 'id' | 'lastUpdated'>) {
     const db = await getDb();
     const record: LocalRoomData = {

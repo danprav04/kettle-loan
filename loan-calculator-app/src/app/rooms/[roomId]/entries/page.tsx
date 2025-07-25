@@ -6,6 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
 import { getRoomData, Entry } from '@/lib/offline-sync';
+import { FiClock } from 'react-icons/fi'; // Import a clock icon
 
 export default function EntriesPage() {
     const params = useParams<{ roomId: string }>();
@@ -24,17 +25,13 @@ export default function EntriesPage() {
             return;
         }
 
-        // Offline-first: Always read from local DB first
         const localData = await getRoomData(roomId);
         if (localData) {
             setEntries(localData.entries);
         }
 
-        // If online, try to refresh data. The main room page will handle saving it.
         if (isOnline) {
             try {
-                // We're just fetching to get the latest data. The main RoomPage is the
-                // single source of truth for saving this data to prevent race conditions.
                 const res = await fetch(`/api/rooms/${roomId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -78,7 +75,11 @@ export default function EntriesPage() {
                             <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
                                 <div>
                                     <p className="font-semibold text-card-foreground">{entry.description}</p>
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="text-sm text-muted-foreground flex items-center">
+                                        {/* Display clock icon if entry was made offline */}
+                                        {entry.offline_timestamp && (
+                                            <FiClock className="me-1.5 text-amber-500" title={`Created offline at ${new Date(entry.offline_timestamp).toLocaleTimeString()}`} />
+                                        )}
                                         {entry.username} - {new Date(entry.created_at).toLocaleString()}
                                     </p>
                                 </div>
