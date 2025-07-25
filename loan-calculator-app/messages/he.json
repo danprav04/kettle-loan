@@ -11,6 +11,7 @@
     "signupUsernameError": "שם המשתמש כבר קיים."
   },
   "Rooms": {
+    "welcomeBack": "ברוך שובך,",
     "joinOrCreateRoom": "הצטרף או צור חדר",
     "roomCode": "קוד חדר",
     "joinRoom": "הצטרף לחדר",

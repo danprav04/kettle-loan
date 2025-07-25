@@ -5,6 +5,7 @@ import IntlProvider from "@/components/IntlProvider";
 import ThemeProvider from "@/components/ThemeProvider";
 import SimplifiedLayoutProvider from "@/components/SimplifiedLayoutProvider";
 import SyncProvider from "@/components/SyncProvider";
+import UserProvider from "@/components/UserProvider"; // Import UserProvider
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -54,11 +55,13 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <IntlProvider>
-            <SimplifiedLayoutProvider>
-              <SyncProvider>
-                <main>{children}</main>
-              </SyncProvider>
-            </SimplifiedLayoutProvider>
+            <UserProvider>
+              <SimplifiedLayoutProvider>
+                <SyncProvider>
+                  <main>{children}</main>
+                </SyncProvider>
+              </SimplifiedLayoutProvider>
+            </UserProvider>
           </IntlProvider>
         </ThemeProvider>
       </body>

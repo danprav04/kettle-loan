@@ -11,6 +11,7 @@
     "signupUsernameError": "Username already exists."
   },
   "Rooms": {
+    "welcomeBack": "Welcome back,",
     "joinOrCreateRoom": "Join or Create a Room",
     "roomCode": "Room Code",
     "joinRoom": "Join Room",

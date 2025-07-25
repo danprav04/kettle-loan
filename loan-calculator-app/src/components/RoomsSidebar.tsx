@@ -10,6 +10,7 @@ import Icon from '@mdi/react';
 import { mdiKettle } from '@mdi/js';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
+import { useUser } from '@/components/UserProvider';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import ConfirmationDialog from './ConfirmationDialog';
 import { useSync } from './SyncProvider';
@@ -39,22 +40,18 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
+    const { user, logout } = useUser();
     const { isSimplified, setIsSimplified } = useSimplifiedLayout();
     const { isOnline, isSyncing, pendingRequestCount, isReadyForOffline } = useSync();
 
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
 
-    const handleLogout = useCallback(() => {
-        localStorage.removeItem('token');
-        router.push('/');
-    }, [router]);
-
     const fetchRooms = useCallback(async () => {
         setIsLoading(true);
         const token = localStorage.getItem('token');
         if (!token) {
-            router.push('/');
+            logout();
             return;
         }
 
@@ -70,12 +67,16 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                     setRooms(fetchedRooms);
                     await saveRoomsList(fetchedRooms);
                 }
-            } catch (error) {
-                console.warn("Failed to fetch rooms from network, using local data.", error);
+            } catch (error: any) {
+                if (error.status === 401) {
+                    logout();
+                } else {
+                    console.warn("Failed to fetch rooms from network, using local data.", error);
+                }
             }
         }
         setIsLoading(false);
-    }, [isOnline, router]);
+    }, [isOnline, logout]);
 
     useEffect(() => {
         fetchRooms();
@@ -110,8 +111,12 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             } else {
                 setNotification(isCreating ? t('createFailed') : t('joinFailed'));
             }
-        } catch {
-             setNotification(isCreating ? t('createFailed') : t('joinFailed'));
+        } catch (err: any) {
+             if (err.status === 401) {
+                 logout();
+             } else {
+                 setNotification(isCreating ? t('createFailed') : t('joinFailed'));
+             }
         }
     };
 
@@ -143,10 +148,14 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             if (result?.optimistic) {
                 setNotification(tNotif('requestQueued'));
             }
-        } catch {
-            setNotification(t('leaveRoomFailed'));
-            setRooms(originalRooms);
-            await saveRoomsList(originalRooms);
+        } catch (err: any) {
+            if (err.status === 401) {
+                logout();
+            } else {
+                setNotification(t('leaveRoomFailed'));
+                setRooms(originalRooms);
+                await saveRoomsList(originalRooms);
+            }
         } finally {
             setSelectedRoomToLeave(null);
         }
@@ -159,6 +168,15 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     return (
         <>
             <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
+                {user && (
+                    <div className="px-2 mb-4 border-b border-card-border pb-4">
+                        <div className="flex items-baseline space-x-1 rtl:space-x-reverse truncate">
+                            <p className="text-md text-muted-foreground">{t('welcomeBack')}</p>
+                            <p className="text-md font-semibold text-card-foreground truncate">{user.username}</p>
+                        </div>
+                    </div>
+                )}
+                
                 <div className="flex items-center justify-between mb-6 px-2">
                      <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
                     <div className="flex items-center space-x-2">
@@ -229,7 +247,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                     </div>
                     <button onClick={() => handleJoinOrCreateRoom({})} className="w-full py-2 rounded-lg btn-secondary mb-4">{t('createRoom')}</button>
                     <div className="space-y-2">
-                        <button onClick={handleLogout} className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted" aria-label={t('logout')}>
+                        <button onClick={logout} className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted" aria-label={t('logout')}>
                             <FiLogOut size={16} className="me-2"/>
                             <span className="font-semibold text-xs">{t('logout')}</span>
                         </button>

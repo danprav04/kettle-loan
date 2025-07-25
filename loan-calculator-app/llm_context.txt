@@ -1105,11 +1105,11 @@ export async function GET(req: Request) {
             return NextResponse.json({ message: 'Room not found' }, { status: 404 });
         }
         
-        const roomResult = await db.query('SELECT code FROM rooms WHERE id = $1', [roomId]);
+        const roomResult = await db.query('SELECT code, name FROM rooms WHERE id = $1', [roomId]);
         if (roomResult.rows.length === 0) {
             return NextResponse.json({ message: 'Room not found' }, { status: 404 });
         }
-        const roomCode = roomResult.rows[0].code;
+        const { code: roomCode, name: roomName } = roomResult.rows[0];
 
         const entriesResult = await db.query(
             'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at ASC',
@@ -1140,7 +1140,6 @@ export async function GET(req: Request) {
             if (amount > 0) { // This is an Expense
                 const participants = entry.split_with_user_ids;
 
-                // If participants list is null/empty (legacy or error), default to splitting among everyone
                 if (!participants || participants.length === 0) {
                     const share = amount / members.length;
                     members.forEach(member => {
@@ -1151,14 +1150,11 @@ export async function GET(req: Request) {
                         }
                     });
                 } else {
-                    // New logic: Split only among the specified participants
                     const numParticipants = participants.length;
                     const share = amount / numParticipants;
 
-                    // The payer is always credited the full amount they paid.
                     finalBalances[payerId] += amount;
 
-                    // Each participant (which may or may not include the payer) is debited their share.
                     participants.forEach(participantId => {
                         if (finalBalances[participantId] !== undefined) {
                             finalBalances[participantId] -= share;
@@ -1181,8 +1177,6 @@ export async function GET(req: Request) {
             }
         });
 
-
-        // Prepare response object
         const currentUserBalance = finalBalances[user.userId] || 0;
         const otherUserBalances: { [key: string]: number } = {};
         members.forEach(member => {
@@ -1194,6 +1188,7 @@ export async function GET(req: Request) {
         const reversedEntries = entries.reverse();
 
         return NextResponse.json({
+            name: roomName,
             code: roomCode,
             entries: reversedEntries,
             balances: otherUserBalances,
@@ -1203,6 +1198,45 @@ export async function GET(req: Request) {
         });
     } catch (error) {
         console.error(error);
+        return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
+    }
+}
+
+export async function PUT(req: Request) {
+    try {
+        const url = new URL(req.url);
+        const pathnameParts = url.pathname.split('/');
+        const roomId = pathnameParts[pathnameParts.length - 1];
+
+        const token = req.headers.get('authorization')?.split(' ')[1];
+        const user = verifyToken(token);
+        if (!user) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+        
+        const { name } = await req.json();
+        if (typeof name !== 'string' || name.trim().length === 0 || name.length > 50) {
+            return NextResponse.json({ message: 'Invalid name provided' }, { status: 400 });
+        }
+
+        const memberCheckResult = await db.query(
+            'SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2',
+            [roomId, user.userId]
+        );
+
+        if (memberCheckResult.rows.length === 0) {
+            return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+        }
+
+        await db.query(
+            'UPDATE rooms SET name = $1 WHERE id = $2',
+            [name.trim(), roomId]
+        );
+        
+        return NextResponse.json({ message: 'Room updated successfully' });
+
+    } catch (error) {
+        console.error('Failed to update room name:', error);
         return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
     }
 }
@@ -1297,7 +1331,7 @@ export async function GET(req: Request) {
         }
 
         const roomsResult = await db.query(
-            `SELECT r.id, r.code 
+            `SELECT r.id, r.code, r.name 
              FROM rooms r 
              JOIN room_members rm ON r.id = rm.room_id 
              WHERE rm.user_id = $1 
@@ -1465,11 +1499,11 @@ export default function RoomsPage() {
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import Link from 'next/link'; // Import the Link component
+import Link from 'next/link';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
-import { FiArrowDown, FiInfo } from 'react-icons/fi';
+import { FiArrowDown, FiInfo, FiEdit, FiSave, FiX, FiLoader } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
-import { saveRoomData, getRoomData, addLocalEntry, LocalRoomData, Entry } from '@/lib/offline-sync';
+import { saveRoomData, getRoomData, addLocalEntry, updateLocalRoomName, LocalRoomData, Entry } from '@/lib/offline-sync';
 import { useSync } from '@/components/SyncProvider';
 
 interface Member {
@@ -1488,6 +1522,10 @@ export default function RoomPage() {
     const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
     const [showDetails, setShowDetails] = useState(false);
     const [roomCode, setRoomCode] = useState('');
+    const [roomName, setRoomName] = useState<string | null>(null);
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [newName, setNewName] = useState('');
+    const [isSavingName, setIsSavingName] = useState(false);
     const [members, setMembers] = useState<Member[]>([]);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [notification, setNotification] = useState<string | null>(null);
@@ -1506,6 +1544,8 @@ export default function RoomPage() {
         setBalance(data.currentUserBalance || 0);
         setDetailedBalance(data.balances || {});
         setRoomCode(data.code || '');
+        setRoomName(data.name || null);
+        setNewName(data.name || '');
         setMembers(data.members || []);
         setCurrentUserId(data.currentUserId || null);
         
@@ -1581,6 +1621,48 @@ export default function RoomPage() {
         localStorage.setItem('entryType', type);
     };
 
+    const handleSaveName = async () => {
+        if (!newName.trim() || newName.trim() === roomName) {
+            setIsEditingName(false);
+            return;
+        }
+        setIsSavingName(true);
+        setNotification(null);
+        
+        const oldName = roomName;
+        const trimmedNewName = newName.trim();
+
+        setRoomName(trimmedNewName);
+        await updateLocalRoomName(roomId, trimmedNewName);
+        setIsEditingName(false);
+        
+        try {
+            const result = await handleApi({
+                method: 'PUT',
+                url: `/api/rooms/${roomId}`,
+                body: { name: trimmedNewName }
+            });
+            
+            if (result?.optimistic) {
+                setNotification(t('requestQueued'));
+            } else if (isOnline) {
+                fetchData();
+            }
+        } catch (error) {
+            console.error("Failed to save room name:", error);
+            setNotification('Failed to save name.');
+            setRoomName(oldName);
+            if (oldName) await updateLocalRoomName(roomId, oldName);
+        } finally {
+            setIsSavingName(false);
+        }
+    };
+
+    const handleStartEditingName = () => {
+        setNewName(roomName || '');
+        setIsEditingName(true);
+    };
+
     const handleAddEntry = async (e: React.FormEvent) => {
         e.preventDefault();
         setNotification(null);
@@ -1635,7 +1717,7 @@ export default function RoomPage() {
                     amount: finalAmount, 
                     description, 
                     splitWithUserIds: finalSplitWithIds,
-                    createdAt: optimisticEntry.created_at // Send original timestamp
+                    createdAt: optimisticEntry.created_at
                 },
             });
 
@@ -1671,10 +1753,36 @@ export default function RoomPage() {
         <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
             <div className="p-8">
                 <div className="text-center mb-6">
-                    <h1 className="text-xl font-bold text-card-foreground">
-                        {t('roomTitle', { code: roomCode })}
-                    </h1>
+                    {isEditingName ? (
+                        <div className="flex items-center space-x-2 rtl:space-x-reverse animate-fadeIn">
+                            <input
+                                type="text"
+                                value={newName}
+                                onChange={(e) => setNewName(e.target.value)}
+                                className="w-full px-3 py-1 text-xl font-bold text-center rounded-lg themed-input"
+                                autoFocus
+                                onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                            />
+                            <button onClick={handleSaveName} className="p-2 btn-primary rounded-lg" disabled={isSavingName} aria-label="Save name">
+                                {isSavingName ? <FiLoader className="animate-spin" /> : <FiSave />}
+                            </button>
+                            <button onClick={() => setIsEditingName(false)} className="p-2 btn-muted rounded-lg" aria-label="Cancel editing name">
+                                <FiX />
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-center space-x-2 rtl:space-x-reverse group">
+                            <h1 className="text-xl font-bold text-card-foreground">
+                                {roomName || t('roomTitle', { code: roomCode })}
+                            </h1>
+                            <button onClick={handleStartEditingName} className="p-1 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Edit room name">
+                                <FiEdit />
+                            </button>
+                        </div>
+                    )}
+                    <p className="text-sm text-muted-foreground mt-1">Room Code: {roomCode}</p>
                 </div>
+
 
                 <div className="text-center mb-6">
                     <div className="text-lg font-medium text-muted-foreground">{t('balanceTitle')}</div>
@@ -2136,6 +2244,7 @@ import { saveRoomsList, getRoomsList } from '@/lib/offline-sync';
 interface Room {
     id: number;
     code: string;
+    name: string | null;
 }
 
 interface RoomsSidebarProps {
@@ -2314,7 +2423,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                                     <li key={room.id}>
                                         <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
                                             <Link href={`/rooms/${room.id}`} onClick={closeSidebar} className="flex-grow p-3 text-sm font-semibold truncate">
-                                                Room #{room.code}
+                                                {room.name || `Room #${room.code}`}
                                             </Link>
                                             <div className="flex items-center">
                                                 <button onClick={() => handleCopyToClipboard(room.code)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('copyRoomCode')} >
@@ -2749,11 +2858,12 @@ export interface Entry {
     created_at: string;
     username: string;
     split_with_user_ids: number[] | null;
-    offline_timestamp?: number; // Added field for offline creation time
+    offline_timestamp?: number;
 }
 
 export interface LocalRoomData {
     id: string;
+    name: string | null;
     code: string;
     entries: Entry[];
     balances: { [key: string]: number };
@@ -2765,6 +2875,7 @@ export interface LocalRoomData {
 
 export interface LocalRoomListItem {
     id: number;
+    name: string | null;
     code: string;
 }
 
@@ -2889,6 +3000,30 @@ export async function saveRoomData(roomId: string, data: Omit<LocalRoomData, 'id
 export async function getRoomData(roomId: string): Promise<LocalRoomData | undefined> {
     const db = await getDb();
     return db.get(ROOM_DATA_STORE, roomId);
+}
+
+export async function updateLocalRoomName(roomId: string, newName: string) {
+    const db = await getDb();
+    const tx = db.transaction([ROOM_DATA_STORE, ROOMS_LIST_STORE], 'readwrite');
+    const roomDataStore = tx.objectStore(ROOM_DATA_STORE);
+    const roomsListStore = tx.objectStore(ROOMS_LIST_STORE);
+
+    const roomData = await roomDataStore.get(roomId);
+    if (roomData) {
+        roomData.name = newName;
+        await roomDataStore.put(roomData);
+    }
+
+    const roomsList = await roomsListStore.get('user-rooms');
+    if (roomsList) {
+        const roomIndex = roomsList.rooms.findIndex(r => r.id === parseInt(roomId, 10));
+        if (roomIndex > -1) {
+            roomsList.rooms[roomIndex].name = newName;
+            await roomsListStore.put(roomsList, 'user-rooms');
+        }
+    }
+    
+    await tx.done;
 }
 
 export async function addLocalEntry(roomId: string, newEntry: Entry, newBalances: { currentUserBalance: number, otherBalances: { [key: string]: number } }) {
