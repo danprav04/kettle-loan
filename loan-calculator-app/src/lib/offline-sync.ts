@@ -152,6 +152,12 @@ export async function getRoomsList(): Promise<LocalRoomListItem[]> {
     return result?.rooms || [];
 }
 
+export async function hasCachedRoomData(): Promise<boolean> {
+    const db = await getDb();
+    const count = await db.count(ROOM_DATA_STORE);
+    return count > 0;
+}
+
 export async function saveRoomData(roomId: string, data: Omit<LocalRoomData, 'id' | 'lastUpdated'>) {
     const db = await getDb();
     const record: LocalRoomData = {

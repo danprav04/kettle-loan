@@ -1327,65 +1327,64 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
 ---
 
 --- File: src/app/rooms/page.tsx ---
+// src/app/rooms/page.tsx
 "use client";
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-
-interface Room {
-    id: number;
-    code: string;
-}
+import { useSync } from '@/components/SyncProvider';
+import { handleApi } from '@/lib/api';
+import { saveRoomsList, getRoomsList } from '@/lib/offline-sync';
 
 export default function RoomsPage() {
     const t = useTranslations('Rooms');
     const router = useRouter();
+    const { isOnline } = useSync();
     const [isLoading, setIsLoading] = useState(true);
+    const [statusMessage, setStatusMessage] = useState(t('loadingRooms'));
 
     useEffect(() => {
         const checkRoomsAndRedirect = async () => {
             const token = localStorage.getItem('token');
             if (!token) {
-                router.replace('/'); // Use replace to avoid back-button issues
+                router.replace('/');
                 return;
             }
 
-            try {
-                const res = await fetch('/api/user/rooms', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            let rooms = await getRoomsList();
 
-                if (res.ok) {
-                    const rooms: Room[] = await res.json();
-                    if (rooms && rooms.length > 0) {
-                        // Redirect to the most recent room
-                        router.replace(`/rooms/${rooms[0].id}`);
-                    } else {
-                        // No rooms, so stop loading and show the welcome message
-                        setIsLoading(false);
+            if (isOnline) {
+                try {
+                    const fetchedRooms = await handleApi({ method: 'GET', url: '/api/user/rooms' });
+                    if (fetchedRooms && Array.isArray(fetchedRooms)) {
+                        await saveRoomsList(fetchedRooms);
+                        rooms = fetchedRooms;
                     }
-                } else if (res.status === 401) {
-                    // Unauthorized, redirect to login
-                    router.replace('/');
-                } else {
-                    // Handle other errors, stop loading to prevent infinite loop
-                    setIsLoading(false);
+                } catch (error) {
+                    console.warn("Could not fetch user rooms, using local data.", error);
+                    setStatusMessage("Couldn't refresh rooms. Using offline data.");
                 }
-            } catch (error) {
-                console.error("Failed to fetch rooms", error);
-                setIsLoading(false); // Stop loading on network or other errors
+            }
+
+            if (rooms.length > 0) {
+                router.replace(`/rooms/${rooms[0].id}`);
+            } else {
+                if (!isOnline) {
+                    setStatusMessage("Connect to the internet once to download your rooms for offline use.");
+                }
+                setIsLoading(false);
             }
         };
 
         checkRoomsAndRedirect();
-    }, [router]);
+    }, [router, isOnline, t]);
 
     if (isLoading) {
         return (
             <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center">
-                    <p className="text-muted-foreground">{t('loadingRooms')}</p>
+                    <p className="text-muted-foreground">{statusMessage}</p>
                 </div>
             </div>
         );
@@ -1417,6 +1416,8 @@ import { useTranslations } from 'next-intl';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import { FiArrowDown, FiInfo } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
+import { saveRoomData, getRoomData, addLocalEntry, LocalRoomData, Entry } from '@/lib/offline-sync';
+import { useSync } from '@/components/SyncProvider';
 
 interface Member {
     id: number;
@@ -1428,8 +1429,8 @@ export default function RoomPage() {
     const { roomId } = params;
     const t = useTranslations('Room');
     const { isSimplified } = useSimplifiedLayout();
+    const { isOnline } = useSync();
 
-    // State for all room data
     const [balance, setBalance] = useState(0);
     const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
     const [showDetails, setShowDetails] = useState(false);
@@ -1437,58 +1438,70 @@ export default function RoomPage() {
     const [members, setMembers] = useState<Member[]>([]);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [notification, setNotification] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
-    
-    // Form state
+
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
-    
+
     const otherMembers = useMemo(() => members.filter(m => m.id !== currentUserId), [members, currentUserId]);
 
-    const fetchData = useCallback(async (isRetry = false) => {
+    const updateStateFromData = (data: LocalRoomData) => {
+        setBalance(data.currentUserBalance || 0);
+        setDetailedBalance(data.balances || {});
+        setRoomCode(data.code || '');
+        setMembers(data.members || []);
+        setCurrentUserId(data.currentUserId || null);
+        
+        if (members.length === 0 && data.members.length > 0) {
+            const initialSelected = (data.members || [])
+                .filter((m: Member) => m.id !== data.currentUserId)
+                .map((m: Member) => m.id);
+            setSelectedMemberIds(new Set(initialSelected));
+            setIncludeSelfInSplit(true);
+        }
+    };
+
+    const fetchData = useCallback(async (options: { forceLocal?: boolean } = {}) => {
+        setIsLoading(true);
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/');
             return;
         }
-        try {
-            const res = await fetch(`/api/rooms/${roomId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const { currentUserBalance, balances, code, members, currentUserId } = await res.json();
-                setBalance(currentUserBalance || 0);
-                setDetailedBalance(balances || {});
-                setRoomCode(code || '');
-                setMembers(members || []);
-                setCurrentUserId(currentUserId || null);
-                // Initialize split selection to all other members
-                setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
-                setIncludeSelfInSplit(true);
-            } else if (res.status === 401) {
-                router.push('/');
-            } else if (res.status === 404 && !isRetry) {
-                // If the room isn't found, it might be because of an offline->online sync delay.
-                // We'll wait a moment and try one more time.
-                setTimeout(() => fetchData(true), 1500);
-            }
-        } catch (e) {
-            console.error("Failed to fetch room data. Possibly offline.", e);
-        }
-    }, [roomId, router]);
 
-    // This wrapper function has the correct EventListener signature.
+        if (isOnline && !options.forceLocal) {
+            try {
+                const data = await handleApi({ method: 'GET', url: `/api/rooms/${roomId}` });
+                if (data) {
+                    await saveRoomData(roomId, data);
+                    updateStateFromData(data);
+                }
+            } catch (e) {
+                console.warn("Online fetch failed, falling back to local data.", e);
+                const localData = await getRoomData(roomId);
+                if (localData) updateStateFromData(localData);
+            }
+        } else {
+            const localData = await getRoomData(roomId);
+            if (localData) {
+                updateStateFromData(localData);
+            } else {
+                setNotification("This room's data isn't saved for offline use.");
+            }
+        }
+        setIsLoading(false);
+    }, [roomId, router, isOnline, members.length]);
+
     const handleSyncDone = useCallback(() => {
-        console.log('Sync complete. Refetching room data...');
         fetchData();
     }, [fetchData]);
 
     useEffect(() => {
         fetchData();
-        // We use the new handler function for the event listener.
         window.addEventListener('syncdone', handleSyncDone);
         return () => window.removeEventListener('syncdone', handleSyncDone);
     }, [fetchData, handleSyncDone]);
@@ -1519,50 +1532,57 @@ export default function RoomPage() {
         e.preventDefault();
         setNotification(null);
         const parsedAmount = Math.abs(parseFloat(amount));
-        if (isNaN(parsedAmount) || parsedAmount <= 0 || !currentUserId) return;
+        const currentUser = members.find(m => m.id === currentUserId);
+        if (isNaN(parsedAmount) || parsedAmount <= 0 || !currentUserId || !currentUser) return;
 
         let finalSplitWithIds: number[] | null = null;
         if (entryType === 'expense') {
             const participants = new Set(selectedMemberIds);
-            if (includeSelfInSplit) {
-                participants.add(currentUserId);
-            }
-            if (participants.size > 0) {
-                finalSplitWithIds = Array.from(participants);
-            }
+            if (includeSelfInSplit) participants.add(currentUserId);
+            finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.map(m => m.id);
         }
-        
+
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
 
-        const optimisticEntryData = {
-            roomId,
-            amount: finalAmount,
+        const optimisticEntry: Entry = {
+            id: `temp-${Date.now()}`,
+            amount: finalAmount.toFixed(2),
             description,
-            splitWithUserIds: finalSplitWithIds
+            created_at: new Date().toISOString(),
+            username: currentUser.username,
+            split_with_user_ids: finalSplitWithIds,
+            offline_timestamp: Date.now() // Set the offline timestamp
         };
         
+        let newBalance = balance;
         const numParticipants = finalSplitWithIds?.length || members.length;
         const share = parsedAmount / (numParticipants > 0 ? numParticipants : 1);
 
         if (entryType === 'expense') {
-            setBalance(prev => prev + (parsedAmount - share));
+            newBalance += parsedAmount;
+            if (finalSplitWithIds?.includes(currentUserId)) {
+                newBalance -= share;
+            }
         } else {
-            setBalance(prev => prev - parsedAmount);
+            newBalance -= parsedAmount;
         }
+        
+        await addLocalEntry(roomId, optimisticEntry, { currentUserBalance: newBalance, otherBalances: detailedBalance });
+        await fetchData({ forceLocal: true });
         
         setAmount('');
         setDescription('');
-        
+
         try {
             const result = await handleApi({
                 method: 'POST',
                 url: '/api/entries',
-                body: optimisticEntryData,
+                body: { roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds },
             });
 
             if (result?.optimistic) {
-                setNotification("Request queued offline. It will sync when you're back online.");
-            } else {
+                setNotification("Request queued. It will sync when you're back online.");
+            } else if (isOnline) {
                 fetchData();
             }
         } catch (error) {
@@ -1582,7 +1602,11 @@ export default function RoomPage() {
         setSelectedMemberIds(newSelection);
     };
     
-    const isSubmitDisabled = amount === '' || description === '' || (entryType === 'expense' && !includeSelfInSplit && selectedMemberIds.size === 0);
+    const isSubmitDisabled = amount === '' || description === '';
+
+    if (isLoading) {
+        return <div className="max-w-md mx-auto p-8 text-center text-muted-foreground animate-fadeIn">Loading room...</div>;
+    }
 
     return (
         <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
@@ -1665,7 +1689,6 @@ export default function RoomPage() {
                                         <div key={member.id} className="flex items-center">
                                             <input id={`member-${member.id}`} name="members" type="checkbox" checked={selectedMemberIds.has(member.id)} onChange={() => handleMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
                                             <label htmlFor={`member-${member.id}`} className="ms-2 block text-sm text-foreground">{member.username}</label>
-
                                         </div>
                                     ))}
                                 </div>
@@ -1690,51 +1713,58 @@ export default function RoomPage() {
 ---
 
 --- File: src/app/rooms/[roomId]/entries/page.tsx ---
+// src/app/rooms/[roomId]/entries/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-
-interface Entry {
-    id: number;
-    amount: string;
-    description: string;
-    created_at: string;
-    username: string;
-}
+import { useSync } from '@/components/SyncProvider';
+import { getRoomData, Entry } from '@/lib/offline-sync';
+import { FiClock } from 'react-icons/fi'; // Import a clock icon
 
 export default function EntriesPage() {
     const params = useParams<{ roomId: string }>();
     const { roomId } = params;
     const t = useTranslations('Room');
+    const { isOnline } = useSync();
     const [entries, setEntries] = useState<Entry[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
     const fetchEntries = useCallback(async () => {
+        setIsLoading(true);
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/');
             return;
         }
-        try {
-            const res = await fetch(`/api/rooms/${roomId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const { entries } = await res.json();
-                setEntries(entries);
-            } else if (res.status === 401) {
-                router.push('/');
-            }
-        } catch (e) {
-            console.error("Failed to fetch entries. Possibly offline.", e);
+
+        const localData = await getRoomData(roomId);
+        if (localData) {
+            setEntries(localData.entries);
         }
-    }, [roomId, router]);
+
+        if (isOnline) {
+            try {
+                const res = await fetch(`/api/rooms/${roomId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const { entries: fetchedEntries } = await res.json();
+                    setEntries(fetchedEntries);
+                } else if (res.status === 401) {
+                    router.push('/');
+                }
+            } catch (e) {
+                console.error("Failed to refresh entries. Using local data.", e);
+            }
+        }
+        setIsLoading(false);
+    }, [roomId, router, isOnline]);
 
     useEffect(() => {
         fetchEntries();
-        // Add event listener for when sync completes to refetch entries
         window.addEventListener('syncdone', fetchEntries);
         return () => {
             window.removeEventListener('syncdone', fetchEntries);
@@ -1750,21 +1780,31 @@ export default function EntriesPage() {
                 <div className="p-4 border-b border-card-border">
                     <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
                 </div>
-                <ul>
-                    {entries.map((entry, index) => (
-                        <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
-                            <div>
-                                <p className="font-semibold text-card-foreground">{entry.description}</p>
-                                <p className="text-sm text-muted-foreground">
-                                    {entry.username} - {new Date(entry.created_at).toLocaleString()}
-                                </p>
-                            </div>
-                            <div className="text-lg font-bold text-card-foreground">
-                                {parseFloat(entry.amount).toFixed(2)} ILS
-                            </div>
-                        </li>
-                    ))}
-                </ul>
+                {isLoading ? (
+                    <p className="p-4 text-center text-muted-foreground">Loading entries...</p>
+                ) : entries.length === 0 ? (
+                    <p className="p-4 text-center text-muted-foreground">No entries have been added to this room yet.</p>
+                ) : (
+                    <ul>
+                        {entries.map((entry, index) => (
+                            <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
+                                <div>
+                                    <p className="font-semibold text-card-foreground">{entry.description}</p>
+                                    <p className="text-sm text-muted-foreground flex items-center">
+                                        {/* Display clock icon if entry was made offline */}
+                                        {entry.offline_timestamp && (
+                                            <FiClock className="me-1.5 text-amber-500" title={`Created offline at ${new Date(entry.offline_timestamp).toLocaleTimeString()}`} />
+                                        )}
+                                        {entry.username} - {new Date(entry.created_at).toLocaleString()}
+                                    </p>
+                                </div>
+                                <div className={`text-lg font-bold ${parseFloat(entry.amount) < 0 ? 'text-danger' : 'text-success'}`}>
+                                    {parseFloat(entry.amount).toFixed(2)} ILS
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </div>
         </div>
     );
@@ -2020,7 +2060,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff, FiLoader } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff, FiLoader, FiCheckCircle } from 'react-icons/fi';
 import Icon from '@mdi/react';
 import { mdiKettle } from '@mdi/js';
 import { useTheme } from '@/components/ThemeProvider';
@@ -2029,6 +2069,7 @@ import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import ConfirmationDialog from './ConfirmationDialog';
 import { useSync } from './SyncProvider';
 import { handleApi } from '@/lib/api';
+import { saveRoomsList, getRoomsList } from '@/lib/offline-sync';
 
 interface Room {
     id: number;
@@ -2045,13 +2086,14 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const router = useRouter();
     const pathname = usePathname();
     const [rooms, setRooms] = useState<Room[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [roomCode, setRoomCode] = useState('');
     const [notification, setNotification] = useState('');
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
     const { isSimplified, setIsSimplified } = useSimplifiedLayout();
-    const { isOnline, isSyncing, pendingRequestCount } = useSync();
+    const { isOnline, isSyncing, pendingRequestCount, isReadyForOffline } = useSync();
 
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
@@ -2062,26 +2104,31 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     }, [router]);
 
     const fetchRooms = useCallback(async () => {
+        setIsLoading(true);
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/');
             return;
         }
-        try {
-            const res = await fetch('/api/user/rooms', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
 
-            if (res.ok) {
-                const data = await res.json();
-                setRooms(data);
-            } else if (res.status === 401) {
-                handleLogout();
-            }
-        } catch {
-            console.error("Could not fetch rooms, possibly offline.");
+        const localRooms = await getRoomsList();
+        if (localRooms.length > 0) {
+            setRooms(localRooms);
         }
-    }, [router, handleLogout]);
+
+        if (isOnline) {
+            try {
+                const fetchedRooms = await handleApi({ method: 'GET', url: '/api/user/rooms' });
+                if (fetchedRooms && Array.isArray(fetchedRooms)) {
+                    setRooms(fetchedRooms);
+                    await saveRoomsList(fetchedRooms);
+                }
+            } catch (error) {
+                console.warn("Failed to fetch rooms from network, using local data.", error);
+            }
+        }
+        setIsLoading(false);
+    }, [isOnline, router]);
 
     useEffect(() => {
         fetchRooms();
@@ -2096,64 +2143,37 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         }).catch(() => setNotification(t('copyFailed')));
     };
 
-    const handleJoinRoom = async (e: React.FormEvent) => {
+    const handleJoinOrCreateRoom = async (options: { roomCode?: string }) => {
+        setNotification('');
+        const isCreating = !options.roomCode;
+        const body = isCreating ? {} : { roomCode: options.roomCode };
+        
+        try {
+            const result = await handleApi({ method: 'POST', url: '/api/rooms', body });
+            if (result?.optimistic) {
+                setNotification("Request queued offline. It will sync when you're back online.");
+                setRoomCode('');
+                return;
+            }
+            if (result.roomId) {
+                setRoomCode('');
+                await fetchRooms();
+                router.push(`/rooms/${result.roomId}`);
+                closeSidebar();
+            } else {
+                setNotification(isCreating ? t('createFailed') : t('joinFailed'));
+            }
+        } catch {
+             setNotification(isCreating ? t('createFailed') : t('joinFailed'));
+        }
+    };
+
+    const handleJoinSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setNotification('');
-        if (!roomCode.trim()) {
-            setNotification(t('joinFailed'));
-            return;
-        }
-
-        try {
-            const result = await handleApi({
-                method: 'POST',
-                url: '/api/rooms',
-                body: { roomCode },
-            });
-
-            if (result?.optimistic) {
-                setNotification("Join request queued offline.");
-                setRoomCode('');
-                return;
-            }
-            if (result.roomId) {
-                setRoomCode('');
-                fetchRooms(); // Refetch to show the new room
-                router.push(`/rooms/${result.roomId}`);
-                closeSidebar();
-            } else {
-                setNotification(t('joinFailed'));
-            }
-        } catch {
-            setNotification(t('joinFailed'));
-        }
+        if (!roomCode.trim()) return;
+        handleJoinOrCreateRoom({ roomCode });
     };
 
-    const handleCreateRoom = async () => {
-        setNotification('');
-        try {
-            const result = await handleApi({
-                method: 'POST',
-                url: '/api/rooms',
-                body: {},
-            });
-
-            if (result?.optimistic) {
-                setNotification("Create room request queued offline.");
-                return;
-            }
-            if (result.roomId) {
-                fetchRooms(); // Refetch to show the new room
-                router.push(`/rooms/${result.roomId}`);
-                closeSidebar();
-            } else {
-                setNotification(t('createFailed'));
-            }
-        } catch {
-            setNotification(t('createFailed'));
-        }
-    };
-    
     const openLeaveDialog = (room: Room) => {
         setSelectedRoomToLeave(room);
         setIsLeaveDialogOpen(true);
@@ -2163,7 +2183,6 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         if (!selectedRoomToLeave) return;
         setNotification('');
         
-        // Optimistic UI: Remove the room from the list immediately
         const originalRooms = rooms;
         setRooms(prev => prev.filter(r => r.id !== selectedRoomToLeave!.id));
         setIsLeaveDialogOpen(false);
@@ -2172,17 +2191,15 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         }
 
         try {
-            const result = await handleApi({
-                method: 'DELETE',
-                url: `/api/rooms/${selectedRoomToLeave.id}/members`,
-            });
+            await saveRoomsList(rooms.filter(r => r.id !== selectedRoomToLeave!.id));
+            const result = await handleApi({ method: 'DELETE', url: `/api/rooms/${selectedRoomToLeave.id}/members` });
             if (result?.optimistic) {
                 setNotification("Leave room request queued offline.");
             }
         } catch {
             setNotification(t('leaveRoomFailed'));
-            // Revert UI change if API call fails for a reason other than being offline
             setRooms(originalRooms);
+            await saveRoomsList(originalRooms);
         } finally {
             setSelectedRoomToLeave(null);
         }
@@ -2196,12 +2213,16 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         <>
             <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
                 <div className="flex items-center justify-between mb-6 px-2">
-                    <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                        <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
-                        {isSyncing ? (
+                     <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
+                    <div className="flex items-center space-x-2">
+                        {isOnline && !isSyncing && isReadyForOffline && (
+                            <FiCheckCircle className="text-success" title="App is ready for offline use" />
+                        )}
+                        {isSyncing && (
                             <FiLoader className="animate-spin text-primary" title="Syncing..." />
-                        ) : !isOnline && (
-                             <div className="flex items-center space-x-1 text-danger" title={`You are offline. ${pendingRequestCount} request(s) pending.`}>
+                        )}
+                        {!isOnline && (
+                             <div className="flex items-center space-x-1 text-muted-foreground" title={`You are offline. ${pendingRequestCount > 0 ? `${pendingRequestCount} item(s) pending sync.` : ''}`}>
                                 <FiWifiOff />
                                 {pendingRequestCount > 0 && (
                                     <span className="text-xs font-bold bg-danger text-white rounded-full h-4 w-4 flex items-center justify-center">
@@ -2210,59 +2231,58 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                                 )}
                             </div>
                         )}
+                        <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
+                            <FiX size={24} />
+                        </button>
                     </div>
-                    <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
-                        <FiX size={24} />
-                    </button>
                 </div>
 
-                <nav className="flex-grow overflow-y-auto -mx-2 pr-1 animate-fadeIn">
-                    <ul>
-                        {rooms.map((room, index) => {
-                            const isActive = pathname === `/rooms/${room.id}` || pathname.startsWith(`/rooms/${room.id}/`);
-                            return (
-                                <li key={room.id} style={{ animationDelay: `${index * 50}ms`, opacity: 0 }} className="animate-fadeIn px-2">
-                                    <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
-                                        <Link href={`/rooms/${room.id}`} onClick={closeSidebar} className="flex-grow p-3 text-sm font-semibold truncate">
-                                            Room #{room.code}
-                                        </Link>
-                                        <div className="flex items-center">
-                                            <button onClick={() => handleCopyToClipboard(room.code)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('copyRoomCode')} >
-                                                {copiedCode === room.code ? <FiCheck className="text-success animate-scaleIn" /> : <FiCopy className="group-hover:scale-110 transition-transform" />}
-                                            </button>
-                                            <button onClick={() => openLeaveDialog(room)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('leaveRoom')} >
-                                                <FiXCircle className="group-hover:scale-110 transition-transform text-danger" />
-                                            </button>
+                <div className="flex-grow overflow-y-auto -mx-2 pr-1 animate-fadeIn">
+                    {isLoading ? (
+                        <div className="text-center text-muted-foreground p-4">{t('loadingRooms')}</div>
+                    ) : (
+                        <ul>
+                            {rooms.map((room) => {
+                                const isActive = pathname === `/rooms/${room.id}` || pathname.startsWith(`/rooms/${room.id}/`);
+                                return (
+                                    <li key={room.id}>
+                                        <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
+                                            <Link href={`/rooms/${room.id}`} onClick={closeSidebar} className="flex-grow p-3 text-sm font-semibold truncate">
+                                                Room #{room.code}
+                                            </Link>
+                                            <div className="flex items-center">
+                                                <button onClick={() => handleCopyToClipboard(room.code)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('copyRoomCode')} >
+                                                    {copiedCode === room.code ? <FiCheck className="text-success animate-scaleIn" /> : <FiCopy className="group-hover:scale-110 transition-transform" />}
+                                                </button>
+                                                <button onClick={() => openLeaveDialog(room)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('leaveRoom')} >
+                                                    <FiXCircle className="group-hover:scale-110 transition-transform text-danger" />
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </nav>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </div>
 
                 <div className="mt-auto pt-4 border-t border-card-border">
                     {notification && <p className="text-blue-600 dark:text-blue-400 text-sm text-center mb-2 animate-fadeIn">{notification}</p>}
-                    
-                    <form onSubmit={handleJoinRoom} className="mb-4">
+                    <form onSubmit={handleJoinSubmit} className="mb-4">
                         <input type="text" placeholder={t('roomCode')} value={roomCode} onChange={(e) => setRoomCode(e.target.value.toUpperCase())} className="w-full px-3 py-2 rounded-lg mb-2 themed-input" />
                         <button type="submit" className="w-full py-2 rounded-lg btn-primary">{t('joinRoom')}</button>
                     </form>
-
                     <div className="flex items-center my-2">
                         <div className="flex-grow border-t border-card-border"></div>
                         <span className="flex-shrink mx-2 text-xs text-muted-foreground">{t('or')}</span>
                         <div className="flex-grow border-t border-card-border"></div>
                     </div>
-                    
-                    <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary mb-4">{t('createRoom')}</button>
-
+                    <button onClick={() => handleJoinOrCreateRoom({})} className="w-full py-2 rounded-lg btn-secondary mb-4">{t('createRoom')}</button>
                     <div className="space-y-2">
                         <button onClick={handleLogout} className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted" aria-label={t('logout')}>
                             <FiLogOut size={16} className="me-2"/>
                             <span className="font-semibold text-xs">{t('logout')}</span>
                         </button>
-
                         <div className="flex items-center justify-center space-x-2">
                              <button onClick={toggleTheme} className="flex items-center justify-center w-full p-2 rounded-md btn-muted" aria-label={tAccess('toggleTheme')} >
                                 {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
@@ -2278,7 +2298,6 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                     </div>
                 </div>
             </aside>
-
             <ConfirmationDialog isOpen={isLeaveDialogOpen} onClose={() => setIsLeaveDialogOpen(false)} onConfirm={handleLeaveRoom} title={t('leaveRoomTitle')}>
                 {t('leaveRoomConfirmation', { code: selectedRoomToLeave?.code ?? '' })}
             </ConfirmationDialog>
@@ -2341,12 +2360,13 @@ export function useSimplifiedLayout() {
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { syncOutbox, getOutboxCount } from '@/lib/offline-sync';
+import { syncOutbox, getOutboxCount, getRoomsList } from '@/lib/offline-sync';
 
 interface SyncContextType {
   isOnline: boolean;
   isSyncing: boolean;
   pendingRequestCount: number;
+  isReadyForOffline: boolean;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
@@ -2355,56 +2375,69 @@ export default function SyncProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const [isReadyForOffline, setIsReadyForOffline] = useState(false);
 
   const updatePendingCount = useCallback(async () => {
-    // Ensure this only runs in the browser where IndexedDB is available
     if (typeof window !== 'undefined' && window.indexedDB) {
         const count = await getOutboxCount();
         setPendingRequestCount(count);
     }
   }, []);
 
+  const checkOfflineReadiness = useCallback(async () => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && window.indexedDB) {
+        const hasControllingSW = navigator.serviceWorker.controller !== null;
+        const hasCachedRooms = (await getRoomsList()).length > 0;
+        
+        if (hasControllingSW && hasCachedRooms) {
+            setIsReadyForOffline(true);
+        }
+    }
+  }, []);
+
   useEffect(() => {
-    // Can only run in the browser
+    // Initial check on mount, and re-check after a sync in case rooms were just loaded.
+    checkOfflineReadiness();
+    window.addEventListener('syncdone', checkOfflineReadiness);
+    
+    return () => {
+        window.removeEventListener('syncdone', checkOfflineReadiness);
+    };
+  }, [checkOfflineReadiness]);
+
+
+  useEffect(() => {
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
         setIsOnline(navigator.onLine);
     }
 
     const handleOnline = async () => {
-      console.log('Application is online.');
       setIsOnline(true);
       setIsSyncing(true);
       try {
         const didSync = await syncOutbox();
-        // If any requests were successfully synced, dispatch an event
-        // so that components can refetch their data.
         if (didSync) {
-            console.log("Sync complete. Refreshing data.");
             window.dispatchEvent(new Event('syncdone'));
         }
       } catch (error) {
         console.error('Error during sync:', error);
       } finally {
         setIsSyncing(false);
-        updatePendingCount(); // Refresh count after sync attempt
+        updatePendingCount();
       }
     };
 
     const handleOffline = () => {
-      console.log('Application is offline.');
       setIsOnline(false);
     };
 
-    // This listener updates the pending count whenever a request is added to the outbox
     const handleOutboxChange = () => updatePendingCount();
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('outboxchange', handleOutboxChange);
     
-    // Initial checks on component mount
     updatePendingCount();
-    // If we are already online when the app loads, try to sync immediately
     if (navigator.onLine) {
         handleOnline();
     }
@@ -2417,7 +2450,7 @@ export default function SyncProvider({ children }: { children: ReactNode }) {
   }, [updatePendingCount]);
 
   return (
-    <SyncContext.Provider value={{ isOnline, isSyncing, pendingRequestCount }}>
+    <SyncContext.Provider value={{ isOnline, isSyncing, pendingRequestCount, isReadyForOffline }}>
       {children}
     </SyncContext.Provider>
   );
@@ -2517,12 +2550,11 @@ import { addToOutbox } from './offline-sync';
 
 type HttpMethod = 'POST' | 'GET' | 'DELETE' | 'PUT';
 
-// This interface is updated to be more specific, as you suggested.
-// This is the best fix as it enforces type safety at the call site.
 interface ApiRequestOptions {
     method: HttpMethod;
     url: string;
-    body?: Record<string, unknown>; // More specific than 'any'
+    // **FIX: Replaced 'any' with a more specific object type**
+    body?: Record<string, unknown>;
 }
 
 class ApiError extends Error {
@@ -2537,9 +2569,9 @@ export async function handleApi(options: ApiRequestOptions) {
     const { method, url, body } = options;
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
-    // We can't do anything if we are offline and don't have a token.
-    if (!navigator.onLine && !token) {
-        throw new Error('Offline and no token available. Please log in when online.');
+    if (!navigator.onLine && method !== 'GET') {
+        await addToOutbox({ url, method, body, token });
+        return { optimistic: true, ...(body || {}) };
     }
 
     try {
@@ -2553,7 +2585,6 @@ export async function handleApi(options: ApiRequestOptions) {
         });
 
         if (response.ok) {
-            // Handle responses with no content
             if (response.status === 204 || response.headers.get("content-length") === "0") {
                 return { success: true };
             }
@@ -2563,25 +2594,12 @@ export async function handleApi(options: ApiRequestOptions) {
         const errorData = await response.json().catch(() => ({ message: 'API Error' }));
         throw new ApiError(errorData.message, response.status);
 
-    } catch (error: unknown) {
-        // This check is more robust. It catches both direct network failures 
-        // and cases where the browser navigator reports being offline.
-        const isOffline = !navigator.onLine || (error instanceof TypeError && error.message === 'Failed to fetch');
-        
-        // If we are offline (or a network error occurred) and it's a data-changing request
-        if (isOffline && method !== 'GET') {
-            console.log('Offline or network error. Adding request to outbox.');
+    } catch (error) {
+        if (error instanceof TypeError && method !== 'GET') {
             await addToOutbox({ url, method, body, token });
-            
-            // Return an optimistic response, including the original body data
-            // This now works perfectly because TypeScript knows 'body' is a spreadable object or undefined.
-            return {
-                ...(body || {}),
-                optimistic: true,
-            };
+            return { optimistic: true, ...(body || {}) };
         }
         
-        // Re-throw other errors (e.g., JSON parsing errors, actual API errors)
         throw error;
     }
 }
@@ -2632,9 +2650,12 @@ export const db = new Pool({
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'loan-calculator-db';
-const DB_VERSION = 1;
+const DB_VERSION = 3;
 const OUTBOX_STORE = 'outbox';
+const ROOM_DATA_STORE = 'room-data';
+const ROOMS_LIST_STORE = 'rooms-list';
 
+// --- Type Definitions ---
 type HttpMethod = 'POST' | 'DELETE' | 'PUT';
 
 interface OutboxRequest {
@@ -2646,10 +2667,49 @@ interface OutboxRequest {
     token: string | null;
 }
 
+interface Member {
+    id: number;
+    username: string;
+}
+
+export interface Entry {
+    id: number | string;
+    amount: string;
+    description: string;
+    created_at: string;
+    username: string;
+    split_with_user_ids: number[] | null;
+    offline_timestamp?: number; // Added field for offline creation time
+}
+
+export interface LocalRoomData {
+    id: string;
+    code: string;
+    entries: Entry[];
+    balances: { [key: string]: number };
+    currentUserBalance: number;
+    members: Member[];
+    currentUserId: number | null;
+    lastUpdated: number;
+}
+
+export interface LocalRoomListItem {
+    id: number;
+    code: string;
+}
+
 interface OfflineDB extends DBSchema {
   [OUTBOX_STORE]: {
     key: string;
     value: OutboxRequest;
+  };
+  [ROOM_DATA_STORE]: {
+    key: string;
+    value: LocalRoomData;
+  };
+  [ROOMS_LIST_STORE]: {
+      key: 'user-rooms';
+      value: { rooms: LocalRoomListItem[] };
   };
 }
 
@@ -2662,43 +2722,39 @@ function getDb(): Promise<IDBPDatabase<OfflineDB>> {
                 if (!db.objectStoreNames.contains(OUTBOX_STORE)) {
                     db.createObjectStore(OUTBOX_STORE, { keyPath: 'id' });
                 }
+                if (!db.objectStoreNames.contains(ROOM_DATA_STORE)) {
+                    db.createObjectStore(ROOM_DATA_STORE, { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains(ROOMS_LIST_STORE)) {
+                    db.createObjectStore(ROOMS_LIST_STORE);
+                }
             },
         });
     }
     return dbPromise;
 }
 
-export async function addToOutbox(request: Omit<OutboxRequest, 'id' | 'timestamp'> & { id?: string }) {
+// --- Outbox & Sync Functions ---
+export async function addToOutbox(request: Omit<OutboxRequest, 'id' | 'timestamp'> & { body?: Record<string, unknown> }) {
     const db = await getDb();
-    const tx = db.transaction(OUTBOX_STORE, 'readwrite');
     const outboxRequest: OutboxRequest = {
         ...request,
-        id: request.id || crypto.randomUUID(),
-        timestamp: Date.now()
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        body: request.body || null,
     };
-    await tx.store.add(outboxRequest);
-    await tx.done;
-    console.log('Request added to outbox:', outboxRequest);
-    
-    // Dispatch a custom event so the UI can update its pending count
+    await db.add(OUTBOX_STORE, outboxRequest);
     window.dispatchEvent(new Event('outboxchange'));
-    
     return outboxRequest;
 }
 
 export async function syncOutbox(): Promise<boolean> {
     const db = await getDb();
     const requests = await db.getAll(OUTBOX_STORE);
-    if (requests.length === 0) {
-        return false; // No requests were synced
-    }
+    if (requests.length === 0) return false;
 
-    console.log(`Syncing ${requests.length} requests from outbox...`);
-    
-    // Process requests in the order they were created
     requests.sort((a, b) => a.timestamp - b.timestamp);
-
-    let allSucceeded = true;
+    let didSync = false;
 
     for (const req of requests) {
         try {
@@ -2710,31 +2766,68 @@ export async function syncOutbox(): Promise<boolean> {
                 },
                 body: JSON.stringify(req.body),
             });
-
-            // If request succeeded or was a client error (like 404, 409), remove it.
-            // Server errors (5xx) will be retried later.
             if (response.ok || (response.status >= 400 && response.status < 500)) {
                 await db.delete(OUTBOX_STORE, req.id);
-                console.log(`Request ${req.id} synced and removed from outbox.`);
-                // Notify UI that the outbox has changed
                 window.dispatchEvent(new Event('outboxchange'));
+                didSync = true;
             } else {
-                 console.warn(`Request ${req.id} failed with status ${response.status}. Will retry later.`);
-                 allSucceeded = false;
+                break; 
             }
         } catch (error) {
             console.error(`Network error syncing request ${req.id}. Will retry later.`, error);
-            allSucceeded = false;
-            break; // Stop syncing if a network error occurs, to preserve order
+            break; 
         }
     }
-
-    return allSucceeded;
+    return didSync;
 }
 
 export async function getOutboxCount(): Promise<number> {
     const db = await getDb();
     return db.count(OUTBOX_STORE);
+}
+
+
+// --- Local Data Management ---
+
+export async function saveRoomsList(rooms: LocalRoomListItem[]) {
+    const db = await getDb();
+    await db.put(ROOMS_LIST_STORE, { rooms }, 'user-rooms');
+}
+
+export async function getRoomsList(): Promise<LocalRoomListItem[]> {
+    const db = await getDb();
+    const result = await db.get(ROOMS_LIST_STORE, 'user-rooms');
+    return result?.rooms || [];
+}
+
+export async function saveRoomData(roomId: string, data: Omit<LocalRoomData, 'id' | 'lastUpdated'>) {
+    const db = await getDb();
+    const record: LocalRoomData = {
+        ...data,
+        id: roomId,
+        lastUpdated: Date.now(),
+    };
+    await db.put(ROOM_DATA_STORE, record);
+}
+
+export async function getRoomData(roomId: string): Promise<LocalRoomData | undefined> {
+    const db = await getDb();
+    return db.get(ROOM_DATA_STORE, roomId);
+}
+
+export async function addLocalEntry(roomId: string, newEntry: Entry, newBalances: { currentUserBalance: number, otherBalances: { [key: string]: number } }) {
+    const db = await getDb();
+    const tx = db.transaction(ROOM_DATA_STORE, 'readwrite');
+    const roomData = await tx.store.get(roomId);
+
+    if (roomData) {
+        roomData.entries.unshift(newEntry);
+        roomData.currentUserBalance = newBalances.currentUserBalance;
+        roomData.balances = newBalances.otherBalances;
+        roomData.lastUpdated = Date.now();
+        await tx.store.put(roomData);
+    }
+    await tx.done;
 }
 
 ---

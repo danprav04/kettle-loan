@@ -2,7 +2,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { syncOutbox, getOutboxCount, getRoomsList } from '@/lib/offline-sync';
+import { syncOutbox, getOutboxCount, hasCachedRoomData } from '@/lib/offline-sync';
 
 interface SyncContextType {
   isOnline: boolean;
@@ -29,16 +29,20 @@ export default function SyncProvider({ children }: { children: ReactNode }) {
   const checkOfflineReadiness = useCallback(async () => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && window.indexedDB) {
         const hasControllingSW = navigator.serviceWorker.controller !== null;
-        const hasCachedRooms = (await getRoomsList()).length > 0;
+        // This is a more reliable check. It confirms the user has actually
+        // visited a room and its data is cached for offline use.
+        const roomDataIsCached = await hasCachedRoomData();
         
-        if (hasControllingSW && hasCachedRooms) {
+        if (hasControllingSW && roomDataIsCached) {
             setIsReadyForOffline(true);
+        } else {
+            setIsReadyForOffline(false);
         }
     }
   }, []);
 
   useEffect(() => {
-    // Initial check on mount, and re-check after a sync in case rooms were just loaded.
+    // Initial check on mount, and re-check after a sync.
     checkOfflineReadiness();
     window.addEventListener('syncdone', checkOfflineReadiness);
     

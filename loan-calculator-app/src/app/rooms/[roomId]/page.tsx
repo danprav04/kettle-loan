@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link'; // Import the Link component
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import { FiArrowDown, FiInfo } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
@@ -142,7 +143,7 @@ export default function RoomPage() {
             created_at: new Date().toISOString(),
             username: currentUser.username,
             split_with_user_ids: finalSplitWithIds,
-            offline_timestamp: Date.now() // Set the offline timestamp
+            offline_timestamp: Date.now()
         };
         
         let newBalance = balance;
@@ -168,7 +169,13 @@ export default function RoomPage() {
             const result = await handleApi({
                 method: 'POST',
                 url: '/api/entries',
-                body: { roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds },
+                body: { 
+                    roomId, 
+                    amount: finalAmount, 
+                    description, 
+                    splitWithUserIds: finalSplitWithIds,
+                    createdAt: optimisticEntry.created_at // Send original timestamp
+                },
             });
 
             if (result?.optimistic) {
@@ -290,9 +297,9 @@ export default function RoomPage() {
                             <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}>
                                 {t('addEntry')}
                             </button>
-                            <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted">
+                            <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center">
                                 {t('allEntries')}
-                            </button>
+                            </Link>
                         </div>
                     </form>
                 </div>
