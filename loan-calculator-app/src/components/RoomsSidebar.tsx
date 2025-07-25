@@ -29,8 +29,15 @@ interface RoomsSidebarProps {
 
 // Type guard to check if the error is an object with a numeric status property
 const isApiError = (error: unknown): error is { status: number } => {
-  return typeof error === 'object' && error !== null && 'status' in error && typeof (error as any).status === 'number';
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    // Cast to a more specific object shape to safely check the property type
+    typeof (error as { status: unknown }).status === 'number'
+  );
 };
+
 
 export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const t = useTranslations('Rooms');
