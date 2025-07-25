@@ -27,6 +27,11 @@ interface RoomsSidebarProps {
     closeSidebar: () => void;
 }
 
+// Type guard to check if the error is an object with a numeric status property
+const isApiError = (error: unknown): error is { status: number } => {
+  return typeof error === 'object' && error !== null && 'status' in error && typeof (error as any).status === 'number';
+};
+
 export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const t = useTranslations('Rooms');
     const tAccess = useTranslations('Accessibility');
@@ -67,8 +72,8 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                     setRooms(fetchedRooms);
                     await saveRoomsList(fetchedRooms);
                 }
-            } catch (error: any) {
-                if (error.status === 401) {
+            } catch (error: unknown) {
+                if (isApiError(error) && error.status === 401) {
                     logout();
                 } else {
                     console.warn("Failed to fetch rooms from network, using local data.", error);
@@ -111,8 +116,8 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             } else {
                 setNotification(isCreating ? t('createFailed') : t('joinFailed'));
             }
-        } catch (err: any) {
-             if (err.status === 401) {
+        } catch (err: unknown) {
+             if (isApiError(err) && err.status === 401) {
                  logout();
              } else {
                  setNotification(isCreating ? t('createFailed') : t('joinFailed'));
@@ -148,8 +153,8 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             if (result?.optimistic) {
                 setNotification(tNotif('requestQueued'));
             }
-        } catch (err: any) {
-            if (err.status === 401) {
+        } catch (err: unknown) {
+            if (isApiError(err) && err.status === 401) {
                 logout();
             } else {
                 setNotification(t('leaveRoomFailed'));

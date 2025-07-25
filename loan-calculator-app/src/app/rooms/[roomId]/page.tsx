@@ -45,7 +45,7 @@ export default function RoomPage() {
 
     const otherMembers = useMemo(() => members.filter(m => m.id !== currentUserId), [members, currentUserId]);
 
-    const updateStateFromData = (data: LocalRoomData) => {
+    const updateStateFromData = useCallback((data: LocalRoomData) => {
         setBalance(data.currentUserBalance || 0);
         setDetailedBalance(data.balances || {});
         setRoomCode(data.code || '');
@@ -61,7 +61,7 @@ export default function RoomPage() {
             setSelectedMemberIds(new Set(initialSelected));
             setIncludeSelfInSplit(true);
         }
-    };
+    }, [members.length]);
 
     const fetchData = useCallback(async (options: { forceLocal?: boolean } = {}) => {
         setIsLoading(true);
@@ -92,7 +92,7 @@ export default function RoomPage() {
             }
         }
         setIsLoading(false);
-    }, [roomId, router, isOnline, members.length, t]);
+    }, [roomId, router, isOnline, t, updateStateFromData]);
 
     const handleSyncDone = useCallback(() => {
         fetchData();
