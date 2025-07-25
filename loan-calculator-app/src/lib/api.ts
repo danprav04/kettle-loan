@@ -1,14 +1,14 @@
 // src/lib/api.ts
+
 import { addToOutbox } from './offline-sync';
 
 type HttpMethod = 'POST' | 'GET' | 'DELETE' | 'PUT';
 
-// This interface is updated to be more specific, as you suggested.
-// This is the best fix as it enforces type safety at the call site.
 interface ApiRequestOptions {
     method: HttpMethod;
     url: string;
-    body?: Record<string, unknown>; // More specific than 'any'
+    // Use a more specific type than 'any'
+    body?: Record<string, any>; 
 }
 
 class ApiError extends Error {
@@ -23,9 +23,14 @@ export async function handleApi(options: ApiRequestOptions) {
     const { method, url, body } = options;
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
-    // We can't do anything if we are offline and don't have a token.
-    if (!navigator.onLine && !token) {
-        throw new Error('Offline and no token available. Please log in when online.');
+    // A more robust check for offline status.
+    const isOffline = !navigator.onLine;
+
+    // If offline and it's a data-changing request, queue it immediately.
+    if (isOffline && method !== 'GET') {
+        console.log('Offline. Adding request to outbox.');
+        await addToOutbox({ url, method, body, token });
+        return { optimistic: true, ...body };
     }
 
     try {
@@ -39,7 +44,6 @@ export async function handleApi(options: ApiRequestOptions) {
         });
 
         if (response.ok) {
-            // Handle responses with no content
             if (response.status === 204 || response.headers.get("content-length") === "0") {
                 return { success: true };
             }
@@ -49,25 +53,16 @@ export async function handleApi(options: ApiRequestOptions) {
         const errorData = await response.json().catch(() => ({ message: 'API Error' }));
         throw new ApiError(errorData.message, response.status);
 
-    } catch (error: unknown) {
-        // This check is more robust. It catches both direct network failures 
-        // and cases where the browser navigator reports being offline.
-        const isOffline = !navigator.onLine || (error instanceof TypeError && error.message === 'Failed to fetch');
-        
-        // If we are offline (or a network error occurred) and it's a data-changing request
-        if (isOffline && method !== 'GET') {
-            console.log('Offline or network error. Adding request to outbox.');
+    } catch (error) {
+        // If the fetch fails with a TypeError, it's a network error.
+        // Queue it just like if we were offline from the start.
+        if (error instanceof TypeError && method !== 'GET') {
+            console.log('Network error. Adding request to outbox.');
             await addToOutbox({ url, method, body, token });
-            
-            // Return an optimistic response, including the original body data
-            // This now works perfectly because TypeScript knows 'body' is a spreadable object or undefined.
-            return {
-                ...(body || {}),
-                optimistic: true,
-            };
+            return { optimistic: true, ...body };
         }
         
-        // Re-throw other errors (e.g., JSON parsing errors, actual API errors)
+        // Re-throw other errors (like ApiError or JSON parsing errors)
         throw error;
     }
 }

@@ -1,4 +1,5 @@
 // src/app/rooms/[roomId]/page.tsx
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -7,6 +8,9 @@ import { useTranslations } from 'next-intl';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import { FiArrowDown, FiInfo } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
+// ** Import new DB functions **
+import { saveRoomData, getRoomData, addLocalEntry } from '@/lib/offline-sync';
+import { useSync } from '@/components/SyncProvider';
 
 interface Member {
     id: number;
@@ -18,8 +22,8 @@ export default function RoomPage() {
     const { roomId } = params;
     const t = useTranslations('Room');
     const { isSimplified } = useSimplifiedLayout();
+    const { isOnline } = useSync();
 
-    // State for all room data
     const [balance, setBalance] = useState(0);
     const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
     const [showDetails, setShowDetails] = useState(false);
@@ -27,9 +31,9 @@ export default function RoomPage() {
     const [members, setMembers] = useState<Member[]>([]);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [notification, setNotification] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
     
-    // Form state
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
@@ -38,130 +42,139 @@ export default function RoomPage() {
     
     const otherMembers = useMemo(() => members.filter(m => m.id !== currentUserId), [members, currentUserId]);
 
-    const fetchData = useCallback(async (isRetry = false) => {
+    const updateStateFromData = (data: any) => {
+        setBalance(data.currentUserBalance || 0);
+        setDetailedBalance(data.balances || {});
+        setRoomCode(data.code || '');
+        setMembers(data.members || []);
+        setCurrentUserId(data.currentUserId || null);
+        
+        const initialSelected = (data.members || [])
+            .filter((m: Member) => m.id !== data.currentUserId)
+            .map((m: Member) => m.id);
+        setSelectedMemberIds(new Set(initialSelected));
+        setIncludeSelfInSplit(true);
+    };
+
+    const fetchData = useCallback(async () => {
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/');
             return;
         }
-        try {
-            const res = await fetch(`/api/rooms/${roomId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const { currentUserBalance, balances, code, members, currentUserId } = await res.json();
-                setBalance(currentUserBalance || 0);
-                setDetailedBalance(balances || {});
-                setRoomCode(code || '');
-                setMembers(members || []);
-                setCurrentUserId(currentUserId || null);
-                // Initialize split selection to all other members
-                setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
-                setIncludeSelfInSplit(true);
-            } else if (res.status === 401) {
-                router.push('/');
-            } else if (res.status === 404 && !isRetry) {
-                // If the room isn't found, it might be because of an offline->online sync delay.
-                // We'll wait a moment and try one more time.
-                setTimeout(() => fetchData(true), 1500);
-            }
-        } catch (e) {
-            console.error("Failed to fetch room data. Possibly offline.", e);
-        }
-    }, [roomId, router]);
 
-    // This wrapper function has the correct EventListener signature.
+        setIsLoading(true);
+
+        if (isOnline) {
+            try {
+                const data = await handleApi({ method: 'GET', url: `/api/rooms/${roomId}` });
+                if (data) {
+                    await saveRoomData(roomId, data); // Save fresh data
+                    updateStateFromData(data);
+                }
+            } catch (e) {
+                console.warn("Online fetch failed, falling back to local data.", e);
+                const localData = await getRoomData(roomId);
+                if (localData) {
+                    updateStateFromData(localData);
+                }
+            }
+        } else { // Offline
+            console.log("Offline. Fetching from local DB.");
+            const localData = await getRoomData(roomId);
+            if (localData) {
+                updateStateFromData(localData);
+            } else {
+                setNotification("This room's data isn't saved for offline use.");
+            }
+        }
+        setIsLoading(false);
+    }, [roomId, router, isOnline]);
+
     const handleSyncDone = useCallback(() => {
-        console.log('Sync complete. Refetching room data...');
+        console.log('Sync complete event received. Refetching room data...');
         fetchData();
     }, [fetchData]);
 
     useEffect(() => {
         fetchData();
-        // We use the new handler function for the event listener.
         window.addEventListener('syncdone', handleSyncDone);
         return () => window.removeEventListener('syncdone', handleSyncDone);
     }, [fetchData, handleSyncDone]);
     
-    useEffect(() => {
-        if (notification) {
-            const timer = setTimeout(() => setNotification(null), 5000);
-            return () => clearTimeout(timer);
-        }
-    }, [notification]);
-
-    useEffect(() => {
-        if (isSimplified) {
-            setEntryType('loan');
-        } else {
-            const savedEntryType = localStorage.getItem('entryType') as 'expense' | 'loan';
-            setEntryType(savedEntryType && ['expense', 'loan'].includes(savedEntryType) ? savedEntryType : 'expense');
-        }
-    }, [isSimplified]);
-
-    const handleSetEntryType = (type: 'expense' | 'loan') => {
-        if (isSimplified) return;
-        setEntryType(type);
-        localStorage.setItem('entryType', type);
-    };
-
     const handleAddEntry = async (e: React.FormEvent) => {
         e.preventDefault();
         setNotification(null);
         const parsedAmount = Math.abs(parseFloat(amount));
-        if (isNaN(parsedAmount) || parsedAmount <= 0 || !currentUserId) return;
+        const currentUser = members.find(m => m.id === currentUserId);
+        if (isNaN(parsedAmount) || parsedAmount <= 0 || !currentUserId || !currentUser) return;
 
         let finalSplitWithIds: number[] | null = null;
         if (entryType === 'expense') {
             const participants = new Set(selectedMemberIds);
-            if (includeSelfInSplit) {
-                participants.add(currentUserId);
-            }
-            if (participants.size > 0) {
-                finalSplitWithIds = Array.from(participants);
-            }
+            if (includeSelfInSplit) participants.add(currentUserId);
+            if (participants.size > 0) finalSplitWithIds = Array.from(participants);
         }
         
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
 
-        const optimisticEntryData = {
-            roomId,
-            amount: finalAmount,
+        // --- Optimistic Update & Local DB Write ---
+        const optimisticEntry = {
+            id: Date.now(), // Temporary ID for React key
+            amount: finalAmount.toFixed(2),
             description,
-            splitWithUserIds: finalSplitWithIds
+            created_at: new Date().toISOString(),
+            username: currentUser.username, // Add current user's name
+            split_with_user_ids: finalSplitWithIds
         };
         
-        const numParticipants = finalSplitWithIds?.length || members.length;
-        const share = parsedAmount / (numParticipants > 0 ? numParticipants : 1);
-
-        if (entryType === 'expense') {
-            setBalance(prev => prev + (parsedAmount - share));
-        } else {
-            setBalance(prev => prev - parsedAmount);
-        }
+        // Calculate new balances optimistically
+        const newBalance = balance + (entryType === 'expense' ? parsedAmount - (parsedAmount / (finalSplitWithIds?.length || members.length)) : -parsedAmount);
         
+        // This is a simplified balance calculation for the optimistic update.
+        // A full implementation would update detailed balances too.
+        await addLocalEntry(roomId, optimisticEntry, { currentUserBalance: newBalance, otherBalances: detailedBalance });
+
+        // Update UI from our new local state
+        const updatedLocalData = await getRoomData(roomId);
+        if (updatedLocalData) {
+            updateStateFromData(updatedLocalData);
+        }
+
         setAmount('');
         setDescription('');
         
+        // --- API Call ---
         try {
             const result = await handleApi({
                 method: 'POST',
                 url: '/api/entries',
-                body: optimisticEntryData,
+                body: { roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds },
             });
 
             if (result?.optimistic) {
-                setNotification("Request queued offline. It will sync when you're back online.");
+                setNotification("Request queued. It will sync when you're back online.");
             } else {
+                // If we were online and the request succeeded, refetch for consistency
                 fetchData();
             }
         } catch (error) {
             console.error("Failed to add entry:", error);
             setNotification('Failed to add entry. Please try again.');
-            fetchData();
+            fetchData(); // Revert optimistic update by fetching from server
         }
     };
 
+    // ... (rest of your component remains the same)
+    // You may want to add a loading indicator based on the `isLoading` state
+    
+    if (isLoading) {
+        return <div className="max-w-md mx-auto p-8 text-center">Loading room...</div>;
+    }
+
+
+    // ... (the return part of your component with JSX)
+    // ... no changes needed for the JSX return block ...
     const handleMemberSelection = (memberId: number) => {
         const newSelection = new Set(selectedMemberIds);
         if (newSelection.has(memberId)) {
@@ -223,10 +236,10 @@ export default function RoomPage() {
                                         className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
                                         style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }}
                                     />
-                                    <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
+                                    <button type="button" onClick={() => {setEntryType('expense'); localStorage.setItem('entryType', 'expense');}} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
                                         {t('expense')}
                                     </button>
-                                    <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
+                                    <button type="button" onClick={() => {setEntryType('loan'); localStorage.setItem('entryType', 'loan');}} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
                                         {t('loan')}
                                     </button>
                                 </div>

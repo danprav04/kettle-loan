@@ -115,6 +115,11 @@ const withPWA = withPWAInit({
     skipWaiting: true,
     runtimeCaching,
   },
+  // Add this fallback for a complete offline experience.
+  // It tells the service worker to serve '/~offline' if a navigation request fails.
+  fallbacks: {
+    document: "/~offline",
+  },
 });
 
 const nextConfig: NextConfig = {
@@ -676,10 +681,17 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "Loan Calculator",
   },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: "#3b82f6",
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -690,6 +702,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Explicit PWA-related meta tags for robustness */}
+        <meta name="application-name" content="LoanCalc" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="LoanCalc" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-tap-highlight" content="no" />
         <meta name="theme-color" content="#3b82f6" />
       </head>
       <body className={inter.className}>
@@ -1410,24 +1429,26 @@ export default function RoomPage() {
     const t = useTranslations('Room');
     const { isSimplified } = useSimplifiedLayout();
 
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
+    // State for all room data
     const [balance, setBalance] = useState(0);
     const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
     const [showDetails, setShowDetails] = useState(false);
     const [roomCode, setRoomCode] = useState('');
     const [members, setMembers] = useState<Member[]>([]);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-    const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
-    const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
     const [notification, setNotification] = useState<string | null>(null);
     const router = useRouter();
     
+    // Form state
+    const [amount, setAmount] = useState('');
+    const [description, setDescription] = useState('');
     const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
-
+    const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
+    const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
+    
     const otherMembers = useMemo(() => members.filter(m => m.id !== currentUserId), [members, currentUserId]);
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (isRetry = false) => {
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/');
@@ -1444,23 +1465,33 @@ export default function RoomPage() {
                 setRoomCode(code || '');
                 setMembers(members || []);
                 setCurrentUserId(currentUserId || null);
-                // Initialize split selection: all other members selected, plus self
+                // Initialize split selection to all other members
                 setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
                 setIncludeSelfInSplit(true);
             } else if (res.status === 401) {
                 router.push('/');
+            } else if (res.status === 404 && !isRetry) {
+                // If the room isn't found, it might be because of an offline->online sync delay.
+                // We'll wait a moment and try one more time.
+                setTimeout(() => fetchData(true), 1500);
             }
         } catch (e) {
             console.error("Failed to fetch room data. Possibly offline.", e);
         }
     }, [roomId, router]);
 
+    // This wrapper function has the correct EventListener signature.
+    const handleSyncDone = useCallback(() => {
+        console.log('Sync complete. Refetching room data...');
+        fetchData();
+    }, [fetchData]);
+
     useEffect(() => {
         fetchData();
-        // Add listener to refetch data after an offline sync completes
-        window.addEventListener('syncdone', fetchData);
-        return () => window.removeEventListener('syncdone', fetchData);
-    }, [fetchData]);
+        // We use the new handler function for the event listener.
+        window.addEventListener('syncdone', handleSyncDone);
+        return () => window.removeEventListener('syncdone', handleSyncDone);
+    }, [fetchData, handleSyncDone]);
     
     useEffect(() => {
         if (notification) {
@@ -1488,12 +1519,12 @@ export default function RoomPage() {
         e.preventDefault();
         setNotification(null);
         const parsedAmount = Math.abs(parseFloat(amount));
-        if (isNaN(parsedAmount) || parsedAmount <= 0) return;
+        if (isNaN(parsedAmount) || parsedAmount <= 0 || !currentUserId) return;
 
         let finalSplitWithIds: number[] | null = null;
         if (entryType === 'expense') {
             const participants = new Set(selectedMemberIds);
-            if (includeSelfInSplit && currentUserId) {
+            if (includeSelfInSplit) {
                 participants.add(currentUserId);
             }
             if (participants.size > 0) {
@@ -1502,28 +1533,42 @@ export default function RoomPage() {
         }
         
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
+
+        const optimisticEntryData = {
+            roomId,
+            amount: finalAmount,
+            description,
+            splitWithUserIds: finalSplitWithIds
+        };
+        
+        const numParticipants = finalSplitWithIds?.length || members.length;
+        const share = parsedAmount / (numParticipants > 0 ? numParticipants : 1);
+
+        if (entryType === 'expense') {
+            setBalance(prev => prev + (parsedAmount - share));
+        } else {
+            setBalance(prev => prev - parsedAmount);
+        }
+        
+        setAmount('');
+        setDescription('');
         
         try {
             const result = await handleApi({
                 method: 'POST',
                 url: '/api/entries',
-                body: { roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds },
+                body: optimisticEntryData,
             });
 
-            // If the request was queued offline, show a notification and DO NOT refetch.
             if (result?.optimistic) {
                 setNotification("Request queued offline. It will sync when you're back online.");
             } else {
-                // Otherwise, it was successful online, so refetch the latest data.
                 fetchData();
             }
-            // Clear the form in both cases.
-            setAmount('');
-            setDescription('');
-
         } catch (error) {
             console.error("Failed to add entry:", error);
             setNotification('Failed to add entry. Please try again.');
+            fetchData();
         }
     };
 
@@ -1620,6 +1665,7 @@ export default function RoomPage() {
                                         <div key={member.id} className="flex items-center">
                                             <input id={`member-${member.id}`} name="members" type="checkbox" checked={selectedMemberIds.has(member.id)} onChange={() => handleMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
                                             <label htmlFor={`member-${member.id}`} className="ms-2 block text-sm text-foreground">{member.username}</label>
+
                                         </div>
                                     ))}
                                 </div>
@@ -1722,6 +1768,41 @@ export default function EntriesPage() {
             </div>
         </div>
     );
+}
+
+---
+
+--- File: src/app/~offline/page.tsx ---
+// src/app/~offline/page.tsx
+"use client";
+
+import { FiWifiOff } from 'react-icons/fi';
+
+export default function OfflinePage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-muted p-4 text-center">
+        <div className="max-w-md">
+            <FiWifiOff className="mx-auto h-16 w-16 text-muted-foreground" />
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                You are offline
+            </h1>
+            <p className="mt-4 text-base text-muted-foreground">
+                The page you are trying to access has not been saved for offline use.
+            </p>
+            <p className="mt-2 text-base text-muted-foreground">
+                Please connect to the internet and try again. Previously visited pages may be available.
+            </p>
+            <div className="mt-8">
+                <button
+                    onClick={() => window.history.back()}
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
+                    Go Back
+                </button>
+            </div>
+        </div>
+    </div>
+  );
 }
 
 ---
@@ -2483,11 +2564,12 @@ export async function handleApi(options: ApiRequestOptions) {
         throw new ApiError(errorData.message, response.status);
 
     } catch (error: unknown) {
-        // Check if the error is a network error
-        const isNetworkError = error instanceof TypeError && error.message === 'Failed to fetch';
+        // This check is more robust. It catches both direct network failures 
+        // and cases where the browser navigator reports being offline.
+        const isOffline = !navigator.onLine || (error instanceof TypeError && error.message === 'Failed to fetch');
         
         // If we are offline (or a network error occurred) and it's a data-changing request
-        if ((!navigator.onLine || isNetworkError) && method !== 'GET') {
+        if (isOffline && method !== 'GET') {
             console.log('Offline or network error. Adding request to outbox.');
             await addToOutbox({ url, method, body, token });
             
