@@ -34,11 +34,11 @@ export async function GET(req: Request) {
             return NextResponse.json({ message: 'Room not found' }, { status: 404 });
         }
         
-        const roomResult = await db.query('SELECT code FROM rooms WHERE id = $1', [roomId]);
+        const roomResult = await db.query('SELECT code, name FROM rooms WHERE id = $1', [roomId]);
         if (roomResult.rows.length === 0) {
             return NextResponse.json({ message: 'Room not found' }, { status: 404 });
         }
-        const roomCode = roomResult.rows[0].code;
+        const { code: roomCode, name: roomName } = roomResult.rows[0];
 
         const entriesResult = await db.query(
             'SELECT e.*, u.username FROM entries e JOIN users u ON e.user_id = u.id WHERE e.room_id = $1 ORDER BY e.created_at ASC',
@@ -69,7 +69,6 @@ export async function GET(req: Request) {
             if (amount > 0) { // This is an Expense
                 const participants = entry.split_with_user_ids;
 
-                // If participants list is null/empty (legacy or error), default to splitting among everyone
                 if (!participants || participants.length === 0) {
                     const share = amount / members.length;
                     members.forEach(member => {
@@ -80,14 +79,11 @@ export async function GET(req: Request) {
                         }
                     });
                 } else {
-                    // New logic: Split only among the specified participants
                     const numParticipants = participants.length;
                     const share = amount / numParticipants;
 
-                    // The payer is always credited the full amount they paid.
                     finalBalances[payerId] += amount;
 
-                    // Each participant (which may or may not include the payer) is debited their share.
                     participants.forEach(participantId => {
                         if (finalBalances[participantId] !== undefined) {
                             finalBalances[participantId] -= share;
@@ -110,8 +106,6 @@ export async function GET(req: Request) {
             }
         });
 
-
-        // Prepare response object
         const currentUserBalance = finalBalances[user.userId] || 0;
         const otherUserBalances: { [key: string]: number } = {};
         members.forEach(member => {
@@ -123,6 +117,7 @@ export async function GET(req: Request) {
         const reversedEntries = entries.reverse();
 
         return NextResponse.json({
+            name: roomName,
             code: roomCode,
             entries: reversedEntries,
             balances: otherUserBalances,
@@ -132,6 +127,45 @@ export async function GET(req: Request) {
         });
     } catch (error) {
         console.error(error);
+        return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
+    }
+}
+
+export async function PUT(req: Request) {
+    try {
+        const url = new URL(req.url);
+        const pathnameParts = url.pathname.split('/');
+        const roomId = pathnameParts[pathnameParts.length - 1];
+
+        const token = req.headers.get('authorization')?.split(' ')[1];
+        const user = verifyToken(token);
+        if (!user) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+        
+        const { name } = await req.json();
+        if (typeof name !== 'string' || name.trim().length === 0 || name.length > 50) {
+            return NextResponse.json({ message: 'Invalid name provided' }, { status: 400 });
+        }
+
+        const memberCheckResult = await db.query(
+            'SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2',
+            [roomId, user.userId]
+        );
+
+        if (memberCheckResult.rows.length === 0) {
+            return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+        }
+
+        await db.query(
+            'UPDATE rooms SET name = $1 WHERE id = $2',
+            [name.trim(), roomId]
+        );
+        
+        return NextResponse.json({ message: 'Room updated successfully' });
+
+    } catch (error) {
+        console.error('Failed to update room name:', error);
         return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
     }
 }

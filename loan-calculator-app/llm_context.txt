@@ -291,7 +291,8 @@ export default config
     "leaveRoom": "Leave room",
     "leaveRoomTitle": "Leave Room",
     "leaveRoomConfirmation": "Are you sure you want to leave Room #{code}? This action cannot be undone. You will need to join again using the room code.",
-    "leaveRoomFailed": "Failed to leave room."
+    "leaveRoomFailed": "Failed to leave room.",
+    "offlineRoomsPrompt": "Connect to the internet once to download your rooms for offline use."
   },
   "Room": {
     "balanceTitle": "Balance",
@@ -310,7 +311,9 @@ export default config
     "roomTitle": "Room #{code}",
     "splitWith": "Share cost with:",
     "everyone": "Everyone",
-    "shareWithMe": "Share with me"
+    "shareWithMe": "Share with me",
+    "offlineRoomDataError": "This room's data isn't saved for offline use.",
+    "requestQueued": "Request queued. It will sync when you're back online."
   },
   "Dialog": {
     "cancel": "Cancel",
@@ -320,6 +323,19 @@ export default config
     "toggleTheme": "Toggle theme",
     "changeLanguage": "Change language",
     "toggleSimplifiedLayout": "Toggle simplified Kettle Mode"
+  },
+  "Offline": {
+    "title": "You are offline",
+    "message1": "The page you are trying to access has not been saved for offline use.",
+    "message2": "Please connect to the internet and try again. Previously visited pages may be available.",
+    "goBackButton": "Go Back"
+  },
+  "Notifications": {
+    "requestQueued": "Request queued. It will sync when you're back online.",
+    "offlineReady": "App is ready for offline use",
+    "syncing": "Syncing...",
+    "youAreOffline": "You are offline.",
+    "pendingSync": "{count, plural, =0{} one{# item pending sync.} other{# items pending sync.}}"
   }
 }
 
@@ -356,7 +372,8 @@ export default config
     "leaveRoom": "עזוב חדר",
     "leaveRoomTitle": "עזיבת חדר",
     "leaveRoomConfirmation": "האם אתה בטוח שברצונך לעזוב את חדר #{code}? לא ניתן לבטל פעולה זו. תצטרך להצטרף מחדש באמצעות קוד החדר.",
-    "leaveRoomFailed": "עזיבת החדר נכשלה."
+    "leaveRoomFailed": "עזיבת החדר נכשלה.",
+    "offlineRoomsPrompt": "התחבר לאינטרנט פעם אחת כדי להוריד את החדרים שלך לשימוש לא מקוון."
   },
   "Room": {
     "balanceTitle": "מאזן",
@@ -375,7 +392,9 @@ export default config
     "roomTitle": "חדר #{code}",
     "splitWith": "חלק את העלות עם:",
     "everyone": "כולם",
-    "shareWithMe": "שתף איתי"
+    "shareWithMe": "שתף איתי",
+    "offlineRoomDataError": "נתוני החדר הזה לא נשמרו לשימוש לא מקוון.",
+    "requestQueued": "הבקשה נרשמה בתור. היא תסונכרן כשתהיה מחובר."
   },
   "Dialog": {
     "cancel": "ביטול",
@@ -385,6 +404,19 @@ export default config
     "toggleTheme": "שנה ערכת נושא",
     "changeLanguage": "שנה שפה",
     "toggleSimplifiedLayout": "החלף מצב קומקום פשוט"
+  },
+  "Offline": {
+    "title": "אתה לא מחובר",
+    "message1": "הדף שאתה מנסה לגשת אליו לא נשמר לשימוש לא מקוון.",
+    "message2": "אנא התחבר לאינטרנט ונסה שוב. דפים שביקרת בהם בעבר עשויים להיות זמינים.",
+    "goBackButton": "חזור"
+  },
+  "Notifications": {
+    "requestQueued": "הבקשה נרשמה בתור. היא תסונכרן כשתהיה מחובר.",
+    "offlineReady": "האפליקציה מוכנה לשימוש לא מקוון",
+    "syncing": "מסנכרן...",
+    "youAreOffline": "אתה לא מחובר.",
+    "pendingSync": "{count, plural, one{ממתין פריט # לסנכרון.} other{ממתינים # פריטים לסנכרון.}}"
   }
 }
 
@@ -421,7 +453,8 @@ export default config
     "leaveRoom": "Покинуть комнату",
     "leaveRoomTitle": "Покинуть комнату",
     "leaveRoomConfirmation": "Вы уверены, что хотите покинуть комнату #{code}? Это действие необратимо. Вам нужно будет снова присоединиться, используя код комнаты.",
-    "leaveRoomFailed": "Не удалось покинуть комнату."
+    "leaveRoomFailed": "Не удалось покинуть комнату.",
+    "offlineRoomsPrompt": "Подключитесь к интернету один раз, чтобы загрузить ваши комнаты для использования в автономном режиме."
   },
   "Room": {
     "balanceTitle": "Баланс",
@@ -440,7 +473,9 @@ export default config
     "roomTitle": "Комната #{code}",
     "splitWith": "Разделить стоимость с:",
     "everyone": "Все",
-    "shareWithMe": "Поделиться со мной"
+    "shareWithMe": "Поделиться со мной",
+    "offlineRoomDataError": "Данные этой комнаты не сохранены для использования в автономном режиме.",
+    "requestQueued": "Запрос поставлен в очередь. Он будет синхронизирован, когда вы будете онлайн."
   },
   "Dialog": {
     "cancel": "Отмена",
@@ -450,6 +485,19 @@ export default config
     "toggleTheme": "Переключить тему",
     "changeLanguage": "Сменить язык",
     "toggleSimplifiedLayout": "Переключить упрощенный режим"
+  },
+  "Offline": {
+    "title": "Вы оффлайн",
+    "message1": "Страница, к которой вы пытаетесь получить доступ, не была сохранена для использования в автономном режиме.",
+    "message2": "Пожалуйста, подключитесь к Интернету и попробуйте снова. Ранее посещенные страницы могут быть доступны.",
+    "goBackButton": "Назад"
+  },
+  "Notifications": {
+    "requestQueued": "Запрос поставлен в очередь. Он будет синхронизирован, когда вы будете онлайн.",
+    "offlineReady": "Приложение готово к работе в автономном режиме",
+    "syncing": "Синхронизация...",
+    "youAreOffline": "Вы не в сети.",
+    "pendingSync": "{count, plural, one{# элемент ожидает синхронизации.} few{# элемента ожидают синхронизации.} many{# элементов ожидают синхронизации.} other{# элемента ожидают синхронизации.}}"
   }
 }
 
@@ -457,8 +505,8 @@ export default config
 
 --- File: public/manifest.json ---
 {
-  "name": "Loan Calculator",
-  "short_name": "LoanCalc",
+  "name": "Kettle Loan Calculator",
+  "short_name": "Kettle Loan",
   "description": "A simple loan calculator app with offline support.",
   "start_url": "/",
   "scope": "/",
@@ -1375,7 +1423,7 @@ export default function RoomsPage() {
                 router.replace(`/rooms/${rooms[0].id}`);
             } else {
                 if (!isOnline) {
-                    setStatusMessage("Connect to the internet once to download your rooms for offline use.");
+                    setStatusMessage(t('offlineRoomsPrompt'));
                 }
                 setIsLoading(false);
             }
@@ -1495,11 +1543,11 @@ export default function RoomPage() {
             if (localData) {
                 updateStateFromData(localData);
             } else {
-                setNotification("This room's data isn't saved for offline use.");
+                setNotification(t('offlineRoomDataError'));
             }
         }
         setIsLoading(false);
-    }, [roomId, router, isOnline, members.length]);
+    }, [roomId, router, isOnline, members.length, t]);
 
     const handleSyncDone = useCallback(() => {
         fetchData();
@@ -1592,7 +1640,7 @@ export default function RoomPage() {
             });
 
             if (result?.optimistic) {
-                setNotification("Request queued. It will sync when you're back online.");
+                setNotification(t('requestQueued'));
             } else if (isOnline) {
                 fetchData();
             }
@@ -1827,28 +1875,31 @@ export default function EntriesPage() {
 // src/app/~offline/page.tsx
 "use client";
 
+import { useTranslations } from 'next-intl';
 import { FiWifiOff } from 'react-icons/fi';
 
 export default function OfflinePage() {
+  const t = useTranslations('Offline');
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted p-4 text-center">
         <div className="max-w-md">
             <FiWifiOff className="mx-auto h-16 w-16 text-muted-foreground" />
             <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                You are offline
+                {t('title')}
             </h1>
             <p className="mt-4 text-base text-muted-foreground">
-                The page you are trying to access has not been saved for offline use.
+                {t('message1')}
             </p>
             <p className="mt-2 text-base text-muted-foreground">
-                Please connect to the internet and try again. Previously visited pages may be available.
+                {t('message2')}
             </p>
             <div className="mt-8">
                 <button
                     onClick={() => window.history.back()}
                     className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
-                    Go Back
+                    {t('goBackButton')}
                 </button>
             </div>
         </div>
@@ -2094,6 +2145,7 @@ interface RoomsSidebarProps {
 export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const t = useTranslations('Rooms');
     const tAccess = useTranslations('Accessibility');
+    const tNotif = useTranslations('Notifications');
     const router = useRouter();
     const pathname = usePathname();
     const [rooms, setRooms] = useState<Room[]>([]);
@@ -2162,7 +2214,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         try {
             const result = await handleApi({ method: 'POST', url: '/api/rooms', body });
             if (result?.optimistic) {
-                setNotification("Request queued offline. It will sync when you're back online.");
+                setNotification(tNotif('requestQueued'));
                 setRoomCode('');
                 return;
             }
@@ -2205,7 +2257,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             await saveRoomsList(rooms.filter(r => r.id !== selectedRoomToLeave!.id));
             const result = await handleApi({ method: 'DELETE', url: `/api/rooms/${selectedRoomToLeave.id}/members` });
             if (result?.optimistic) {
-                setNotification("Leave room request queued offline.");
+                setNotification(tNotif('requestQueued'));
             }
         } catch {
             setNotification(t('leaveRoomFailed'));
@@ -2227,13 +2279,16 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                      <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
                     <div className="flex items-center space-x-2">
                         {isOnline && !isSyncing && isReadyForOffline && (
-                            <FiCheckCircle className="text-success" title="App is ready for offline use" />
+                            <FiCheckCircle className="text-success" title={tNotif('offlineReady')} />
                         )}
                         {isSyncing && (
-                            <FiLoader className="animate-spin text-primary" title="Syncing..." />
+                            <FiLoader className="animate-spin text-primary" title={tNotif('syncing')} />
                         )}
                         {!isOnline && (
-                             <div className="flex items-center space-x-1 text-muted-foreground" title={`You are offline. ${pendingRequestCount > 0 ? `${pendingRequestCount} item(s) pending sync.` : ''}`}>
+                             <div 
+                                className="flex items-center space-x-1 text-muted-foreground" 
+                                title={`${tNotif('youAreOffline')} ${pendingRequestCount > 0 ? tNotif('pendingSync', { count: pendingRequestCount }) : ''}`.trim()}
+                             >
                                 <FiWifiOff />
                                 {pendingRequestCount > 0 && (
                                     <span className="text-xs font-bold bg-danger text-white rounded-full h-4 w-4 flex items-center justify-center">
