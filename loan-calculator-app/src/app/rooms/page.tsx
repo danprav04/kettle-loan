@@ -1,62 +1,61 @@
+// src/app/rooms/page.tsx
 "use client";
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-
-interface Room {
-    id: number;
-    code: string;
-}
+import { useSync } from '@/components/SyncProvider';
+import { handleApi } from '@/lib/api';
+import { saveRoomsList, getRoomsList } from '@/lib/offline-sync';
 
 export default function RoomsPage() {
     const t = useTranslations('Rooms');
     const router = useRouter();
+    const { isOnline } = useSync();
     const [isLoading, setIsLoading] = useState(true);
+    const [statusMessage, setStatusMessage] = useState(t('loadingRooms'));
 
     useEffect(() => {
         const checkRoomsAndRedirect = async () => {
             const token = localStorage.getItem('token');
             if (!token) {
-                router.replace('/'); // Use replace to avoid back-button issues
+                router.replace('/');
                 return;
             }
 
-            try {
-                const res = await fetch('/api/user/rooms', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            let rooms = await getRoomsList();
 
-                if (res.ok) {
-                    const rooms: Room[] = await res.json();
-                    if (rooms && rooms.length > 0) {
-                        // Redirect to the most recent room
-                        router.replace(`/rooms/${rooms[0].id}`);
-                    } else {
-                        // No rooms, so stop loading and show the welcome message
-                        setIsLoading(false);
+            if (isOnline) {
+                try {
+                    const fetchedRooms = await handleApi({ method: 'GET', url: '/api/user/rooms' });
+                    if (fetchedRooms && Array.isArray(fetchedRooms)) {
+                        await saveRoomsList(fetchedRooms);
+                        rooms = fetchedRooms;
                     }
-                } else if (res.status === 401) {
-                    // Unauthorized, redirect to login
-                    router.replace('/');
-                } else {
-                    // Handle other errors, stop loading to prevent infinite loop
-                    setIsLoading(false);
+                } catch (error) {
+                    console.warn("Could not fetch user rooms, using local data.", error);
+                    setStatusMessage("Couldn't refresh rooms. Using offline data.");
                 }
-            } catch (error) {
-                console.error("Failed to fetch rooms", error);
-                setIsLoading(false); // Stop loading on network or other errors
+            }
+
+            if (rooms.length > 0) {
+                router.replace(`/rooms/${rooms[0].id}`);
+            } else {
+                if (!isOnline) {
+                    setStatusMessage("Connect to the internet once to download your rooms for offline use.");
+                }
+                setIsLoading(false);
             }
         };
 
         checkRoomsAndRedirect();
-    }, [router]);
+    }, [router, isOnline, t]);
 
     if (isLoading) {
         return (
             <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center">
-                    <p className="text-muted-foreground">{t('loadingRooms')}</p>
+                    <p className="text-muted-foreground">{statusMessage}</p>
                 </div>
             </div>
         );

@@ -4,7 +4,7 @@ JWT_SECRET="your-super-secret-and-long-jwt-key"
 
 ---
 
---- File: dstabse-tables.sql ---
+--- File: dstabse-schema.sql ---
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(255) UNIQUE NOT NULL,
@@ -45,14 +45,90 @@ CREATE TABLE entries (
 ---
 
 --- File: next.config.ts ---
-import type { NextConfig } from "next";
+// next.config.ts
+import type { NextConfig } from 'next';
+import withPWAInit from '@ducanh2912/next-pwa';
+
+// Define the runtime caching strategies for the service worker.
+const runtimeCaching = [
+  {
+    urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+    handler: 'CacheFirst' as const,
+    options: {
+      cacheName: 'google-fonts',
+      expiration: {
+        maxEntries: 4,
+        maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
+      },
+    },
+  },
+  {
+    urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font.css|jpg|jpeg|gif|png|svg|ico|webp)$/i,
+    handler: 'StaleWhileRevalidate' as const,
+    options: {
+      cacheName: 'static-assets',
+      expiration: {
+        maxEntries: 64,
+        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+      },
+    },
+  },
+  {
+    urlPattern: /^\/api\/.*/i,
+    handler: 'NetworkFirst' as const,
+    method: 'GET' as const,
+    options: {
+      cacheName: 'api-cache',
+      expiration: {
+        maxEntries: 64,
+        maxAgeSeconds: 24 * 60 * 60, // 1 day
+      },
+      networkTimeoutSeconds: 10,
+    },
+  },
+  {
+    urlPattern: ({ request, url }: { request: Request; url: URL }) => {
+      if (url.pathname.startsWith('/api/')) return false;
+      return request.method === 'GET';
+    },
+    handler: 'NetworkFirst' as const,
+    options: {
+      cacheName: 'pages-cache',
+      expiration: {
+        maxEntries: 32,
+        maxAgeSeconds: 24 * 60 * 60, // 1 day
+      },
+      networkTimeoutSeconds: 10,
+    },
+  },
+];
+
+const withPWA = withPWAInit({
+  dest: 'public',
+  disable: process.env.NODE_ENV === 'development',
+  register: true,
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
+  workboxOptions: {
+    disableDevLogs: true,
+    skipWaiting: true,
+    runtimeCaching,
+  },
+  // Add this fallback for a complete offline experience.
+  // It tells the service worker to serve '/~offline' if a navigation request fails.
+  fallbacks: {
+    document: "/~offline",
+  },
+});
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  output: 'standalone', // Add this line
+  // This is the critical line that was missing.
+  // It tells Next.js to create the .next/standalone directory.
+  output: 'standalone',
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);
 
 ---
 
@@ -69,10 +145,12 @@ export default nextConfig;
     "build:local": "env-cmd -f .env.local next build"
   },
   "dependencies": {
+    "@ducanh2912/next-pwa": "^10.2.7",
     "@mdi/js": "^7.4.47",
     "@mdi/react": "^1.6.1",
     "bcryptjs": "^3.0.2",
     "i18next": "^25.2.1",
+    "idb": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "next": "15.3.4",
     "next-intl": "^4.1.0",
@@ -83,20 +161,30 @@ export default nextConfig;
     "react-icons": "^5.5.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
     "@types/pg": "^8.15.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.19",
     "env-cmd": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
-    "tailwindcss": "^4",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3",
     "typescript": "^5"
   }
+}
+
+---
+
+--- File: postcss.config.js ---
+module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
 }
 
 ---
@@ -367,8 +455,54 @@ export default config
 
 ---
 
+--- File: public/manifest.json ---
+{
+  "name": "Loan Calculator",
+  "short_name": "LoanCalc",
+  "description": "A simple loan calculator app with offline support.",
+  "start_url": "/",
+  "scope": "/",
+  "id": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+
+---
+
+--- File: public/sw.js ---
+if(!self.define){let e,s={};const c=(c,i)=>(c=new URL(c+".js",i).href,s[c]||new Promise(s=>{if("document"in self){const e=document.createElement("script");e.src=c,e.onload=s,document.head.appendChild(e)}else e=c,importScripts(c),s()}).then(()=>{let e=s[c];if(!e)throw new Error(`Module ${c} didn’t register its module`);return e}));self.define=(i,t)=>{const a=e||("document"in self?document.currentScript.src:"")||location.href;if(s[a])return;let n={};const r=e=>c(e,a),f={module:{uri:a},exports:n,require:r};s[a]=Promise.all(i.map(e=>f[e]||r(e))).then(e=>(t(...e),n))}}define(["./workbox-7af0af7c"],function(e){"use strict";importScripts(),self.skipWaiting(),e.clientsClaim(),e.precacheAndRoute([{url:"/_next/static/JgMcKAhTdO9_9mz-Ifj4u/_buildManifest.js",revision:"796284a6b0a32f5fe617465d0221e072"},{url:"/_next/static/JgMcKAhTdO9_9mz-Ifj4u/_ssgManifest.js",revision:"b6652df95db52feb4daf4eca35380933"},{url:"/_next/static/chunks/2a223334-c0c139bfff5a21c6.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/338-7af139210c37cfb1.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/341.df3329d77a5faa19.js",revision:"df3329d77a5faa19"},{url:"/_next/static/chunks/385-6cf5b4a5616400ab.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/467-2426cbe9036e4df1.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/472.a3826d29d6854395.js",revision:"a3826d29d6854395"},{url:"/_next/static/chunks/4bd1b696-c1b508e82507cebb.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/690-3952bdddbe6611d6.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/_not-found/page-9d5b2edd5843c02d.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/auth/login/route-8c489837276fe962.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/auth/signup/route-ef786d21283c9f14.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/entries/route-44bc68f5b31c95b5.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/rooms/%5BroomId%5D/members/route-8c8bf3b1824da16c.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/rooms/%5BroomId%5D/route-f7f33695bbbf2b0e.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/rooms/route-bb24c38d01b75451.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/user/rooms/route-cc9468ee86a92ebb.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/layout-56ebe2085b02e300.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/page-d35a3582992d2902.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/rooms/%5BroomId%5D/entries/page-8e53236fc168ea05.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/rooms/%5BroomId%5D/page-a92ac2c5d28c98c7.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/rooms/layout-7c3129306e6b7dc0.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/rooms/page-43ff47a6b52e3193.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/ee560e2c-0b53eab3923b4f0b.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/framework-f593a28cde54158e.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/main-app-0c4a2a08bab46140.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/main-c9c2bd34f8be8107.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/pages/_app-92f2aae776f86b9c.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/pages/_error-71d2b6a7b832d02a.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/polyfills-42372ed130431b0a.js",revision:"846118c33b2c0e922d7b3a7676f81f6f"},{url:"/_next/static/chunks/webpack-75e90ec69d4ac2a5.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/css/2816c390b814fedc.css",revision:"2816c390b814fedc"},{url:"/_next/static/media/26a46d62cd723877-s.woff2",revision:"befd9c0fdfa3d8a645d5f95717ed6420"},{url:"/_next/static/media/55c55f0601d81cf3-s.woff2",revision:"43828e14271c77b87e3ed582dbff9f74"},{url:"/_next/static/media/581909926a08bbc8-s.woff2",revision:"f0b86e7c24f455280b8df606b89af891"},{url:"/_next/static/media/8e9860b6e62d6359-s.woff2",revision:"01ba6c2a184b8cba08b0d57167664d75"},{url:"/_next/static/media/97e0cb1ae144a2a9-s.woff2",revision:"e360c61c5bd8d90639fd4503c829c2dc"},{url:"/_next/static/media/df0a9ae256c0569c-s.woff2",revision:"d54db44de5ccb18886ece2fda72bdfe0"},{url:"/_next/static/media/e4af272ccee01ff0-s.p.woff2",revision:"65850a373e258f1c897a2b3d75eb74de"},{url:"/file.svg",revision:"d09f95206c3fa0bb9bd9fefabfd0ea71"},{url:"/globe.svg",revision:"2aaafa6a49b6563925fe440891e32717"},{url:"/manifest.json",revision:"05fdbfdc8e349dfc19ff45d450333340"},{url:"/next.svg",revision:"8e061864f388b47f33a1c3780831193e"},{url:"/swe-worker-5c72df51bb1f6ee0.js",revision:"76fdd3369f623a3edcf74ce2200bfdd0"},{url:"/vercel.svg",revision:"c0af2f507b369b085b35ef4bbe3bcf1e"},{url:"/window.svg",revision:"a2760511c65806022ad20adf74370ff3"}],{ignoreURLParametersMatching:[/^utm_/,/^fbclid$/]}),e.cleanupOutdatedCaches(),e.registerRoute("/",new e.NetworkFirst({cacheName:"start-url",plugins:[{cacheWillUpdate:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,new e.CacheFirst({cacheName:"google-fonts",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:31536e3})]}),"GET"),e.registerRoute(/\.(?:eot|otf|ttc|ttf|woff|woff2|font.css|jpg|jpeg|gif|png|svg|ico|webp)$/i,new e.StaleWhileRevalidate({cacheName:"static-assets",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:2592e3})]}),"GET"),e.registerRoute(/^\/api\/.*/i,new e.NetworkFirst({cacheName:"api-cache",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(function(e){var s=e.request;return!e.url.pathname.startsWith("/api/")&&"GET"===s.method},new e.NetworkFirst({cacheName:"pages-cache",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),self.__WB_DISABLE_DEV_LOGS=!0});
+
+---
+
+--- File: public/swe-worker-5c72df51bb1f6ee0.js ---
+(()=>{"use strict";self.onmessage=async e=>{switch(e.data.type){case"__START_URL_CACHE__":{let t=e.data.url,a=await fetch(t);if(!a.redirected)return(await caches.open("start-url")).put(t,a);return Promise.resolve()}case"__FRONTEND_NAV_CACHE__":{let t=e.data.url,a=await caches.open("pages");if(await a.match(t,{ignoreSearch:!0}))return;let s=await fetch(t);if(!s.ok)return;if(a.put(t,s.clone()),e.data.shouldCacheAggressively&&s.headers.get("Content-Type")?.includes("text/html"))try{let e=await s.text(),t=[],a=await caches.open("static-style-assets"),r=await caches.open("next-static-js-assets"),c=await caches.open("static-js-assets");for(let[s,r]of e.matchAll(/<link.*?href=['"](.*?)['"].*?>/g))/rel=['"]stylesheet['"]/.test(s)&&t.push(a.match(r).then(e=>e?Promise.resolve():a.add(r)));for(let[,a]of e.matchAll(/<script.*?src=['"](.*?)['"].*?>/g)){let e=/\/_next\/static.+\.js$/i.test(a)?r:c;t.push(e.match(a).then(t=>t?Promise.resolve():e.add(a)))}return await Promise.all(t)}catch{}return Promise.resolve()}default:return Promise.resolve()}}})();
+
+---
+
+--- File: public/workbox-7af0af7c.js ---
+define(["exports"],function(t){"use strict";try{self["workbox:core:7.0.0"]&&_()}catch(t){}const e=(t,...e)=>{let s=t;return e.length>0&&(s+=` :: ${JSON.stringify(e)}`),s};class s extends Error{constructor(t,s){super(e(t,s)),this.name=t,this.details=s}}try{self["workbox:routing:7.0.0"]&&_()}catch(t){}const n=t=>t&&"object"==typeof t?t:{handle:t};class i{constructor(t,e,s="GET"){this.handler=n(e),this.match=t,this.method=s}setCatchHandler(t){this.catchHandler=n(t)}}class r extends i{constructor(t,e,s){super(({url:e})=>{const s=t.exec(e.href);if(s&&(e.origin===location.origin||0===s.index))return s.slice(1)},e,s)}}class a{constructor(){this.t=new Map,this.i=new Map}get routes(){return this.t}addFetchListener(){self.addEventListener("fetch",t=>{const{request:e}=t,s=this.handleRequest({request:e,event:t});s&&t.respondWith(s)})}addCacheListener(){self.addEventListener("message",t=>{if(t.data&&"CACHE_URLS"===t.data.type){const{payload:e}=t.data,s=Promise.all(e.urlsToCache.map(e=>{"string"==typeof e&&(e=[e]);const s=new Request(...e);return this.handleRequest({request:s,event:t})}));t.waitUntil(s),t.ports&&t.ports[0]&&s.then(()=>t.ports[0].postMessage(!0))}})}handleRequest({request:t,event:e}){const s=new URL(t.url,location.href);if(!s.protocol.startsWith("http"))return;const n=s.origin===location.origin,{params:i,route:r}=this.findMatchingRoute({event:e,request:t,sameOrigin:n,url:s});let a=r&&r.handler;const o=t.method;if(!a&&this.i.has(o)&&(a=this.i.get(o)),!a)return;let c;try{c=a.handle({url:s,request:t,event:e,params:i})}catch(t){c=Promise.reject(t)}const h=r&&r.catchHandler;return c instanceof Promise&&(this.o||h)&&(c=c.catch(async n=>{if(h)try{return await h.handle({url:s,request:t,event:e,params:i})}catch(t){t instanceof Error&&(n=t)}if(this.o)return this.o.handle({url:s,request:t,event:e});throw n})),c}findMatchingRoute({url:t,sameOrigin:e,request:s,event:n}){const i=this.t.get(s.method)||[];for(const r of i){let i;const a=r.match({url:t,sameOrigin:e,request:s,event:n});if(a)return i=a,(Array.isArray(i)&&0===i.length||a.constructor===Object&&0===Object.keys(a).length||"boolean"==typeof a)&&(i=void 0),{route:r,params:i}}return{}}setDefaultHandler(t,e="GET"){this.i.set(e,n(t))}setCatchHandler(t){this.o=n(t)}registerRoute(t){this.t.has(t.method)||this.t.set(t.method,[]),this.t.get(t.method).push(t)}unregisterRoute(t){if(!this.t.has(t.method))throw new s("unregister-route-but-not-found-with-method",{method:t.method});const e=this.t.get(t.method).indexOf(t);if(!(e>-1))throw new s("unregister-route-route-not-registered");this.t.get(t.method).splice(e,1)}}let o;const c=()=>(o||(o=new a,o.addFetchListener(),o.addCacheListener()),o);function h(t,e,n){let a;if("string"==typeof t){const s=new URL(t,location.href);a=new i(({url:t})=>t.href===s.href,e,n)}else if(t instanceof RegExp)a=new r(t,e,n);else if("function"==typeof t)a=new i(t,e,n);else{if(!(t instanceof i))throw new s("unsupported-route-type",{moduleName:"workbox-routing",funcName:"registerRoute",paramName:"capture"});a=t}return c().registerRoute(a),a}try{self["workbox:strategies:7.0.0"]&&_()}catch(t){}const u={cacheWillUpdate:async({response:t})=>200===t.status||0===t.status?t:null},l={googleAnalytics:"googleAnalytics",precache:"precache-v2",prefix:"workbox",runtime:"runtime",suffix:"undefined"!=typeof registration?registration.scope:""},f=t=>[l.prefix,t,l.suffix].filter(t=>t&&t.length>0).join("-"),w=t=>t||f(l.precache),d=t=>t||f(l.runtime);function p(t,e){const s=new URL(t);for(const t of e)s.searchParams.delete(t);return s.href}class y{constructor(){this.promise=new Promise((t,e)=>{this.resolve=t,this.reject=e})}}const m=new Set;function g(t){return"string"==typeof t?new Request(t):t}class R{constructor(t,e){this.h={},Object.assign(this,e),this.event=e.event,this.u=t,this.l=new y,this.p=[],this.m=[...t.plugins],this.R=new Map;for(const t of this.m)this.R.set(t,{});this.event.waitUntil(this.l.promise)}async fetch(t){const{event:e}=this;let n=g(t);if("navigate"===n.mode&&e instanceof FetchEvent&&e.preloadResponse){const t=await e.preloadResponse;if(t)return t}const i=this.hasCallback("fetchDidFail")?n.clone():null;try{for(const t of this.iterateCallbacks("requestWillFetch"))n=await t({request:n.clone(),event:e})}catch(t){if(t instanceof Error)throw new s("plugin-error-request-will-fetch",{thrownErrorMessage:t.message})}const r=n.clone();try{let t;t=await fetch(n,"navigate"===n.mode?void 0:this.u.fetchOptions);for(const s of this.iterateCallbacks("fetchDidSucceed"))t=await s({event:e,request:r,response:t});return t}catch(t){throw i&&await this.runCallbacks("fetchDidFail",{error:t,event:e,originalRequest:i.clone(),request:r.clone()}),t}}async fetchAndCachePut(t){const e=await this.fetch(t),s=e.clone();return this.waitUntil(this.cachePut(t,s)),e}async cacheMatch(t){const e=g(t);let s;const{cacheName:n,matchOptions:i}=this.u,r=await this.getCacheKey(e,"read"),a=Object.assign(Object.assign({},i),{cacheName:n});s=await caches.match(r,a);for(const t of this.iterateCallbacks("cachedResponseWillBeUsed"))s=await t({cacheName:n,matchOptions:i,cachedResponse:s,request:r,event:this.event})||void 0;return s}async cachePut(t,e){const n=g(t);var i;await(i=0,new Promise(t=>setTimeout(t,i)));const r=await this.getCacheKey(n,"write");if(!e)throw new s("cache-put-with-no-response",{url:(a=r.url,new URL(String(a),location.href).href.replace(new RegExp(`^${location.origin}`),""))});var a;const o=await this.v(e);if(!o)return!1;const{cacheName:c,matchOptions:h}=this.u,u=await self.caches.open(c),l=this.hasCallback("cacheDidUpdate"),f=l?await async function(t,e,s,n){const i=p(e.url,s);if(e.url===i)return t.match(e,n);const r=Object.assign(Object.assign({},n),{ignoreSearch:!0}),a=await t.keys(e,r);for(const e of a)if(i===p(e.url,s))return t.match(e,n)}(u,r.clone(),["__WB_REVISION__"],h):null;try{await u.put(r,l?o.clone():o)}catch(t){if(t instanceof Error)throw"QuotaExceededError"===t.name&&await async function(){for(const t of m)await t()}(),t}for(const t of this.iterateCallbacks("cacheDidUpdate"))await t({cacheName:c,oldResponse:f,newResponse:o.clone(),request:r,event:this.event});return!0}async getCacheKey(t,e){const s=`${t.url} | ${e}`;if(!this.h[s]){let n=t;for(const t of this.iterateCallbacks("cacheKeyWillBeUsed"))n=g(await t({mode:e,request:n,event:this.event,params:this.params}));this.h[s]=n}return this.h[s]}hasCallback(t){for(const e of this.u.plugins)if(t in e)return!0;return!1}async runCallbacks(t,e){for(const s of this.iterateCallbacks(t))await s(e)}*iterateCallbacks(t){for(const e of this.u.plugins)if("function"==typeof e[t]){const s=this.R.get(e),n=n=>{const i=Object.assign(Object.assign({},n),{state:s});return e[t](i)};yield n}}waitUntil(t){return this.p.push(t),t}async doneWaiting(){let t;for(;t=this.p.shift();)await t}destroy(){this.l.resolve(null)}async v(t){let e=t,s=!1;for(const t of this.iterateCallbacks("cacheWillUpdate"))if(e=await t({request:this.request,response:e,event:this.event})||void 0,s=!0,!e)break;return s||e&&200!==e.status&&(e=void 0),e}}class v{constructor(t={}){this.cacheName=d(t.cacheName),this.plugins=t.plugins||[],this.fetchOptions=t.fetchOptions,this.matchOptions=t.matchOptions}handle(t){const[e]=this.handleAll(t);return e}handleAll(t){t instanceof FetchEvent&&(t={event:t,request:t.request});const e=t.event,s="string"==typeof t.request?new Request(t.request):t.request,n="params"in t?t.params:void 0,i=new R(this,{event:e,request:s,params:n}),r=this.q(i,s,e);return[r,this.D(r,i,s,e)]}async q(t,e,n){let i;await t.runCallbacks("handlerWillStart",{event:n,request:e});try{if(i=await this.U(e,t),!i||"error"===i.type)throw new s("no-response",{url:e.url})}catch(s){if(s instanceof Error)for(const r of t.iterateCallbacks("handlerDidError"))if(i=await r({error:s,event:n,request:e}),i)break;if(!i)throw s}for(const s of t.iterateCallbacks("handlerWillRespond"))i=await s({event:n,request:e,response:i});return i}async D(t,e,s,n){let i,r;try{i=await t}catch(r){}try{await e.runCallbacks("handlerDidRespond",{event:n,request:s,response:i}),await e.doneWaiting()}catch(t){t instanceof Error&&(r=t)}if(await e.runCallbacks("handlerDidComplete",{event:n,request:s,response:i,error:r}),e.destroy(),r)throw r}}function b(t){t.then(()=>{})}function q(){return q=Object.assign?Object.assign.bind():function(t){for(var e=1;e<arguments.length;e++){var s=arguments[e];for(var n in s)({}).hasOwnProperty.call(s,n)&&(t[n]=s[n])}return t},q.apply(null,arguments)}let D,U;const x=new WeakMap,I=new WeakMap,L=new WeakMap,E=new WeakMap,C=new WeakMap;let N={get(t,e,s){if(t instanceof IDBTransaction){if("done"===e)return I.get(t);if("objectStoreNames"===e)return t.objectStoreNames||L.get(t);if("store"===e)return s.objectStoreNames[1]?void 0:s.objectStore(s.objectStoreNames[0])}return B(t[e])},set:(t,e,s)=>(t[e]=s,!0),has:(t,e)=>t instanceof IDBTransaction&&("done"===e||"store"===e)||e in t};function O(t){return t!==IDBDatabase.prototype.transaction||"objectStoreNames"in IDBTransaction.prototype?(U||(U=[IDBCursor.prototype.advance,IDBCursor.prototype.continue,IDBCursor.prototype.continuePrimaryKey])).includes(t)?function(...e){return t.apply(T(this),e),B(x.get(this))}:function(...e){return B(t.apply(T(this),e))}:function(e,...s){const n=t.call(T(this),e,...s);return L.set(n,e.sort?e.sort():[e]),B(n)}}function k(t){return"function"==typeof t?O(t):(t instanceof IDBTransaction&&function(t){if(I.has(t))return;const e=new Promise((e,s)=>{const n=()=>{t.removeEventListener("complete",i),t.removeEventListener("error",r),t.removeEventListener("abort",r)},i=()=>{e(),n()},r=()=>{s(t.error||new DOMException("AbortError","AbortError")),n()};t.addEventListener("complete",i),t.addEventListener("error",r),t.addEventListener("abort",r)});I.set(t,e)}(t),e=t,(D||(D=[IDBDatabase,IDBObjectStore,IDBIndex,IDBCursor,IDBTransaction])).some(t=>e instanceof t)?new Proxy(t,N):t);var e}function B(t){if(t instanceof IDBRequest)return function(t){const e=new Promise((e,s)=>{const n=()=>{t.removeEventListener("success",i),t.removeEventListener("error",r)},i=()=>{e(B(t.result)),n()},r=()=>{s(t.error),n()};t.addEventListener("success",i),t.addEventListener("error",r)});return e.then(e=>{e instanceof IDBCursor&&x.set(e,t)}).catch(()=>{}),C.set(e,t),e}(t);if(E.has(t))return E.get(t);const e=k(t);return e!==t&&(E.set(t,e),C.set(e,t)),e}const T=t=>C.get(t);const M=["get","getKey","getAll","getAllKeys","count"],P=["put","add","delete","clear"],W=new Map;function j(t,e){if(!(t instanceof IDBDatabase)||e in t||"string"!=typeof e)return;if(W.get(e))return W.get(e);const s=e.replace(/FromIndex$/,""),n=e!==s,i=P.includes(s);if(!(s in(n?IDBIndex:IDBObjectStore).prototype)||!i&&!M.includes(s))return;const r=async function(t,...e){const r=this.transaction(t,i?"readwrite":"readonly");let a=r.store;return n&&(a=a.index(e.shift())),(await Promise.all([a[s](...e),i&&r.done]))[0]};return W.set(e,r),r}N=(t=>q({},t,{get:(e,s,n)=>j(e,s)||t.get(e,s,n),has:(e,s)=>!!j(e,s)||t.has(e,s)}))(N);try{self["workbox:expiration:7.0.0"]&&_()}catch(t){}const S="cache-entries",K=t=>{const e=new URL(t,location.href);return e.hash="",e.href};class A{constructor(t){this._=null,this.I=t}L(t){const e=t.createObjectStore(S,{keyPath:"id"});e.createIndex("cacheName","cacheName",{unique:!1}),e.createIndex("timestamp","timestamp",{unique:!1})}C(t){this.L(t),this.I&&function(t,{blocked:e}={}){const s=indexedDB.deleteDatabase(t);e&&s.addEventListener("blocked",t=>e(t.oldVersion,t)),B(s).then(()=>{})}(this.I)}async setTimestamp(t,e){const s={url:t=K(t),timestamp:e,cacheName:this.I,id:this.N(t)},n=(await this.getDb()).transaction(S,"readwrite",{durability:"relaxed"});await n.store.put(s),await n.done}async getTimestamp(t){const e=await this.getDb(),s=await e.get(S,this.N(t));return null==s?void 0:s.timestamp}async expireEntries(t,e){const s=await this.getDb();let n=await s.transaction(S).store.index("timestamp").openCursor(null,"prev");const i=[];let r=0;for(;n;){const s=n.value;s.cacheName===this.I&&(t&&s.timestamp<t||e&&r>=e?i.push(n.value):r++),n=await n.continue()}const a=[];for(const t of i)await s.delete(S,t.id),a.push(t.url);return a}N(t){return this.I+"|"+K(t)}async getDb(){return this._||(this._=await function(t,e,{blocked:s,upgrade:n,blocking:i,terminated:r}={}){const a=indexedDB.open(t,e),o=B(a);return n&&a.addEventListener("upgradeneeded",t=>{n(B(a.result),t.oldVersion,t.newVersion,B(a.transaction),t)}),s&&a.addEventListener("blocked",t=>s(t.oldVersion,t.newVersion,t)),o.then(t=>{r&&t.addEventListener("close",()=>r()),i&&t.addEventListener("versionchange",t=>i(t.oldVersion,t.newVersion,t))}).catch(()=>{}),o}("workbox-expiration",1,{upgrade:this.C.bind(this)})),this._}}class F{constructor(t,e={}){this.O=!1,this.k=!1,this.B=e.maxEntries,this.T=e.maxAgeSeconds,this.M=e.matchOptions,this.I=t,this.P=new A(t)}async expireEntries(){if(this.O)return void(this.k=!0);this.O=!0;const t=this.T?Date.now()-1e3*this.T:0,e=await this.P.expireEntries(t,this.B),s=await self.caches.open(this.I);for(const t of e)await s.delete(t,this.M);this.O=!1,this.k&&(this.k=!1,b(this.expireEntries()))}async updateTimestamp(t){await this.P.setTimestamp(t,Date.now())}async isURLExpired(t){if(this.T){const e=await this.P.getTimestamp(t),s=Date.now()-1e3*this.T;return void 0===e||e<s}return!1}async delete(){this.k=!1,await this.P.expireEntries(1/0)}}function H(t,e){const s=e();return t.waitUntil(s),s}try{self["workbox:precaching:7.0.0"]&&_()}catch(t){}function $(t){if(!t)throw new s("add-to-cache-list-unexpected-type",{entry:t});if("string"==typeof t){const e=new URL(t,location.href);return{cacheKey:e.href,url:e.href}}const{revision:e,url:n}=t;if(!n)throw new s("add-to-cache-list-unexpected-type",{entry:t});if(!e){const t=new URL(n,location.href);return{cacheKey:t.href,url:t.href}}const i=new URL(n,location.href),r=new URL(n,location.href);return i.searchParams.set("__WB_REVISION__",e),{cacheKey:i.href,url:r.href}}class G{constructor(){this.updatedURLs=[],this.notUpdatedURLs=[],this.handlerWillStart=async({request:t,state:e})=>{e&&(e.originalRequest=t)},this.cachedResponseWillBeUsed=async({event:t,state:e,cachedResponse:s})=>{if("install"===t.type&&e&&e.originalRequest&&e.originalRequest instanceof Request){const t=e.originalRequest.url;s?this.notUpdatedURLs.push(t):this.updatedURLs.push(t)}return s}}}class V{constructor({precacheController:t}){this.cacheKeyWillBeUsed=async({request:t,params:e})=>{const s=(null==e?void 0:e.cacheKey)||this.W.getCacheKeyForURL(t.url);return s?new Request(s,{headers:t.headers}):t},this.W=t}}let J,Q;async function z(t,e){let n=null;if(t.url){n=new URL(t.url).origin}if(n!==self.location.origin)throw new s("cross-origin-copy-response",{origin:n});const i=t.clone(),r={headers:new Headers(i.headers),status:i.status,statusText:i.statusText},a=e?e(r):r,o=function(){if(void 0===J){const t=new Response("");if("body"in t)try{new Response(t.body),J=!0}catch(t){J=!1}J=!1}return J}()?i.body:await i.blob();return new Response(o,a)}class X extends v{constructor(t={}){t.cacheName=w(t.cacheName),super(t),this.j=!1!==t.fallbackToNetwork,this.plugins.push(X.copyRedirectedCacheableResponsesPlugin)}async U(t,e){const s=await e.cacheMatch(t);return s||(e.event&&"install"===e.event.type?await this.S(t,e):await this.K(t,e))}async K(t,e){let n;const i=e.params||{};if(!this.j)throw new s("missing-precache-entry",{cacheName:this.cacheName,url:t.url});{const s=i.integrity,r=t.integrity,a=!r||r===s;n=await e.fetch(new Request(t,{integrity:"no-cors"!==t.mode?r||s:void 0})),s&&a&&"no-cors"!==t.mode&&(this.A(),await e.cachePut(t,n.clone()))}return n}async S(t,e){this.A();const n=await e.fetch(t);if(!await e.cachePut(t,n.clone()))throw new s("bad-precaching-response",{url:t.url,status:n.status});return n}A(){let t=null,e=0;for(const[s,n]of this.plugins.entries())n!==X.copyRedirectedCacheableResponsesPlugin&&(n===X.defaultPrecacheCacheabilityPlugin&&(t=s),n.cacheWillUpdate&&e++);0===e?this.plugins.push(X.defaultPrecacheCacheabilityPlugin):e>1&&null!==t&&this.plugins.splice(t,1)}}X.defaultPrecacheCacheabilityPlugin={cacheWillUpdate:async({response:t})=>!t||t.status>=400?null:t},X.copyRedirectedCacheableResponsesPlugin={cacheWillUpdate:async({response:t})=>t.redirected?await z(t):t};class Y{constructor({cacheName:t,plugins:e=[],fallbackToNetwork:s=!0}={}){this.F=new Map,this.H=new Map,this.$=new Map,this.u=new X({cacheName:w(t),plugins:[...e,new V({precacheController:this})],fallbackToNetwork:s}),this.install=this.install.bind(this),this.activate=this.activate.bind(this)}get strategy(){return this.u}precache(t){this.addToCacheList(t),this.G||(self.addEventListener("install",this.install),self.addEventListener("activate",this.activate),this.G=!0)}addToCacheList(t){const e=[];for(const n of t){"string"==typeof n?e.push(n):n&&void 0===n.revision&&e.push(n.url);const{cacheKey:t,url:i}=$(n),r="string"!=typeof n&&n.revision?"reload":"default";if(this.F.has(i)&&this.F.get(i)!==t)throw new s("add-to-cache-list-conflicting-entries",{firstEntry:this.F.get(i),secondEntry:t});if("string"!=typeof n&&n.integrity){if(this.$.has(t)&&this.$.get(t)!==n.integrity)throw new s("add-to-cache-list-conflicting-integrities",{url:i});this.$.set(t,n.integrity)}if(this.F.set(i,t),this.H.set(i,r),e.length>0){const t=`Workbox is precaching URLs without revision info: ${e.join(", ")}\nThis is generally NOT safe. Learn more at https://bit.ly/wb-precache`;console.warn(t)}}}install(t){return H(t,async()=>{const e=new G;this.strategy.plugins.push(e);for(const[e,s]of this.F){const n=this.$.get(s),i=this.H.get(e),r=new Request(e,{integrity:n,cache:i,credentials:"same-origin"});await Promise.all(this.strategy.handleAll({params:{cacheKey:s},request:r,event:t}))}const{updatedURLs:s,notUpdatedURLs:n}=e;return{updatedURLs:s,notUpdatedURLs:n}})}activate(t){return H(t,async()=>{const t=await self.caches.open(this.strategy.cacheName),e=await t.keys(),s=new Set(this.F.values()),n=[];for(const i of e)s.has(i.url)||(await t.delete(i),n.push(i.url));return{deletedURLs:n}})}getURLsToCacheKeys(){return this.F}getCachedURLs(){return[...this.F.keys()]}getCacheKeyForURL(t){const e=new URL(t,location.href);return this.F.get(e.href)}getIntegrityForCacheKey(t){return this.$.get(t)}async matchPrecache(t){const e=t instanceof Request?t.url:t,s=this.getCacheKeyForURL(e);if(s){return(await self.caches.open(this.strategy.cacheName)).match(s)}}createHandlerBoundToURL(t){const e=this.getCacheKeyForURL(t);if(!e)throw new s("non-precached-url",{url:t});return s=>(s.request=new Request(t),s.params=Object.assign({cacheKey:e},s.params),this.strategy.handle(s))}}const Z=()=>(Q||(Q=new Y),Q);class tt extends i{constructor(t,e){super(({request:s})=>{const n=t.getURLsToCacheKeys();for(const i of function*(t,{ignoreURLParametersMatching:e=[/^utm_/,/^fbclid$/],directoryIndex:s="index.html",cleanURLs:n=!0,urlManipulation:i}={}){const r=new URL(t,location.href);r.hash="",yield r.href;const a=function(t,e=[]){for(const s of[...t.searchParams.keys()])e.some(t=>t.test(s))&&t.searchParams.delete(s);return t}(r,e);if(yield a.href,s&&a.pathname.endsWith("/")){const t=new URL(a.href);t.pathname+=s,yield t.href}if(n){const t=new URL(a.href);t.pathname+=".html",yield t.href}if(i){const t=i({url:r});for(const e of t)yield e.href}}(s.url,e)){const e=n.get(i);if(e){return{cacheKey:e,integrity:t.getIntegrityForCacheKey(e)}}}},t.strategy)}}t.CacheFirst=class extends v{async U(t,e){let n,i=await e.cacheMatch(t);if(!i)try{i=await e.fetchAndCachePut(t)}catch(t){t instanceof Error&&(n=t)}if(!i)throw new s("no-response",{url:t.url,error:n});return i}},t.ExpirationPlugin=class{constructor(t={}){this.cachedResponseWillBeUsed=async({event:t,request:e,cacheName:s,cachedResponse:n})=>{if(!n)return null;const i=this.V(n),r=this.J(s);b(r.expireEntries());const a=r.updateTimestamp(e.url);if(t)try{t.waitUntil(a)}catch(t){}return i?n:null},this.cacheDidUpdate=async({cacheName:t,request:e})=>{const s=this.J(t);await s.updateTimestamp(e.url),await s.expireEntries()},this.X=t,this.T=t.maxAgeSeconds,this.Y=new Map,t.purgeOnQuotaError&&function(t){m.add(t)}(()=>this.deleteCacheAndMetadata())}J(t){if(t===d())throw new s("expire-custom-caches-only");let e=this.Y.get(t);return e||(e=new F(t,this.X),this.Y.set(t,e)),e}V(t){if(!this.T)return!0;const e=this.Z(t);if(null===e)return!0;return e>=Date.now()-1e3*this.T}Z(t){if(!t.headers.has("date"))return null;const e=t.headers.get("date"),s=new Date(e).getTime();return isNaN(s)?null:s}async deleteCacheAndMetadata(){for(const[t,e]of this.Y)await self.caches.delete(t),await e.delete();this.Y=new Map}},t.NetworkFirst=class extends v{constructor(t={}){super(t),this.plugins.some(t=>"cacheWillUpdate"in t)||this.plugins.unshift(u),this.tt=t.networkTimeoutSeconds||0}async U(t,e){const n=[],i=[];let r;if(this.tt){const{id:s,promise:a}=this.et({request:t,logs:n,handler:e});r=s,i.push(a)}const a=this.st({timeoutId:r,request:t,logs:n,handler:e});i.push(a);const o=await e.waitUntil((async()=>await e.waitUntil(Promise.race(i))||await a)());if(!o)throw new s("no-response",{url:t.url});return o}et({request:t,logs:e,handler:s}){let n;return{promise:new Promise(e=>{n=setTimeout(async()=>{e(await s.cacheMatch(t))},1e3*this.tt)}),id:n}}async st({timeoutId:t,request:e,logs:s,handler:n}){let i,r;try{r=await n.fetchAndCachePut(e)}catch(t){t instanceof Error&&(i=t)}return t&&clearTimeout(t),!i&&r||(r=await n.cacheMatch(e)),r}},t.StaleWhileRevalidate=class extends v{constructor(t={}){super(t),this.plugins.some(t=>"cacheWillUpdate"in t)||this.plugins.unshift(u)}async U(t,e){const n=e.fetchAndCachePut(t).catch(()=>{});e.waitUntil(n);let i,r=await e.cacheMatch(t);if(r);else try{r=await n}catch(t){t instanceof Error&&(i=t)}if(!r)throw new s("no-response",{url:t.url,error:i});return r}},t.cleanupOutdatedCaches=function(){self.addEventListener("activate",t=>{const e=w();t.waitUntil((async(t,e="-precache-")=>{const s=(await self.caches.keys()).filter(s=>s.includes(e)&&s.includes(self.registration.scope)&&s!==t);return await Promise.all(s.map(t=>self.caches.delete(t))),s})(e).then(t=>{}))})},t.clientsClaim=function(){self.addEventListener("activate",()=>self.clients.claim())},t.precacheAndRoute=function(t,e){!function(t){Z().precache(t)}(t),function(t){const e=Z();h(new tt(e,t))}(e)},t.registerRoute=h});
+
+---
+
 --- File: src/app/globals.css ---
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --background: #ffffff;
@@ -525,18 +659,39 @@ button, a, input {
 
 --- File: src/app/layout.tsx ---
 // src/app/layout.tsx
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import IntlProvider from "@/components/IntlProvider";
 import ThemeProvider from "@/components/ThemeProvider";
 import SimplifiedLayoutProvider from "@/components/SimplifiedLayoutProvider";
+import SyncProvider from "@/components/SyncProvider";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Loan Calculator",
-  description: "A simple loan calculator app",
+  description: "A simple loan calculator app with offline support.",
+  manifest: "/manifest.json",
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Loan Calculator",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#3b82f6",
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -545,12 +700,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html>
+    <html lang="en">
+      <head>
+        {/* Explicit PWA-related meta tags for robustness */}
+        <meta name="application-name" content="LoanCalc" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="LoanCalc" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        <meta name="theme-color" content="#3b82f6" />
+      </head>
       <body className={inter.className}>
         <ThemeProvider>
           <IntlProvider>
             <SimplifiedLayoutProvider>
-              <main>{children}</main>
+              <SyncProvider>
+                <main>{children}</main>
+              </SyncProvider>
             </SimplifiedLayoutProvider>
           </IntlProvider>
         </ThemeProvider>
@@ -770,7 +937,6 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
-// Define a type for the potential Postgres error to make our catch block type-safe
 interface PostgresError extends Error {
     code?: string;
     constraint?: string;
@@ -784,84 +950,66 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        let body = {};
-        // The request might not have a body for create room, so we handle that case.
-        try {
-            const text = await req.text();
-            if (text) {
-              body = JSON.parse(text);
+        // Try to parse the body. If it's empty or malformed, default to an empty object.
+        const body = await req.json().catch(() => ({}));
+        
+        // Check if the intent is to JOIN a room.
+        // This is true if 'roomCode' is a property in the body.
+        if (typeof body.roomCode === 'string') {
+            const roomCode = body.roomCode.trim().toUpperCase();
+
+            // Explicitly block empty room codes.
+            if (!roomCode) {
+                 return NextResponse.json({ message: 'joinFailed' }, { status: 400 }); // Bad Request
             }
-        } catch {
-            // Ignore error if body is empty or invalid, which is expected when creating a room.
-        }
-        const { roomCode } = body as { roomCode?: string };
 
-
-        if (roomCode) {
-            // Join an existing room
             const roomResult = await db.query('SELECT id FROM rooms WHERE code = $1', [roomCode]);
             if (roomResult.rows.length === 0) {
-                // Using i18n key for consistency
                 return NextResponse.json({ message: 'joinFailed' }, { status: 404 });
             }
             const roomId = roomResult.rows[0].id;
 
-            // Use ON CONFLICT to gracefully handle cases where the user is already a member.
             await db.query('INSERT INTO room_members (user_id, room_id) VALUES ($1, $2) ON CONFLICT (user_id, room_id) DO NOTHING', [user.userId, roomId]);
-
             return NextResponse.json({ roomId });
+
         } else {
-            // Create a new room with retry logic to ensure the generated code is unique.
+            // Intent is to CREATE a new room.
             const MAX_RETRIES = 5;
             for (let i = 0; i < MAX_RETRIES; i++) {
-                // Generate a 6-character alphanumeric code.
                 const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
                 const client = await db.connect();
                 try {
-                    // Start a transaction
                     await client.query('BEGIN');
-
                     const roomResult = await client.query(
                         'INSERT INTO rooms (code, creator_id) VALUES ($1, $2) RETURNING id',
                         [newCode, user.userId]
                     );
                     const roomId = roomResult.rows[0].id;
 
-                    // Add the creator as the first member of the new room.
                     await client.query(
                         'INSERT INTO room_members (user_id, room_id) VALUES ($1, $2)',
                         [user.userId, roomId]
                     );
 
-                    // Commit the transaction
                     await client.query('COMMIT');
-
-                    // Successfully created room, return the details.
                     return NextResponse.json({ roomId, code: newCode }, { status: 201 });
                 } catch (e: unknown) {
-                    // Rollback the transaction in case of an error
                     await client.query('ROLLBACK');
-
                     const error = e as PostgresError;
-                    // Check if the error is a unique violation on the room code.
                     if (error.code === '23505' && error.constraint === 'rooms_code_key') {
                         console.warn(`Attempt ${i + 1}: Duplicate room code generated ('${newCode}'). Retrying...`);
-                        // The loop will continue to the next iteration to try a new code.
                     } else {
-                        // For any other database error, re-throw it to be caught by the outer handler.
                         throw error;
                     }
                 } finally {
                     client.release();
                 }
             }
-            // If the loop completes without returning, it means we failed to generate a unique code.
             console.error(`Failed to create a room after ${MAX_RETRIES} attempts due to duplicate codes.`);
             return NextResponse.json({ message: 'createFailed' }, { status: 500 });
         }
     } catch (error) {
         console.error('An error occurred in /api/rooms:', error);
-        // Generic error for the client. The details are logged on the server.
         return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
     }
 }
@@ -1148,12 +1296,9 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
 
             {/* Sidebar container. Handles mobile slide-in and static desktop display. */}
             <div
-                className={`fixed top-0 left-0 h-full z-40 transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 md:shrink-0 ${
+                className={`fixed top-0 left-0 h-full z-40 transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 md:shrink-0 bg-background ${
                     isSidebarOpen ? "translate-x-0" : "-translate-x-full"
                 }`}
-                style={{
-                    backgroundColor: 'var(--background)'
-                }}
             >
                 <RoomsSidebar closeSidebar={() => setIsSidebarOpen(false)} />
             </div>
@@ -1182,65 +1327,64 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
 ---
 
 --- File: src/app/rooms/page.tsx ---
+// src/app/rooms/page.tsx
 "use client";
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-
-interface Room {
-    id: number;
-    code: string;
-}
+import { useSync } from '@/components/SyncProvider';
+import { handleApi } from '@/lib/api';
+import { saveRoomsList, getRoomsList } from '@/lib/offline-sync';
 
 export default function RoomsPage() {
     const t = useTranslations('Rooms');
     const router = useRouter();
+    const { isOnline } = useSync();
     const [isLoading, setIsLoading] = useState(true);
+    const [statusMessage, setStatusMessage] = useState(t('loadingRooms'));
 
     useEffect(() => {
         const checkRoomsAndRedirect = async () => {
             const token = localStorage.getItem('token');
             if (!token) {
-                router.replace('/'); // Use replace to avoid back-button issues
+                router.replace('/');
                 return;
             }
 
-            try {
-                const res = await fetch('/api/user/rooms', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            let rooms = await getRoomsList();
 
-                if (res.ok) {
-                    const rooms: Room[] = await res.json();
-                    if (rooms && rooms.length > 0) {
-                        // Redirect to the most recent room
-                        router.replace(`/rooms/${rooms[0].id}`);
-                    } else {
-                        // No rooms, so stop loading and show the welcome message
-                        setIsLoading(false);
+            if (isOnline) {
+                try {
+                    const fetchedRooms = await handleApi({ method: 'GET', url: '/api/user/rooms' });
+                    if (fetchedRooms && Array.isArray(fetchedRooms)) {
+                        await saveRoomsList(fetchedRooms);
+                        rooms = fetchedRooms;
                     }
-                } else if (res.status === 401) {
-                    // Unauthorized, redirect to login
-                    router.replace('/');
-                } else {
-                    // Handle other errors, stop loading to prevent infinite loop
-                    setIsLoading(false);
+                } catch (error) {
+                    console.warn("Could not fetch user rooms, using local data.", error);
+                    setStatusMessage("Couldn't refresh rooms. Using offline data.");
                 }
-            } catch (error) {
-                console.error("Failed to fetch rooms", error);
-                setIsLoading(false); // Stop loading on network or other errors
+            }
+
+            if (rooms.length > 0) {
+                router.replace(`/rooms/${rooms[0].id}`);
+            } else {
+                if (!isOnline) {
+                    setStatusMessage("Connect to the internet once to download your rooms for offline use.");
+                }
+                setIsLoading(false);
             }
         };
 
         checkRoomsAndRedirect();
-    }, [router]);
+    }, [router, isOnline, t]);
 
     if (isLoading) {
         return (
             <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center">
-                    <p className="text-muted-foreground">{t('loadingRooms')}</p>
+                    <p className="text-muted-foreground">{statusMessage}</p>
                 </div>
             </div>
         );
@@ -1263,13 +1407,17 @@ export default function RoomsPage() {
 ---
 
 --- File: src/app/rooms/[roomId]/page.tsx ---
+// src/app/rooms/[roomId]/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
-import { FiArrowDown } from 'react-icons/fi';
+import { FiArrowDown, FiInfo } from 'react-icons/fi';
+import { handleApi } from '@/lib/api';
+import { saveRoomData, getRoomData, addLocalEntry, LocalRoomData, Entry } from '@/lib/offline-sync';
+import { useSync } from '@/components/SyncProvider';
 
 interface Member {
     id: number;
@@ -1281,50 +1429,89 @@ export default function RoomPage() {
     const { roomId } = params;
     const t = useTranslations('Room');
     const { isSimplified } = useSimplifiedLayout();
+    const { isOnline } = useSync();
 
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
     const [balance, setBalance] = useState(0);
     const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
     const [showDetails, setShowDetails] = useState(false);
     const [roomCode, setRoomCode] = useState('');
     const [members, setMembers] = useState<Member[]>([]);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+    const [notification, setNotification] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const router = useRouter();
+
+    const [amount, setAmount] = useState('');
+    const [description, setDescription] = useState('');
+    const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
-    const router = useRouter();
-    
-    const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
 
     const otherMembers = useMemo(() => members.filter(m => m.id !== currentUserId), [members, currentUserId]);
 
-    const fetchData = useCallback(async () => {
+    const updateStateFromData = (data: LocalRoomData) => {
+        setBalance(data.currentUserBalance || 0);
+        setDetailedBalance(data.balances || {});
+        setRoomCode(data.code || '');
+        setMembers(data.members || []);
+        setCurrentUserId(data.currentUserId || null);
+        
+        if (members.length === 0 && data.members.length > 0) {
+            const initialSelected = (data.members || [])
+                .filter((m: Member) => m.id !== data.currentUserId)
+                .map((m: Member) => m.id);
+            setSelectedMemberIds(new Set(initialSelected));
+            setIncludeSelfInSplit(true);
+        }
+    };
+
+    const fetchData = useCallback(async (options: { forceLocal?: boolean } = {}) => {
+        setIsLoading(true);
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/');
             return;
         }
-        const res = await fetch(`/api/rooms/${roomId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-            const { currentUserBalance, balances, code, members, currentUserId } = await res.json();
-            setBalance(currentUserBalance || 0);
-            setDetailedBalance(balances || {});
-            setRoomCode(code || '');
-            setMembers(members || []);
-            setCurrentUserId(currentUserId || null);
-            // Default to selecting all other members for an expense
-            setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
-            setIncludeSelfInSplit(true);
-        } else if (res.status === 401) {
-            router.push('/');
+
+        if (isOnline && !options.forceLocal) {
+            try {
+                const data = await handleApi({ method: 'GET', url: `/api/rooms/${roomId}` });
+                if (data) {
+                    await saveRoomData(roomId, data);
+                    updateStateFromData(data);
+                }
+            } catch (e) {
+                console.warn("Online fetch failed, falling back to local data.", e);
+                const localData = await getRoomData(roomId);
+                if (localData) updateStateFromData(localData);
+            }
+        } else {
+            const localData = await getRoomData(roomId);
+            if (localData) {
+                updateStateFromData(localData);
+            } else {
+                setNotification("This room's data isn't saved for offline use.");
+            }
         }
-    }, [roomId, router]);
+        setIsLoading(false);
+    }, [roomId, router, isOnline, members.length]);
+
+    const handleSyncDone = useCallback(() => {
+        fetchData();
+    }, [fetchData]);
 
     useEffect(() => {
         fetchData();
-    }, [fetchData]);
+        window.addEventListener('syncdone', handleSyncDone);
+        return () => window.removeEventListener('syncdone', handleSyncDone);
+    }, [fetchData, handleSyncDone]);
+    
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
 
     useEffect(() => {
         if (isSimplified) {
@@ -1343,36 +1530,66 @@ export default function RoomPage() {
 
     const handleAddEntry = async (e: React.FormEvent) => {
         e.preventDefault();
-        const token = localStorage.getItem('token');
+        setNotification(null);
         const parsedAmount = Math.abs(parseFloat(amount));
-        if (isNaN(parsedAmount) || parsedAmount <= 0) return;
+        const currentUser = members.find(m => m.id === currentUserId);
+        if (isNaN(parsedAmount) || parsedAmount <= 0 || !currentUserId || !currentUser) return;
 
         let finalSplitWithIds: number[] | null = null;
         if (entryType === 'expense') {
             const participants = new Set(selectedMemberIds);
-            if (includeSelfInSplit && currentUserId) {
-                participants.add(currentUserId);
+            if (includeSelfInSplit) participants.add(currentUserId);
+            finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.map(m => m.id);
+        }
+
+        const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
+
+        const optimisticEntry: Entry = {
+            id: `temp-${Date.now()}`,
+            amount: finalAmount.toFixed(2),
+            description,
+            created_at: new Date().toISOString(),
+            username: currentUser.username,
+            split_with_user_ids: finalSplitWithIds,
+            offline_timestamp: Date.now() // Set the offline timestamp
+        };
+        
+        let newBalance = balance;
+        const numParticipants = finalSplitWithIds?.length || members.length;
+        const share = parsedAmount / (numParticipants > 0 ? numParticipants : 1);
+
+        if (entryType === 'expense') {
+            newBalance += parsedAmount;
+            if (finalSplitWithIds?.includes(currentUserId)) {
+                newBalance -= share;
             }
-            // If no one is selected and the payer doesn't include themselves, it's an invalid state.
-            // However, we prevent this by disabling the button below.
-            if (participants.size > 0) {
-                finalSplitWithIds = Array.from(participants);
-            }
+        } else {
+            newBalance -= parsedAmount;
         }
         
-        const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
+        await addLocalEntry(roomId, optimisticEntry, { currentUserBalance: newBalance, otherBalances: detailedBalance });
+        await fetchData({ forceLocal: true });
         
-        await fetch('/api/entries', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds }),
-        });
         setAmount('');
         setDescription('');
-        fetchData(); // Refetch data
+
+        try {
+            const result = await handleApi({
+                method: 'POST',
+                url: '/api/entries',
+                body: { roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds },
+            });
+
+            if (result?.optimistic) {
+                setNotification("Request queued. It will sync when you're back online.");
+            } else if (isOnline) {
+                fetchData();
+            }
+        } catch (error) {
+            console.error("Failed to add entry:", error);
+            setNotification('Failed to add entry. Please try again.');
+            fetchData();
+        }
     };
 
     const handleMemberSelection = (memberId: number) => {
@@ -1385,12 +1602,14 @@ export default function RoomPage() {
         setSelectedMemberIds(newSelection);
     };
     
-    const isSubmitDisabled = entryType === 'expense' && !includeSelfInSplit && selectedMemberIds.size === 0;
+    const isSubmitDisabled = amount === '' || description === '';
+
+    if (isLoading) {
+        return <div className="max-w-md mx-auto p-8 text-center text-muted-foreground animate-fadeIn">Loading room...</div>;
+    }
 
     return (
-        <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn" style={{
-            backgroundColor: 'var(--card)'
-        }}>
+        <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
             <div className="p-8">
                 <div className="text-center mb-6">
                     <h1 className="text-xl font-bold text-card-foreground">
@@ -1408,12 +1627,12 @@ export default function RoomPage() {
                     </button>
                     {showDetails && (
                         <div className="mt-2 text-left bg-muted p-3 rounded-lg animate-fadeIn">
-                            {Object.entries(detailedBalance).map(([username, bal]) => (
+                            {Object.entries(detailedBalance).length > 0 ? Object.entries(detailedBalance).map(([username, bal]) => (
                                 <div key={username} className="flex justify-between text-card-foreground py-1">
                                     <span>{username}:</span>
                                     <span className={bal >= 0 ? 'text-success' : 'text-danger'}>{bal.toFixed(2)}</span>
                                 </div>
-                            ))}
+                            )) : <p className="text-muted-foreground text-center text-sm">No other members in this room.</p>}
                         </div>
                     )}
                 </div>
@@ -1421,6 +1640,12 @@ export default function RoomPage() {
                 <div className="border-t border-card-border my-6"></div>
 
                 <div>
+                    {notification && (
+                        <div className="mb-4 p-3 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-sm border border-blue-200 dark:border-blue-800 flex items-center animate-fadeIn">
+                            <FiInfo className="me-2 shrink-0"/>
+                            <span>{notification}</span>
+                        </div>
+                    )}
                     <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">
                         {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
                     </h2>
@@ -1429,13 +1654,13 @@ export default function RoomPage() {
                             <div className="mb-6">
                                 <div className="relative flex w-full rounded-full bg-muted p-1">
                                     <span
-                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out border-2 border-black dark:border-white ${entryType === 'expense' ? 'bg-primary' : 'bg-success'}`}
-                                        style={{ left: entryType === 'loan' ? '50%' : '4px' }}
+                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
+                                        style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }}
                                     />
-                                    <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 ${entryType === 'expense' ? 'text-primary-foreground' : 'text-foreground'}`}>
+                                    <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
                                         {t('expense')}
                                     </button>
-                                    <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 ${entryType === 'loan' ? 'text-secondary-foreground' : 'text-foreground'}`}>
+                                    <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
                                         {t('loan')}
                                     </button>
                                 </div>
@@ -1488,46 +1713,62 @@ export default function RoomPage() {
 ---
 
 --- File: src/app/rooms/[roomId]/entries/page.tsx ---
+// src/app/rooms/[roomId]/entries/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-
-interface Entry {
-    id: number;
-    amount: string;
-    description: string;
-    created_at: string;
-    username: string;
-}
+import { useSync } from '@/components/SyncProvider';
+import { getRoomData, Entry } from '@/lib/offline-sync';
+import { FiClock } from 'react-icons/fi'; // Import a clock icon
 
 export default function EntriesPage() {
     const params = useParams<{ roomId: string }>();
     const { roomId } = params;
     const t = useTranslations('Room');
+    const { isOnline } = useSync();
     const [entries, setEntries] = useState<Entry[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
     const fetchEntries = useCallback(async () => {
+        setIsLoading(true);
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/');
             return;
         }
-        const res = await fetch(`/api/rooms/${roomId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-            const { entries } = await res.json();
-            setEntries(entries);
-        } else if (res.status === 401) {
-            router.push('/');
+
+        const localData = await getRoomData(roomId);
+        if (localData) {
+            setEntries(localData.entries);
         }
-    }, [roomId, router]);
+
+        if (isOnline) {
+            try {
+                const res = await fetch(`/api/rooms/${roomId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const { entries: fetchedEntries } = await res.json();
+                    setEntries(fetchedEntries);
+                } else if (res.status === 401) {
+                    router.push('/');
+                }
+            } catch (e) {
+                console.error("Failed to refresh entries. Using local data.", e);
+            }
+        }
+        setIsLoading(false);
+    }, [roomId, router, isOnline]);
 
     useEffect(() => {
         fetchEntries();
+        window.addEventListener('syncdone', fetchEntries);
+        return () => {
+            window.removeEventListener('syncdone', fetchEntries);
+        };
     }, [fetchEntries]);
 
     return (
@@ -1539,24 +1780,69 @@ export default function EntriesPage() {
                 <div className="p-4 border-b border-card-border">
                     <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
                 </div>
-                <ul>
-                    {entries.map((entry, index) => (
-                        <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
-                            <div>
-                                <p className="font-semibold text-card-foreground">{entry.description}</p>
-                                <p className="text-sm text-muted-foreground">
-                                    {entry.username} - {new Date(entry.created_at).toLocaleString()}
-                                </p>
-                            </div>
-                            <div className="text-lg font-bold text-card-foreground">
-                                {entry.amount} ILS
-                            </div>
-                        </li>
-                    ))}
-                </ul>
+                {isLoading ? (
+                    <p className="p-4 text-center text-muted-foreground">Loading entries...</p>
+                ) : entries.length === 0 ? (
+                    <p className="p-4 text-center text-muted-foreground">No entries have been added to this room yet.</p>
+                ) : (
+                    <ul>
+                        {entries.map((entry, index) => (
+                            <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
+                                <div>
+                                    <p className="font-semibold text-card-foreground">{entry.description}</p>
+                                    <p className="text-sm text-muted-foreground flex items-center">
+                                        {/* Display clock icon if entry was made offline */}
+                                        {entry.offline_timestamp && (
+                                            <FiClock className="me-1.5 text-amber-500" title={`Created offline at ${new Date(entry.offline_timestamp).toLocaleTimeString()}`} />
+                                        )}
+                                        {entry.username} - {new Date(entry.created_at).toLocaleString()}
+                                    </p>
+                                </div>
+                                <div className={`text-lg font-bold ${parseFloat(entry.amount) < 0 ? 'text-danger' : 'text-success'}`}>
+                                    {parseFloat(entry.amount).toFixed(2)} ILS
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </div>
         </div>
     );
+}
+
+---
+
+--- File: src/app/~offline/page.tsx ---
+// src/app/~offline/page.tsx
+"use client";
+
+import { FiWifiOff } from 'react-icons/fi';
+
+export default function OfflinePage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-muted p-4 text-center">
+        <div className="max-w-md">
+            <FiWifiOff className="mx-auto h-16 w-16 text-muted-foreground" />
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                You are offline
+            </h1>
+            <p className="mt-4 text-base text-muted-foreground">
+                The page you are trying to access has not been saved for offline use.
+            </p>
+            <p className="mt-2 text-base text-muted-foreground">
+                Please connect to the internet and try again. Previously visited pages may be available.
+            </p>
+            <div className="mt-8">
+                <button
+                    onClick={() => window.history.back()}
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
+                    Go Back
+                </button>
+            </div>
+        </div>
+    </div>
+  );
 }
 
 ---
@@ -1587,10 +1873,10 @@ export default function ConfirmationDialog({ isOpen, onClose, onConfirm, title, 
       role="dialog"
       aria-modal="true"
     >
-      <div className="rounded-xl shadow-lg border w-full max-w-md m-4 p-6 animate-scaleIn" role="document" style={{
-        borderColor: 'var(--card-border)',
-        backgroundColor: 'var(--background)'
-      }}>
+      <div 
+        className="rounded-xl shadow-lg border border-card-border bg-background w-full max-w-md m-4 p-6 animate-scaleIn" 
+        role="document"
+      >
         <h2 id="confirmation-dialog-title" className="text-xl font-bold text-card-foreground mb-4">
           {title}
         </h2>
@@ -1767,19 +2053,23 @@ export default function LanguageSwitcher() {
 ---
 
 --- File: src/components/RoomsSidebar.tsx ---
+// src/components/RoomsSidebar.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff, FiLoader, FiCheckCircle } from 'react-icons/fi';
 import Icon from '@mdi/react';
 import { mdiKettle } from '@mdi/js';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import ConfirmationDialog from './ConfirmationDialog';
+import { useSync } from './SyncProvider';
+import { handleApi } from '@/lib/api';
+import { saveRoomsList, getRoomsList } from '@/lib/offline-sync';
 
 interface Room {
     id: number;
@@ -1796,127 +2086,94 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const router = useRouter();
     const pathname = usePathname();
     const [rooms, setRooms] = useState<Room[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [roomCode, setRoomCode] = useState('');
-    const [error, setError] = useState('');
+    const [notification, setNotification] = useState('');
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
     const { isSimplified, setIsSimplified } = useSimplifiedLayout();
+    const { isOnline, isSyncing, pendingRequestCount, isReadyForOffline } = useSync();
 
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
 
+    const handleLogout = useCallback(() => {
+        localStorage.removeItem('token');
+        router.push('/');
+    }, [router]);
+
     const fetchRooms = useCallback(async () => {
+        setIsLoading(true);
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/');
             return;
         }
-        const res = await fetch('/api/user/rooms', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
 
-        if (res.ok) {
-            const data = await res.json();
-            setRooms(data);
-        } else if (res.status === 401) {
-            router.push('/');
+        const localRooms = await getRoomsList();
+        if (localRooms.length > 0) {
+            setRooms(localRooms);
         }
-    }, [router]);
+
+        if (isOnline) {
+            try {
+                const fetchedRooms = await handleApi({ method: 'GET', url: '/api/user/rooms' });
+                if (fetchedRooms && Array.isArray(fetchedRooms)) {
+                    setRooms(fetchedRooms);
+                    await saveRoomsList(fetchedRooms);
+                }
+            } catch (error) {
+                console.warn("Failed to fetch rooms from network, using local data.", error);
+            }
+        }
+        setIsLoading(false);
+    }, [isOnline, router]);
 
     useEffect(() => {
         fetchRooms();
-    }, [fetchRooms, pathname]);
+        window.addEventListener('syncdone', fetchRooms);
+        return () => window.removeEventListener('syncdone', fetchRooms);
+    }, [fetchRooms]);
 
     const handleCopyToClipboard = (code: string) => {
-        setError('');
-        const fallbackCopy = (text: string) => {
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.top = "0";
-            textArea.style.left = "0";
-            textArea.style.position = "fixed";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    setCopiedCode(code);
-                    setTimeout(() => setCopiedCode(null), 2000);
-                } else {
-                     setError(t('copyFailed'));
-                }
-            } catch (err) {
-                console.error('Fallback: Oops, unable to copy', err);
-                setError(t('copyFailed'));
-            }
-            document.body.removeChild(textArea);
-        }
-
-        if (!navigator.clipboard) {
-            fallbackCopy(code);
-            return;
-        }
         navigator.clipboard.writeText(code).then(() => {
             setCopiedCode(code);
             setTimeout(() => setCopiedCode(null), 2000);
-        }).catch(err => {
-            console.error('Could not copy text: ', err);
-            fallbackCopy(code);
-        });
+        }).catch(() => setNotification(t('copyFailed')));
     };
 
-    const handleJoinRoom = async (e: React.FormEvent) => {
+    const handleJoinOrCreateRoom = async (options: { roomCode?: string }) => {
+        setNotification('');
+        const isCreating = !options.roomCode;
+        const body = isCreating ? {} : { roomCode: options.roomCode };
+        
+        try {
+            const result = await handleApi({ method: 'POST', url: '/api/rooms', body });
+            if (result?.optimistic) {
+                setNotification("Request queued offline. It will sync when you're back online.");
+                setRoomCode('');
+                return;
+            }
+            if (result.roomId) {
+                setRoomCode('');
+                await fetchRooms();
+                router.push(`/rooms/${result.roomId}`);
+                closeSidebar();
+            } else {
+                setNotification(isCreating ? t('createFailed') : t('joinFailed'));
+            }
+        } catch {
+             setNotification(isCreating ? t('createFailed') : t('joinFailed'));
+        }
+    };
+
+    const handleJoinSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/rooms', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ roomCode }),
-        });
-
-        if (res.ok) {
-            const { roomId } = await res.json();
-            setRoomCode('');
-            router.push(`/rooms/${roomId}`);
-            closeSidebar();
-        } else {
-            const { message } = await res.json();
-            console.error("Join failed:", message);
-            setError(t('joinFailed'));
-        }
+        if (!roomCode.trim()) return;
+        handleJoinOrCreateRoom({ roomCode });
     };
 
-    const handleCreateRoom = async () => {
-        setError('');
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/rooms', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({}),
-        });
-
-        if (res.ok) {
-            const { roomId } = await res.json();
-            router.push(`/rooms/${roomId}`);
-            closeSidebar();
-        } else {
-            const { message } = await res.json();
-            console.error("Create failed:", message);
-            setError(t('createFailed'));
-        }
-    };
-
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        router.push('/');
-    };
-    
     const openLeaveDialog = (room: Room) => {
         setSelectedRoomToLeave(room);
         setIsLeaveDialogOpen(true);
@@ -1924,96 +2181,108 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
 
     const handleLeaveRoom = async () => {
         if (!selectedRoomToLeave) return;
-
-        setError('');
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/rooms/${selectedRoomToLeave.id}/members`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
-
-        if (res.ok) {
-            setIsLeaveDialogOpen(false);
-            if (pathname.includes(`/rooms/${selectedRoomToLeave.id}`)) {
-                router.push('/rooms');
-            }
-            fetchRooms();
-        } else {
-            const { message } = await res.json();
-            setError(message || t('leaveRoomFailed'));
-            setIsLeaveDialogOpen(false);
+        setNotification('');
+        
+        const originalRooms = rooms;
+        setRooms(prev => prev.filter(r => r.id !== selectedRoomToLeave!.id));
+        setIsLeaveDialogOpen(false);
+        if (pathname.includes(`/rooms/${selectedRoomToLeave.id}`)) {
+            router.push('/rooms');
         }
-        setSelectedRoomToLeave(null);
+
+        try {
+            await saveRoomsList(rooms.filter(r => r.id !== selectedRoomToLeave!.id));
+            const result = await handleApi({ method: 'DELETE', url: `/api/rooms/${selectedRoomToLeave.id}/members` });
+            if (result?.optimistic) {
+                setNotification("Leave room request queued offline.");
+            }
+        } catch {
+            setNotification(t('leaveRoomFailed'));
+            setRooms(originalRooms);
+            await saveRoomsList(originalRooms);
+        } finally {
+            setSelectedRoomToLeave(null);
+        }
     };
 
-    const toggleTheme = () => setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
-    
-    const cycleLanguage = () => {
-        const languages = ['en', 'ru', 'he'];
-        const currentIndex = languages.indexOf(locale);
-        const nextIndex = (currentIndex + 1) % languages.length;
-        setLocale(languages[nextIndex]);
-    };
-
+    const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+    const cycleLanguage = () => setLocale(l => (l === 'en' ? 'ru' : l === 'ru' ? 'he' : 'en'));
     const toggleSimplifiedLayout = () => setIsSimplified(prev => !prev);
 
     return (
         <>
             <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
                 <div className="flex items-center justify-between mb-6 px-2">
-                    <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
-                    <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
-                        <FiX size={24} />
-                    </button>
+                     <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
+                    <div className="flex items-center space-x-2">
+                        {isOnline && !isSyncing && isReadyForOffline && (
+                            <FiCheckCircle className="text-success" title="App is ready for offline use" />
+                        )}
+                        {isSyncing && (
+                            <FiLoader className="animate-spin text-primary" title="Syncing..." />
+                        )}
+                        {!isOnline && (
+                             <div className="flex items-center space-x-1 text-muted-foreground" title={`You are offline. ${pendingRequestCount > 0 ? `${pendingRequestCount} item(s) pending sync.` : ''}`}>
+                                <FiWifiOff />
+                                {pendingRequestCount > 0 && (
+                                    <span className="text-xs font-bold bg-danger text-white rounded-full h-4 w-4 flex items-center justify-center">
+                                        {pendingRequestCount}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                        <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
+                            <FiX size={24} />
+                        </button>
+                    </div>
                 </div>
 
-                <nav className="flex-grow overflow-y-auto -mx-2 pr-1 animate-fadeIn">
-                    <ul>
-                        {rooms.map((room, index) => {
-                            const isActive = pathname === `/rooms/${room.id}` || pathname.startsWith(`/rooms/${room.id}/`);
-                            return (
-                                <li key={room.id} style={{ animationDelay: `${index * 50}ms`, opacity: 0 }} className="animate-fadeIn px-2">
-                                    <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
-                                        <Link href={`/rooms/${room.id}`} className="flex-grow p-3 text-sm font-semibold truncate">
-                                            Room #{room.code}
-                                        </Link>
-                                        <div className="flex items-center">
-                                            <button onClick={() => handleCopyToClipboard(room.code)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('copyRoomCode')} >
-                                                {copiedCode === room.code ? <FiCheck className="text-success animate-scaleIn" /> : <FiCopy className="group-hover:scale-110 transition-transform" />}
-                                            </button>
-                                            <button onClick={() => openLeaveDialog(room)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('leaveRoom')} >
-                                                <FiXCircle className="group-hover:scale-110 transition-transform text-danger" />
-                                            </button>
+                <div className="flex-grow overflow-y-auto -mx-2 pr-1 animate-fadeIn">
+                    {isLoading ? (
+                        <div className="text-center text-muted-foreground p-4">{t('loadingRooms')}</div>
+                    ) : (
+                        <ul>
+                            {rooms.map((room) => {
+                                const isActive = pathname === `/rooms/${room.id}` || pathname.startsWith(`/rooms/${room.id}/`);
+                                return (
+                                    <li key={room.id}>
+                                        <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
+                                            <Link href={`/rooms/${room.id}`} onClick={closeSidebar} className="flex-grow p-3 text-sm font-semibold truncate">
+                                                Room #{room.code}
+                                            </Link>
+                                            <div className="flex items-center">
+                                                <button onClick={() => handleCopyToClipboard(room.code)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('copyRoomCode')} >
+                                                    {copiedCode === room.code ? <FiCheck className="text-success animate-scaleIn" /> : <FiCopy className="group-hover:scale-110 transition-transform" />}
+                                                </button>
+                                                <button onClick={() => openLeaveDialog(room)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('leaveRoom')} >
+                                                    <FiXCircle className="group-hover:scale-110 transition-transform text-danger" />
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </nav>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </div>
 
                 <div className="mt-auto pt-4 border-t border-card-border">
-                    {error && <p className="text-danger text-sm text-center mb-2">{error}</p>}
-                    
-                    <form onSubmit={handleJoinRoom} className="mb-4">
-                        <input type="text" placeholder={t('roomCode')} value={roomCode} onChange={(e) => setRoomCode(e.target.value)} className="w-full px-3 py-2 rounded-lg mb-2 themed-input" />
+                    {notification && <p className="text-blue-600 dark:text-blue-400 text-sm text-center mb-2 animate-fadeIn">{notification}</p>}
+                    <form onSubmit={handleJoinSubmit} className="mb-4">
+                        <input type="text" placeholder={t('roomCode')} value={roomCode} onChange={(e) => setRoomCode(e.target.value.toUpperCase())} className="w-full px-3 py-2 rounded-lg mb-2 themed-input" />
                         <button type="submit" className="w-full py-2 rounded-lg btn-primary">{t('joinRoom')}</button>
                     </form>
-
                     <div className="flex items-center my-2">
                         <div className="flex-grow border-t border-card-border"></div>
                         <span className="flex-shrink mx-2 text-xs text-muted-foreground">{t('or')}</span>
                         <div className="flex-grow border-t border-card-border"></div>
                     </div>
-                    
-                    <button onClick={handleCreateRoom} className="w-full py-2 rounded-lg btn-secondary mb-4">{t('createRoom')}</button>
-
+                    <button onClick={() => handleJoinOrCreateRoom({})} className="w-full py-2 rounded-lg btn-secondary mb-4">{t('createRoom')}</button>
                     <div className="space-y-2">
                         <button onClick={handleLogout} className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted" aria-label={t('logout')}>
                             <FiLogOut size={16} className="me-2"/>
                             <span className="font-semibold text-xs">{t('logout')}</span>
                         </button>
-
                         <div className="flex items-center justify-center space-x-2">
                              <button onClick={toggleTheme} className="flex items-center justify-center w-full p-2 rounded-md btn-muted" aria-label={tAccess('toggleTheme')} >
                                 {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
@@ -2029,7 +2298,6 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                     </div>
                 </div>
             </aside>
-
             <ConfirmationDialog isOpen={isLeaveDialogOpen} onClose={() => setIsLeaveDialogOpen(false)} onConfirm={handleLeaveRoom} title={t('leaveRoomTitle')}>
                 {t('leaveRoomConfirmation', { code: selectedRoomToLeave?.code ?? '' })}
             </ConfirmationDialog>
@@ -2081,6 +2349,117 @@ export function useSimplifiedLayout() {
   const context = useContext(SimplifiedLayoutContext);
   if (context === undefined) {
     throw new Error('useSimplifiedLayout must be used within a SimplifiedLayoutProvider');
+  }
+  return context;
+}
+
+---
+
+--- File: src/components/SyncProvider.tsx ---
+// src/components/SyncProvider.tsx
+"use client";
+
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { syncOutbox, getOutboxCount, getRoomsList } from '@/lib/offline-sync';
+
+interface SyncContextType {
+  isOnline: boolean;
+  isSyncing: boolean;
+  pendingRequestCount: number;
+  isReadyForOffline: boolean;
+}
+
+const SyncContext = createContext<SyncContextType | undefined>(undefined);
+
+export default function SyncProvider({ children }: { children: ReactNode }) {
+  const [isOnline, setIsOnline] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const [isReadyForOffline, setIsReadyForOffline] = useState(false);
+
+  const updatePendingCount = useCallback(async () => {
+    if (typeof window !== 'undefined' && window.indexedDB) {
+        const count = await getOutboxCount();
+        setPendingRequestCount(count);
+    }
+  }, []);
+
+  const checkOfflineReadiness = useCallback(async () => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && window.indexedDB) {
+        const hasControllingSW = navigator.serviceWorker.controller !== null;
+        const hasCachedRooms = (await getRoomsList()).length > 0;
+        
+        if (hasControllingSW && hasCachedRooms) {
+            setIsReadyForOffline(true);
+        }
+    }
+  }, []);
+
+  useEffect(() => {
+    // Initial check on mount, and re-check after a sync in case rooms were just loaded.
+    checkOfflineReadiness();
+    window.addEventListener('syncdone', checkOfflineReadiness);
+    
+    return () => {
+        window.removeEventListener('syncdone', checkOfflineReadiness);
+    };
+  }, [checkOfflineReadiness]);
+
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+        setIsOnline(navigator.onLine);
+    }
+
+    const handleOnline = async () => {
+      setIsOnline(true);
+      setIsSyncing(true);
+      try {
+        const didSync = await syncOutbox();
+        if (didSync) {
+            window.dispatchEvent(new Event('syncdone'));
+        }
+      } catch (error) {
+        console.error('Error during sync:', error);
+      } finally {
+        setIsSyncing(false);
+        updatePendingCount();
+      }
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    const handleOutboxChange = () => updatePendingCount();
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('outboxchange', handleOutboxChange);
+    
+    updatePendingCount();
+    if (navigator.onLine) {
+        handleOnline();
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline',handleOffline);
+      window.removeEventListener('outboxchange', handleOutboxChange);
+    };
+  }, [updatePendingCount]);
+
+  return (
+    <SyncContext.Provider value={{ isOnline, isSyncing, pendingRequestCount, isReadyForOffline }}>
+      {children}
+    </SyncContext.Provider>
+  );
+}
+
+export function useSync() {
+  const context = useContext(SyncContext);
+  if (context === undefined) {
+    throw new Error('useSync must be used within a SyncProvider');
   }
   return context;
 }
@@ -2165,6 +2544,68 @@ export default function ThemeSwitcher() {
 
 ---
 
+--- File: src/lib/api.ts ---
+// src/lib/api.ts
+import { addToOutbox } from './offline-sync';
+
+type HttpMethod = 'POST' | 'GET' | 'DELETE' | 'PUT';
+
+interface ApiRequestOptions {
+    method: HttpMethod;
+    url: string;
+    // **FIX: Replaced 'any' with a more specific object type**
+    body?: Record<string, unknown>;
+}
+
+class ApiError extends Error {
+    status: number;
+    constructor(message: string, status: number) {
+        super(message);
+        this.status = status;
+    }
+}
+
+export async function handleApi(options: ApiRequestOptions) {
+    const { method, url, body } = options;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+    if (!navigator.onLine && method !== 'GET') {
+        await addToOutbox({ url, method, body, token });
+        return { optimistic: true, ...(body || {}) };
+    }
+
+    try {
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` }),
+            },
+            ...(body && { body: JSON.stringify(body) }),
+        });
+
+        if (response.ok) {
+            if (response.status === 204 || response.headers.get("content-length") === "0") {
+                return { success: true };
+            }
+            return response.json();
+        }
+
+        const errorData = await response.json().catch(() => ({ message: 'API Error' }));
+        throw new ApiError(errorData.message, response.status);
+
+    } catch (error) {
+        if (error instanceof TypeError && method !== 'GET') {
+            await addToOutbox({ url, method, body, token });
+            return { optimistic: true, ...(body || {}) };
+        }
+        
+        throw error;
+    }
+}
+
+---
+
 --- File: src/lib/auth.ts ---
 import { verify } from 'jsonwebtoken';
 import { JWT_SECRET } from './constants';
@@ -2201,6 +2642,193 @@ import { POSTGRES_URL } from './constants';
 export const db = new Pool({
     connectionString: POSTGRES_URL,
 });
+
+---
+
+--- File: src/lib/offline-sync.ts ---
+// src/lib/offline-sync.ts
+import { openDB, DBSchema, IDBPDatabase } from 'idb';
+
+const DB_NAME = 'loan-calculator-db';
+const DB_VERSION = 3;
+const OUTBOX_STORE = 'outbox';
+const ROOM_DATA_STORE = 'room-data';
+const ROOMS_LIST_STORE = 'rooms-list';
+
+// --- Type Definitions ---
+type HttpMethod = 'POST' | 'DELETE' | 'PUT';
+
+interface OutboxRequest {
+    id: string;
+    url: string;
+    method: HttpMethod;
+    body: unknown;
+    timestamp: number;
+    token: string | null;
+}
+
+interface Member {
+    id: number;
+    username: string;
+}
+
+export interface Entry {
+    id: number | string;
+    amount: string;
+    description: string;
+    created_at: string;
+    username: string;
+    split_with_user_ids: number[] | null;
+    offline_timestamp?: number; // Added field for offline creation time
+}
+
+export interface LocalRoomData {
+    id: string;
+    code: string;
+    entries: Entry[];
+    balances: { [key: string]: number };
+    currentUserBalance: number;
+    members: Member[];
+    currentUserId: number | null;
+    lastUpdated: number;
+}
+
+export interface LocalRoomListItem {
+    id: number;
+    code: string;
+}
+
+interface OfflineDB extends DBSchema {
+  [OUTBOX_STORE]: {
+    key: string;
+    value: OutboxRequest;
+  };
+  [ROOM_DATA_STORE]: {
+    key: string;
+    value: LocalRoomData;
+  };
+  [ROOMS_LIST_STORE]: {
+      key: 'user-rooms';
+      value: { rooms: LocalRoomListItem[] };
+  };
+}
+
+let dbPromise: Promise<IDBPDatabase<OfflineDB>> | null = null;
+
+function getDb(): Promise<IDBPDatabase<OfflineDB>> {
+    if (!dbPromise) {
+        dbPromise = openDB<OfflineDB>(DB_NAME, DB_VERSION, {
+            upgrade(db) {
+                if (!db.objectStoreNames.contains(OUTBOX_STORE)) {
+                    db.createObjectStore(OUTBOX_STORE, { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains(ROOM_DATA_STORE)) {
+                    db.createObjectStore(ROOM_DATA_STORE, { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains(ROOMS_LIST_STORE)) {
+                    db.createObjectStore(ROOMS_LIST_STORE);
+                }
+            },
+        });
+    }
+    return dbPromise;
+}
+
+// --- Outbox & Sync Functions ---
+export async function addToOutbox(request: Omit<OutboxRequest, 'id' | 'timestamp'> & { body?: Record<string, unknown> }) {
+    const db = await getDb();
+    const outboxRequest: OutboxRequest = {
+        ...request,
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        body: request.body || null,
+    };
+    await db.add(OUTBOX_STORE, outboxRequest);
+    window.dispatchEvent(new Event('outboxchange'));
+    return outboxRequest;
+}
+
+export async function syncOutbox(): Promise<boolean> {
+    const db = await getDb();
+    const requests = await db.getAll(OUTBOX_STORE);
+    if (requests.length === 0) return false;
+
+    requests.sort((a, b) => a.timestamp - b.timestamp);
+    let didSync = false;
+
+    for (const req of requests) {
+        try {
+            const response = await fetch(req.url, {
+                method: req.method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${req.token}`,
+                },
+                body: JSON.stringify(req.body),
+            });
+            if (response.ok || (response.status >= 400 && response.status < 500)) {
+                await db.delete(OUTBOX_STORE, req.id);
+                window.dispatchEvent(new Event('outboxchange'));
+                didSync = true;
+            } else {
+                break; 
+            }
+        } catch (error) {
+            console.error(`Network error syncing request ${req.id}. Will retry later.`, error);
+            break; 
+        }
+    }
+    return didSync;
+}
+
+export async function getOutboxCount(): Promise<number> {
+    const db = await getDb();
+    return db.count(OUTBOX_STORE);
+}
+
+
+// --- Local Data Management ---
+
+export async function saveRoomsList(rooms: LocalRoomListItem[]) {
+    const db = await getDb();
+    await db.put(ROOMS_LIST_STORE, { rooms }, 'user-rooms');
+}
+
+export async function getRoomsList(): Promise<LocalRoomListItem[]> {
+    const db = await getDb();
+    const result = await db.get(ROOMS_LIST_STORE, 'user-rooms');
+    return result?.rooms || [];
+}
+
+export async function saveRoomData(roomId: string, data: Omit<LocalRoomData, 'id' | 'lastUpdated'>) {
+    const db = await getDb();
+    const record: LocalRoomData = {
+        ...data,
+        id: roomId,
+        lastUpdated: Date.now(),
+    };
+    await db.put(ROOM_DATA_STORE, record);
+}
+
+export async function getRoomData(roomId: string): Promise<LocalRoomData | undefined> {
+    const db = await getDb();
+    return db.get(ROOM_DATA_STORE, roomId);
+}
+
+export async function addLocalEntry(roomId: string, newEntry: Entry, newBalances: { currentUserBalance: number, otherBalances: { [key: string]: number } }) {
+    const db = await getDb();
+    const tx = db.transaction(ROOM_DATA_STORE, 'readwrite');
+    const roomData = await tx.store.get(roomId);
+
+    if (roomData) {
+        roomData.entries.unshift(newEntry);
+        roomData.currentUserBalance = newBalances.currentUserBalance;
+        roomData.balances = newBalances.otherBalances;
+        roomData.lastUpdated = Date.now();
+        await tx.store.put(roomData);
+    }
+    await tx.done;
+}
 
 ---
 

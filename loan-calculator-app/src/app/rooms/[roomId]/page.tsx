@@ -1,10 +1,15 @@
+// src/app/rooms/[roomId]/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link'; // Import the Link component
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
-import { FiArrowDown } from 'react-icons/fi';
+import { FiArrowDown, FiInfo } from 'react-icons/fi';
+import { handleApi } from '@/lib/api';
+import { saveRoomData, getRoomData, addLocalEntry, LocalRoomData, Entry } from '@/lib/offline-sync';
+import { useSync } from '@/components/SyncProvider';
 
 interface Member {
     id: number;
@@ -16,50 +21,89 @@ export default function RoomPage() {
     const { roomId } = params;
     const t = useTranslations('Room');
     const { isSimplified } = useSimplifiedLayout();
+    const { isOnline } = useSync();
 
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
     const [balance, setBalance] = useState(0);
     const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
     const [showDetails, setShowDetails] = useState(false);
     const [roomCode, setRoomCode] = useState('');
     const [members, setMembers] = useState<Member[]>([]);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+    const [notification, setNotification] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const router = useRouter();
+
+    const [amount, setAmount] = useState('');
+    const [description, setDescription] = useState('');
+    const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
-    const router = useRouter();
-    
-    const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
 
     const otherMembers = useMemo(() => members.filter(m => m.id !== currentUserId), [members, currentUserId]);
 
-    const fetchData = useCallback(async () => {
+    const updateStateFromData = (data: LocalRoomData) => {
+        setBalance(data.currentUserBalance || 0);
+        setDetailedBalance(data.balances || {});
+        setRoomCode(data.code || '');
+        setMembers(data.members || []);
+        setCurrentUserId(data.currentUserId || null);
+        
+        if (members.length === 0 && data.members.length > 0) {
+            const initialSelected = (data.members || [])
+                .filter((m: Member) => m.id !== data.currentUserId)
+                .map((m: Member) => m.id);
+            setSelectedMemberIds(new Set(initialSelected));
+            setIncludeSelfInSplit(true);
+        }
+    };
+
+    const fetchData = useCallback(async (options: { forceLocal?: boolean } = {}) => {
+        setIsLoading(true);
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/');
             return;
         }
-        const res = await fetch(`/api/rooms/${roomId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-            const { currentUserBalance, balances, code, members, currentUserId } = await res.json();
-            setBalance(currentUserBalance || 0);
-            setDetailedBalance(balances || {});
-            setRoomCode(code || '');
-            setMembers(members || []);
-            setCurrentUserId(currentUserId || null);
-            // Default to selecting all other members for an expense
-            setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
-            setIncludeSelfInSplit(true);
-        } else if (res.status === 401) {
-            router.push('/');
+
+        if (isOnline && !options.forceLocal) {
+            try {
+                const data = await handleApi({ method: 'GET', url: `/api/rooms/${roomId}` });
+                if (data) {
+                    await saveRoomData(roomId, data);
+                    updateStateFromData(data);
+                }
+            } catch (e) {
+                console.warn("Online fetch failed, falling back to local data.", e);
+                const localData = await getRoomData(roomId);
+                if (localData) updateStateFromData(localData);
+            }
+        } else {
+            const localData = await getRoomData(roomId);
+            if (localData) {
+                updateStateFromData(localData);
+            } else {
+                setNotification("This room's data isn't saved for offline use.");
+            }
         }
-    }, [roomId, router]);
+        setIsLoading(false);
+    }, [roomId, router, isOnline, members.length]);
+
+    const handleSyncDone = useCallback(() => {
+        fetchData();
+    }, [fetchData]);
 
     useEffect(() => {
         fetchData();
-    }, [fetchData]);
+        window.addEventListener('syncdone', handleSyncDone);
+        return () => window.removeEventListener('syncdone', handleSyncDone);
+    }, [fetchData, handleSyncDone]);
+    
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
 
     useEffect(() => {
         if (isSimplified) {
@@ -78,36 +122,72 @@ export default function RoomPage() {
 
     const handleAddEntry = async (e: React.FormEvent) => {
         e.preventDefault();
-        const token = localStorage.getItem('token');
+        setNotification(null);
         const parsedAmount = Math.abs(parseFloat(amount));
-        if (isNaN(parsedAmount) || parsedAmount <= 0) return;
+        const currentUser = members.find(m => m.id === currentUserId);
+        if (isNaN(parsedAmount) || parsedAmount <= 0 || !currentUserId || !currentUser) return;
 
         let finalSplitWithIds: number[] | null = null;
         if (entryType === 'expense') {
             const participants = new Set(selectedMemberIds);
-            if (includeSelfInSplit && currentUserId) {
-                participants.add(currentUserId);
+            if (includeSelfInSplit) participants.add(currentUserId);
+            finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.map(m => m.id);
+        }
+
+        const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
+
+        const optimisticEntry: Entry = {
+            id: `temp-${Date.now()}`,
+            amount: finalAmount.toFixed(2),
+            description,
+            created_at: new Date().toISOString(),
+            username: currentUser.username,
+            split_with_user_ids: finalSplitWithIds,
+            offline_timestamp: Date.now()
+        };
+        
+        let newBalance = balance;
+        const numParticipants = finalSplitWithIds?.length || members.length;
+        const share = parsedAmount / (numParticipants > 0 ? numParticipants : 1);
+
+        if (entryType === 'expense') {
+            newBalance += parsedAmount;
+            if (finalSplitWithIds?.includes(currentUserId)) {
+                newBalance -= share;
             }
-            // If no one is selected and the payer doesn't include themselves, it's an invalid state.
-            // However, we prevent this by disabling the button below.
-            if (participants.size > 0) {
-                finalSplitWithIds = Array.from(participants);
-            }
+        } else {
+            newBalance -= parsedAmount;
         }
         
-        const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
+        await addLocalEntry(roomId, optimisticEntry, { currentUserBalance: newBalance, otherBalances: detailedBalance });
+        await fetchData({ forceLocal: true });
         
-        await fetch('/api/entries', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds }),
-        });
         setAmount('');
         setDescription('');
-        fetchData(); // Refetch data
+
+        try {
+            const result = await handleApi({
+                method: 'POST',
+                url: '/api/entries',
+                body: { 
+                    roomId, 
+                    amount: finalAmount, 
+                    description, 
+                    splitWithUserIds: finalSplitWithIds,
+                    createdAt: optimisticEntry.created_at // Send original timestamp
+                },
+            });
+
+            if (result?.optimistic) {
+                setNotification("Request queued. It will sync when you're back online.");
+            } else if (isOnline) {
+                fetchData();
+            }
+        } catch (error) {
+            console.error("Failed to add entry:", error);
+            setNotification('Failed to add entry. Please try again.');
+            fetchData();
+        }
     };
 
     const handleMemberSelection = (memberId: number) => {
@@ -120,7 +200,11 @@ export default function RoomPage() {
         setSelectedMemberIds(newSelection);
     };
     
-    const isSubmitDisabled = entryType === 'expense' && !includeSelfInSplit && selectedMemberIds.size === 0;
+    const isSubmitDisabled = amount === '' || description === '';
+
+    if (isLoading) {
+        return <div className="max-w-md mx-auto p-8 text-center text-muted-foreground animate-fadeIn">Loading room...</div>;
+    }
 
     return (
         <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
@@ -141,12 +225,12 @@ export default function RoomPage() {
                     </button>
                     {showDetails && (
                         <div className="mt-2 text-left bg-muted p-3 rounded-lg animate-fadeIn">
-                            {Object.entries(detailedBalance).map(([username, bal]) => (
+                            {Object.entries(detailedBalance).length > 0 ? Object.entries(detailedBalance).map(([username, bal]) => (
                                 <div key={username} className="flex justify-between text-card-foreground py-1">
                                     <span>{username}:</span>
                                     <span className={bal >= 0 ? 'text-success' : 'text-danger'}>{bal.toFixed(2)}</span>
                                 </div>
-                            ))}
+                            )) : <p className="text-muted-foreground text-center text-sm">No other members in this room.</p>}
                         </div>
                     )}
                 </div>
@@ -154,6 +238,12 @@ export default function RoomPage() {
                 <div className="border-t border-card-border my-6"></div>
 
                 <div>
+                    {notification && (
+                        <div className="mb-4 p-3 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-sm border border-blue-200 dark:border-blue-800 flex items-center animate-fadeIn">
+                            <FiInfo className="me-2 shrink-0"/>
+                            <span>{notification}</span>
+                        </div>
+                    )}
                     <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">
                         {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
                     </h2>
@@ -162,13 +252,13 @@ export default function RoomPage() {
                             <div className="mb-6">
                                 <div className="relative flex w-full rounded-full bg-muted p-1">
                                     <span
-                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out border-2 border-black dark:border-white ${entryType === 'expense' ? 'bg-primary' : 'bg-success'}`}
-                                        style={{ left: entryType === 'loan' ? '50%' : '4px' }}
+                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
+                                        style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }}
                                     />
-                                    <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 ${entryType === 'expense' ? 'text-primary-foreground' : 'text-foreground'}`}>
+                                    <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
                                         {t('expense')}
                                     </button>
-                                    <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 ${entryType === 'loan' ? 'text-secondary-foreground' : 'text-foreground'}`}>
+                                    <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
                                         {t('loan')}
                                     </button>
                                 </div>
@@ -207,9 +297,9 @@ export default function RoomPage() {
                             <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}>
                                 {t('addEntry')}
                             </button>
-                            <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted">
+                            <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center">
                                 {t('allEntries')}
-                            </button>
+                            </Link>
                         </div>
                     </form>
                 </div>

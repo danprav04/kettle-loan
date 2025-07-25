@@ -1,38 +1,51 @@
-# Stage 1: Install dependencies
+# Stage 1: Dependency installation
+# This stage installs dependencies and is cached separately.
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json* ./
 RUN npm ci
 
-# Stage 2: Build the application
+# Stage 2: Application builder
+# This stage builds the Next.js application. It does NOT need secrets.
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# This environment variable is necessary for the build command to find the .env.local file
-# It can be an empty secret if you don't have build-time secrets
-ARG NEXT_PUBLIC_ENV
+
+# Secrets are NOT needed at build time. The build will proceed without them.
+# The `output: 'standalone'` config will prepare the app for production.
 RUN npm run build
 
-# Stage 3: Production image
+# Stage 3: Production runner
+# This is the final, minimal image that will be run.
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Create a non-root user for security
-RUN addgroup -S nextjs
-RUN adduser -S nextjs -G nextjs
+# Correct, modern ENV syntax (key=value)
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# At this stage, you MUST provide the runtime environment variables.
+# For example, in your deployment platform (Kubernetes, Docker Compose, etc.):
+# -e POSTGRES_URL=...
+# -e JWT_SECRET=...
+# We are only declaring them here so the Node.js process knows to expect them.
+ENV POSTGRES_URL=""
+ENV JWT_SECRET=""
+
+# Create a non-root user for better security
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy only the necessary files for the standalone output
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Set the new, non-root user as the active user
 USER nextjs
 
-ENV NODE_ENV=production
-
-# Copy the standalone output from the builder stage
-COPY --from=builder /app/.next/standalone ./
-# Copy the public assets and static files
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
-
-# Expose the port the app runs on
 EXPOSE 3000
 
-# The command to start the application
+# The standalone output creates a `server.js` file to run the app.
 CMD ["node", "server.js"]
