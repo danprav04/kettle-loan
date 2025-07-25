@@ -73,25 +73,25 @@ jobs:
     name: Deploy to Development on Server
     runs-on: ubuntu-latest
     needs: build-and-push-image
-    # Use a 'development' environment for separate secrets and protection rules
+    # You can still use a 'development' environment for protection rules, even with shared secrets
     environment: development
 
     steps:
       - name: Set up SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }} # Assumes same SSH key, can be different
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Deploy via SSH
         env:
-          TARGET_SSH_HOST: ${{ secrets.SSH_HOST }} # Assumes same host, can be different
+          TARGET_SSH_HOST: ${{ secrets.SSH_HOST }}
           TARGET_SSH_USER: ubuntu
           FULL_IMAGE_URI: ${{ needs.build-and-push-image.outputs.image_uri }}
           GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
           GHCR_USERNAME: ${{ github.repository_owner }}
-          # Use development-specific secrets
-          DEV_POSTGRES_URL: ${{ secrets.DEV_POSTGRES_URL }}
-          DEV_JWT_SECRET: ${{ secrets.DEV_JWT_SECRET }}
+          # Using the same secret names as the production workflow
+          PROD_POSTGRES_URL: ${{ secrets.PROD_POSTGRES_URL }}
+          PROD_JWT_SECRET: ${{ secrets.PROD_JWT_SECRET }}
         run: |
           ssh-keyscan -H "${TARGET_SSH_HOST}" >> ~/.ssh/known_hosts
 
@@ -101,9 +101,9 @@ jobs:
             # Create the directory for the .env file
             sudo mkdir -p $(dirname "${{ env.SERVER_ENV_FILE_PATH }}")
 
-            # Create the .env file on the server with dev variables
-            echo "POSTGRES_URL=${DEV_POSTGRES_URL}" | sudo tee "${{ env.SERVER_ENV_FILE_PATH }}" > /dev/null
-            echo "JWT_SECRET=${DEV_JWT_SECRET}" | sudo tee -a "${{ env.SERVER_ENV_FILE_PATH }}" > /dev/null
+            # Create the .env file on the server using the same prod-named secrets
+            echo "POSTGRES_URL=${PROD_POSTGRES_URL}" | sudo tee "${{ env.SERVER_ENV_FILE_PATH }}" > /dev/null
+            echo "JWT_SECRET=${PROD_JWT_SECRET}" | sudo tee -a "${{ env.SERVER_ENV_FILE_PATH }}" > /dev/null
             sudo chown root:root "${{ env.SERVER_ENV_FILE_PATH }}"
             sudo chmod 600 "${{ env.SERVER_ENV_FILE_PATH }}"
 
