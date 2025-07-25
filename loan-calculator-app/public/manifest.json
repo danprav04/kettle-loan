@@ -1,6 +1,6 @@
 {
   "name": "Loan Calculator",
-  "short_name": "LoanCalc",
+  "short_name": "Kettle Loan",
   "description": "A simple loan calculator app with offline support.",
   "start_url": "/",
   "scope": "/",
