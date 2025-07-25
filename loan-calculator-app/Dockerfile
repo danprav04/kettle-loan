@@ -6,23 +6,14 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 # Stage 2: Application builder
-# This stage builds the Next.js application.
+# This stage builds the Next.js application. It does NOT need secrets.
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Environment variables from .env.local are needed at build time
-# for things like next-pwa configuration.
-# You must pass these as build arguments in your GitHub Actions workflow.
-# Example: --build-arg POSTGRES_URL=${{ secrets.POSTGRES_URL }}
-ARG POSTGRES_URL
-ARG JWT_SECRET
-ENV POSTGRES_URL=${POSTGRES_URL}
-ENV JWT_SECRET=${JWT_SECRET}
-
-# The build command will now generate the `.next/standalone` directory
-# because of the `output: 'standalone'` config.
+# Secrets are NOT needed at build time. The build will proceed without them.
+# The `output: 'standalone'` config will prepare the app for production.
 RUN npm run build
 
 # Stage 3: Production runner
@@ -34,14 +25,20 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# At this stage, you MUST provide the runtime environment variables.
+# For example, in your deployment platform (Kubernetes, Docker Compose, etc.):
+# -e POSTGRES_URL=...
+# -e JWT_SECRET=...
+# We are only declaring them here so the Node.js process knows to expect them.
+ENV POSTGRES_URL=""
+ENV JWT_SECRET=""
+
 # Create a non-root user for better security
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Copy only the necessary files for the standalone output
 COPY --from=builder /app/public ./public
-
-# The standalone output copies server files and node_modules chunks.
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 

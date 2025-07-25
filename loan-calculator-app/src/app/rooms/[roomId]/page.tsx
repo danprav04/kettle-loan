@@ -13,17 +13,6 @@ interface Member {
     username: string;
 }
 
-interface Entry {
-    id: number | string; // Allow string for optimistic entries
-    user_id: number;
-    username: string;
-    amount: string;
-    description: string;
-    created_at: string;
-    split_with_user_ids: number[] | null;
-    isOptimistic?: boolean;
-}
-
 export default function RoomPage() {
     const params = useParams<{ roomId: string }>();
     const { roomId } = params;
@@ -133,7 +122,6 @@ export default function RoomPage() {
             }
         }
         
-        // Corrected line: Use `parsedAmount` for the else case instead of self-referencing.
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
 
         const optimisticEntryData = {
