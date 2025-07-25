@@ -42,7 +42,7 @@ export default function RoomsPage() {
                 router.replace(`/rooms/${rooms[0].id}`);
             } else {
                 if (!isOnline) {
-                    setStatusMessage("Connect to the internet once to download your rooms for offline use.");
+                    setStatusMessage(t('offlineRoomsPrompt'));
                 }
                 setIsLoading(false);
             }

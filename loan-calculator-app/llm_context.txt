@@ -911,16 +911,20 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const { roomId, amount, description, splitWithUserIds } = await req.json();
+        const { roomId, amount, description, splitWithUserIds, createdAt } = await req.json();
 
         // For expenses, splitWithUserIds will be an array of user IDs.
         // We must manually stringify it for the JSONB column.
         // For loans, it will be null.
         const finalSplitWith = Array.isArray(splitWithUserIds) ? JSON.stringify(splitWithUserIds) : null;
+        
+        // Use the client-provided timestamp if available, otherwise use the current time.
+        // This ensures offline entries retain their original creation time.
+        const finalCreatedAt = createdAt ? new Date(createdAt) : new Date();
 
         await db.query(
-            'INSERT INTO entries (room_id, user_id, amount, description, split_with_user_ids) VALUES ($1, $2, $3, $4, $5)',
-            [roomId, user.userId, amount, description, finalSplitWith]
+            'INSERT INTO entries (room_id, user_id, amount, description, split_with_user_ids, created_at) VALUES ($1, $2, $3, $4, $5, $6)',
+            [roomId, user.userId, amount, description, finalSplitWith, finalCreatedAt.toISOString()]
         );
 
         return NextResponse.json({ message: 'Entry added successfully' });
@@ -1413,6 +1417,7 @@ export default function RoomsPage() {
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link'; // Import the Link component
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import { FiArrowDown, FiInfo } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
@@ -1551,7 +1556,7 @@ export default function RoomPage() {
             created_at: new Date().toISOString(),
             username: currentUser.username,
             split_with_user_ids: finalSplitWithIds,
-            offline_timestamp: Date.now() // Set the offline timestamp
+            offline_timestamp: Date.now()
         };
         
         let newBalance = balance;
@@ -1577,7 +1582,13 @@ export default function RoomPage() {
             const result = await handleApi({
                 method: 'POST',
                 url: '/api/entries',
-                body: { roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds },
+                body: { 
+                    roomId, 
+                    amount: finalAmount, 
+                    description, 
+                    splitWithUserIds: finalSplitWithIds,
+                    createdAt: optimisticEntry.created_at // Send original timestamp
+                },
             });
 
             if (result?.optimistic) {
@@ -1699,9 +1710,9 @@ export default function RoomPage() {
                             <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}>
                                 {t('addEntry')}
                             </button>
-                            <button type="button" onClick={() => router.push(`/rooms/${roomId}/entries`)} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted">
+                            <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center">
                                 {t('allEntries')}
-                            </button>
+                            </Link>
                         </div>
                     </form>
                 </div>
@@ -2360,7 +2371,7 @@ export function useSimplifiedLayout() {
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { syncOutbox, getOutboxCount, getRoomsList } from '@/lib/offline-sync';
+import { syncOutbox, getOutboxCount, hasCachedRoomData } from '@/lib/offline-sync';
 
 interface SyncContextType {
   isOnline: boolean;
@@ -2387,16 +2398,20 @@ export default function SyncProvider({ children }: { children: ReactNode }) {
   const checkOfflineReadiness = useCallback(async () => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && window.indexedDB) {
         const hasControllingSW = navigator.serviceWorker.controller !== null;
-        const hasCachedRooms = (await getRoomsList()).length > 0;
+        // This is a more reliable check. It confirms the user has actually
+        // visited a room and its data is cached for offline use.
+        const roomDataIsCached = await hasCachedRoomData();
         
-        if (hasControllingSW && hasCachedRooms) {
+        if (hasControllingSW && roomDataIsCached) {
             setIsReadyForOffline(true);
+        } else {
+            setIsReadyForOffline(false);
         }
     }
   }, []);
 
   useEffect(() => {
-    // Initial check on mount, and re-check after a sync in case rooms were just loaded.
+    // Initial check on mount, and re-check after a sync.
     checkOfflineReadiness();
     window.addEventListener('syncdone', checkOfflineReadiness);
     
@@ -2798,6 +2813,12 @@ export async function getRoomsList(): Promise<LocalRoomListItem[]> {
     const db = await getDb();
     const result = await db.get(ROOMS_LIST_STORE, 'user-rooms');
     return result?.rooms || [];
+}
+
+export async function hasCachedRoomData(): Promise<boolean> {
+    const db = await getDb();
+    const count = await db.count(ROOM_DATA_STORE);
+    return count > 0;
 }
 
 export async function saveRoomData(roomId: string, data: Omit<LocalRoomData, 'id' | 'lastUpdated'>) {

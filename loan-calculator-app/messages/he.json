@@ -28,7 +28,8 @@
     "leaveRoom": "עזוב חדר",
     "leaveRoomTitle": "עזיבת חדר",
     "leaveRoomConfirmation": "האם אתה בטוח שברצונך לעזוב את חדר #{code}? לא ניתן לבטל פעולה זו. תצטרך להצטרף מחדש באמצעות קוד החדר.",
-    "leaveRoomFailed": "עזיבת החדר נכשלה."
+    "leaveRoomFailed": "עזיבת החדר נכשלה.",
+    "offlineRoomsPrompt": "התחבר לאינטרנט פעם אחת כדי להוריד את החדרים שלך לשימוש לא מקוון."
   },
   "Room": {
     "balanceTitle": "מאזן",
@@ -47,7 +48,9 @@
     "roomTitle": "חדר #{code}",
     "splitWith": "חלק את העלות עם:",
     "everyone": "כולם",
-    "shareWithMe": "שתף איתי"
+    "shareWithMe": "שתף איתי",
+    "offlineRoomDataError": "נתוני החדר הזה לא נשמרו לשימוש לא מקוון.",
+    "requestQueued": "הבקשה נרשמה בתור. היא תסונכרן כשתהיה מחובר."
   },
   "Dialog": {
     "cancel": "ביטול",
@@ -57,5 +60,18 @@
     "toggleTheme": "שנה ערכת נושא",
     "changeLanguage": "שנה שפה",
     "toggleSimplifiedLayout": "החלף מצב קומקום פשוט"
+  },
+  "Offline": {
+    "title": "אתה לא מחובר",
+    "message1": "הדף שאתה מנסה לגשת אליו לא נשמר לשימוש לא מקוון.",
+    "message2": "אנא התחבר לאינטרנט ונסה שוב. דפים שביקרת בהם בעבר עשויים להיות זמינים.",
+    "goBackButton": "חזור"
+  },
+  "Notifications": {
+    "requestQueued": "הבקשה נרשמה בתור. היא תסונכרן כשתהיה מחובר.",
+    "offlineReady": "האפליקציה מוכנה לשימוש לא מקוון",
+    "syncing": "מסנכרן...",
+    "youAreOffline": "אתה לא מחובר.",
+    "pendingSync": "{count, plural, one{ממתין פריט # לסנכרון.} other{ממתינים # פריטים לסנכרון.}}"
   }
 }

@@ -28,7 +28,8 @@
     "leaveRoom": "Leave room",
     "leaveRoomTitle": "Leave Room",
     "leaveRoomConfirmation": "Are you sure you want to leave Room #{code}? This action cannot be undone. You will need to join again using the room code.",
-    "leaveRoomFailed": "Failed to leave room."
+    "leaveRoomFailed": "Failed to leave room.",
+    "offlineRoomsPrompt": "Connect to the internet once to download your rooms for offline use."
   },
   "Room": {
     "balanceTitle": "Balance",
@@ -47,7 +48,9 @@
     "roomTitle": "Room #{code}",
     "splitWith": "Share cost with:",
     "everyone": "Everyone",
-    "shareWithMe": "Share with me"
+    "shareWithMe": "Share with me",
+    "offlineRoomDataError": "This room's data isn't saved for offline use.",
+    "requestQueued": "Request queued. It will sync when you're back online."
   },
   "Dialog": {
     "cancel": "Cancel",
@@ -57,5 +60,18 @@
     "toggleTheme": "Toggle theme",
     "changeLanguage": "Change language",
     "toggleSimplifiedLayout": "Toggle simplified Kettle Mode"
+  },
+  "Offline": {
+    "title": "You are offline",
+    "message1": "The page you are trying to access has not been saved for offline use.",
+    "message2": "Please connect to the internet and try again. Previously visited pages may be available.",
+    "goBackButton": "Go Back"
+  },
+  "Notifications": {
+    "requestQueued": "Request queued. It will sync when you're back online.",
+    "offlineReady": "App is ready for offline use",
+    "syncing": "Syncing...",
+    "youAreOffline": "You are offline.",
+    "pendingSync": "{count, plural, =0{} one{# item pending sync.} other{# items pending sync.}}"
   }
 }

@@ -82,11 +82,11 @@ export default function RoomPage() {
             if (localData) {
                 updateStateFromData(localData);
             } else {
-                setNotification("This room's data isn't saved for offline use.");
+                setNotification(t('offlineRoomDataError'));
             }
         }
         setIsLoading(false);
-    }, [roomId, router, isOnline, members.length]);
+    }, [roomId, router, isOnline, members.length, t]);
 
     const handleSyncDone = useCallback(() => {
         fetchData();
@@ -179,7 +179,7 @@ export default function RoomPage() {
             });
 
             if (result?.optimistic) {
-                setNotification("Request queued. It will sync when you're back online.");
+                setNotification(t('requestQueued'));
             } else if (isOnline) {
                 fetchData();
             }

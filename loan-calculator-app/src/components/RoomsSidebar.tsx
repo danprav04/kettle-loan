@@ -28,6 +28,7 @@ interface RoomsSidebarProps {
 export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const t = useTranslations('Rooms');
     const tAccess = useTranslations('Accessibility');
+    const tNotif = useTranslations('Notifications');
     const router = useRouter();
     const pathname = usePathname();
     const [rooms, setRooms] = useState<Room[]>([]);
@@ -96,7 +97,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         try {
             const result = await handleApi({ method: 'POST', url: '/api/rooms', body });
             if (result?.optimistic) {
-                setNotification("Request queued offline. It will sync when you're back online.");
+                setNotification(tNotif('requestQueued'));
                 setRoomCode('');
                 return;
             }
@@ -139,7 +140,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             await saveRoomsList(rooms.filter(r => r.id !== selectedRoomToLeave!.id));
             const result = await handleApi({ method: 'DELETE', url: `/api/rooms/${selectedRoomToLeave.id}/members` });
             if (result?.optimistic) {
-                setNotification("Leave room request queued offline.");
+                setNotification(tNotif('requestQueued'));
             }
         } catch {
             setNotification(t('leaveRoomFailed'));
@@ -161,13 +162,16 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                      <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
                     <div className="flex items-center space-x-2">
                         {isOnline && !isSyncing && isReadyForOffline && (
-                            <FiCheckCircle className="text-success" title="App is ready for offline use" />
+                            <FiCheckCircle className="text-success" title={tNotif('offlineReady')} />
                         )}
                         {isSyncing && (
-                            <FiLoader className="animate-spin text-primary" title="Syncing..." />
+                            <FiLoader className="animate-spin text-primary" title={tNotif('syncing')} />
                         )}
                         {!isOnline && (
-                             <div className="flex items-center space-x-1 text-muted-foreground" title={`You are offline. ${pendingRequestCount > 0 ? `${pendingRequestCount} item(s) pending sync.` : ''}`}>
+                             <div 
+                                className="flex items-center space-x-1 text-muted-foreground" 
+                                title={`${tNotif('youAreOffline')} ${pendingRequestCount > 0 ? tNotif('pendingSync', { count: pendingRequestCount }) : ''}`.trim()}
+                             >
                                 <FiWifiOff />
                                 {pendingRequestCount > 0 && (
                                     <span className="text-xs font-bold bg-danger text-white rounded-full h-4 w-4 flex items-center justify-center">
