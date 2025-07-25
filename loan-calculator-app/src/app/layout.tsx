@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   title: "Loan Calculator",
   description: "A simple loan calculator app with offline support.",
   manifest: "/manifest.json",
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -20,7 +23,6 @@ export const metadata: Metadata = {
   },
 };
 
-// Add this new viewport export
 export const viewport: Viewport = {
   themeColor: "#3b82f6",
 };
@@ -32,7 +34,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head />
+      <head>
+        <meta name="theme-color" content="#3b82f6" />
+      </head>
       <body className={inter.className}>
         <ThemeProvider>
           <IntlProvider>

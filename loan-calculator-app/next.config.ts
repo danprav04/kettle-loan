@@ -26,13 +26,9 @@ const runtimeCaching = [
       },
     },
   },
-  // Corrected API Caching Rule:
-  // Use 'NetworkFirst' because we are using 'networkTimeoutSeconds'.
-  // This tries the network first, gets the latest data, but falls back to the cache
-  // if offline or if the network is too slow (takes longer than 10 seconds).
   {
     urlPattern: /^\/api\/.*/i,
-    handler: 'NetworkFirst' as const, // Changed from StaleWhileRevalidate to NetworkFirst
+    handler: 'NetworkFirst' as const,
     method: 'GET' as const,
     options: {
       cacheName: 'api-cache',
@@ -40,15 +36,15 @@ const runtimeCaching = [
         maxEntries: 64,
         maxAgeSeconds: 24 * 60 * 60, // 1 day
       },
-      // This option is only valid for 'NetworkFirst'
       networkTimeoutSeconds: 10,
     },
   },
   {
     urlPattern: ({ request, url }: { request: Request; url: URL }) => {
-      if (request.destination !== 'document') return false;
+      // Never cache API routes.
       if (url.pathname.startsWith('/api/')) return false;
-      return true;
+      // Cache all other GET requests (pages and other assets).
+      return request.method === 'GET';
     },
     handler: 'NetworkFirst' as const,
     options: {
@@ -57,6 +53,7 @@ const runtimeCaching = [
         maxEntries: 32,
         maxAgeSeconds: 24 * 60 * 60, // 1 day
       },
+      networkTimeoutSeconds: 10, // Try network for 10s, then fall back to cache
     },
   },
 ];
@@ -70,12 +67,11 @@ const withPWA = withPWAInit({
   reloadOnOnline: true,
   workboxOptions: {
     disableDevLogs: true,
-    skipWaiting: true,
+    skipWaiting: true, // Correctly moved inside workboxOptions
     runtimeCaching,
   },
 });
 
-// The `swcMinify` option has been removed as it's default in recent Next.js versions.
 const nextConfig: NextConfig = {};
 
 export default withPWA(nextConfig);

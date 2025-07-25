@@ -18,6 +18,7 @@ export default function SyncProvider({ children }: { children: ReactNode }) {
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
 
   const updatePendingCount = useCallback(async () => {
+    // Ensure this only runs in the browser where IndexedDB is available
     if (typeof window !== 'undefined' && window.indexedDB) {
         const count = await getOutboxCount();
         setPendingRequestCount(count);
@@ -25,6 +26,7 @@ export default function SyncProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Can only run in the browser
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
         setIsOnline(navigator.onLine);
     }
@@ -34,8 +36,10 @@ export default function SyncProvider({ children }: { children: ReactNode }) {
       setIsOnline(true);
       setIsSyncing(true);
       try {
-        const success = await syncOutbox();
-        if (success) {
+        const didSync = await syncOutbox();
+        // If any requests were successfully synced, dispatch an event
+        // so that components can refetch their data.
+        if (didSync) {
             console.log("Sync complete. Refreshing data.");
             window.dispatchEvent(new Event('syncdone'));
         }
@@ -52,21 +56,23 @@ export default function SyncProvider({ children }: { children: ReactNode }) {
       setIsOnline(false);
     };
 
+    // This listener updates the pending count whenever a request is added to the outbox
     const handleOutboxChange = () => updatePendingCount();
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('outboxchange', handleOutboxChange);
     
-    // Initial checks on load
+    // Initial checks on component mount
     updatePendingCount();
+    // If we are already online when the app loads, try to sync immediately
     if (navigator.onLine) {
         handleOnline();
     }
 
     return () => {
       window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('offline',handleOffline);
       window.removeEventListener('outboxchange', handleOutboxChange);
     };
   }, [updatePendingCount]);

@@ -53,6 +53,7 @@ export default function RoomPage() {
                 setRoomCode(code || '');
                 setMembers(members || []);
                 setCurrentUserId(currentUserId || null);
+                // Initialize split selection: all other members selected, plus self
                 setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
                 setIncludeSelfInSplit(true);
             } else if (res.status === 401) {
@@ -65,6 +66,7 @@ export default function RoomPage() {
 
     useEffect(() => {
         fetchData();
+        // Add listener to refetch data after an offline sync completes
         window.addEventListener('syncdone', fetchData);
         return () => window.removeEventListener('syncdone', fetchData);
     }, [fetchData]);
@@ -117,11 +119,14 @@ export default function RoomPage() {
                 body: { roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds },
             });
 
+            // If the request was queued offline, show a notification and DO NOT refetch.
             if (result?.optimistic) {
                 setNotification("Request queued offline. It will sync when you're back online.");
             } else {
-                fetchData(); // Only refetch data on successful online submission
+                // Otherwise, it was successful online, so refetch the latest data.
+                fetchData();
             }
+            // Clear the form in both cases.
             setAmount('');
             setDescription('');
 

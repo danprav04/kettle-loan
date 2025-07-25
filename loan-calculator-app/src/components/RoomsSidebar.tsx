@@ -31,7 +31,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const pathname = usePathname();
     const [rooms, setRooms] = useState<Room[]>([]);
     const [roomCode, setRoomCode] = useState('');
-    const [error, setError] = useState('');
+    const [notification, setNotification] = useState('');
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
@@ -72,20 +72,20 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         fetchRooms();
         window.addEventListener('syncdone', fetchRooms);
         return () => window.removeEventListener('syncdone', fetchRooms);
-    }, [fetchRooms, pathname]);
+    }, [fetchRooms]);
 
     const handleCopyToClipboard = (code: string) => {
         navigator.clipboard.writeText(code).then(() => {
             setCopiedCode(code);
             setTimeout(() => setCopiedCode(null), 2000);
-        }).catch(() => setError(t('copyFailed')));
+        }).catch(() => setNotification(t('copyFailed')));
     };
 
     const handleJoinRoom = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
+        setNotification('');
         if (!roomCode.trim()) {
-            setError(t('joinFailed'));
+            setNotification(t('joinFailed'));
             return;
         }
 
@@ -97,25 +97,25 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             });
 
             if (result?.optimistic) {
-                setError("Join request queued offline.");
+                setNotification("Join request queued offline.");
                 setRoomCode('');
                 return;
             }
             if (result.roomId) {
                 setRoomCode('');
-                fetchRooms();
+                fetchRooms(); // Refetch to show the new room
                 router.push(`/rooms/${result.roomId}`);
                 closeSidebar();
             } else {
-                setError(t('joinFailed'));
+                setNotification(t('joinFailed'));
             }
         } catch {
-            setError(t('joinFailed'));
+            setNotification(t('joinFailed'));
         }
     };
 
     const handleCreateRoom = async () => {
-        setError('');
+        setNotification('');
         try {
             const result = await handleApi({
                 method: 'POST',
@@ -124,18 +124,18 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             });
 
             if (result?.optimistic) {
-                setError("Create room request queued offline.");
+                setNotification("Create room request queued offline.");
                 return;
             }
             if (result.roomId) {
-                fetchRooms();
+                fetchRooms(); // Refetch to show the new room
                 router.push(`/rooms/${result.roomId}`);
                 closeSidebar();
             } else {
-                setError(t('createFailed'));
+                setNotification(t('createFailed'));
             }
         } catch {
-            setError(t('createFailed'));
+            setNotification(t('createFailed'));
         }
     };
     
@@ -146,8 +146,9 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
 
     const handleLeaveRoom = async () => {
         if (!selectedRoomToLeave) return;
-        setError('');
+        setNotification('');
         
+        // Optimistic UI: Remove the room from the list immediately
         const originalRooms = rooms;
         setRooms(prev => prev.filter(r => r.id !== selectedRoomToLeave!.id));
         setIsLeaveDialogOpen(false);
@@ -161,10 +162,11 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                 url: `/api/rooms/${selectedRoomToLeave.id}/members`,
             });
             if (result?.optimistic) {
-                setError("Leave room request queued offline.");
+                setNotification("Leave room request queued offline.");
             }
         } catch {
-            setError(t('leaveRoomFailed'));
+            setNotification(t('leaveRoomFailed'));
+            // Revert UI change if API call fails for a reason other than being offline
             setRooms(originalRooms);
         } finally {
             setSelectedRoomToLeave(null);
@@ -206,7 +208,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                             return (
                                 <li key={room.id} style={{ animationDelay: `${index * 50}ms`, opacity: 0 }} className="animate-fadeIn px-2">
                                     <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
-                                        <Link href={`/rooms/${room.id}`} className="flex-grow p-3 text-sm font-semibold truncate">
+                                        <Link href={`/rooms/${room.id}`} onClick={closeSidebar} className="flex-grow p-3 text-sm font-semibold truncate">
                                             Room #{room.code}
                                         </Link>
                                         <div className="flex items-center">
@@ -225,7 +227,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                 </nav>
 
                 <div className="mt-auto pt-4 border-t border-card-border">
-                    {error && <p className="text-blue-600 dark:text-blue-400 text-sm text-center mb-2 animate-fadeIn">{error}</p>}
+                    {notification && <p className="text-blue-600 dark:text-blue-400 text-sm text-center mb-2 animate-fadeIn">{notification}</p>}
                     
                     <form onSubmit={handleJoinRoom} className="mb-4">
                         <input type="text" placeholder={t('roomCode')} value={roomCode} onChange={(e) => setRoomCode(e.target.value.toUpperCase())} className="w-full px-3 py-2 rounded-lg mb-2 themed-input" />

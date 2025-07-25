@@ -8,7 +8,7 @@ type HttpMethod = 'POST' | 'GET' | 'DELETE' | 'PUT';
 interface ApiRequestOptions {
     method: HttpMethod;
     url: string;
-    body?: Record<string, unknown>; // More specific than 'unknown'
+    body?: Record<string, unknown>; // More specific than 'any'
 }
 
 class ApiError extends Error {
@@ -23,6 +23,11 @@ export async function handleApi(options: ApiRequestOptions) {
     const { method, url, body } = options;
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
+    // We can't do anything if we are offline and don't have a token.
+    if (!navigator.onLine && !token) {
+        throw new Error('Offline and no token available. Please log in when online.');
+    }
+
     try {
         const response = await fetch(url, {
             method,
@@ -34,6 +39,7 @@ export async function handleApi(options: ApiRequestOptions) {
         });
 
         if (response.ok) {
+            // Handle responses with no content
             if (response.status === 204 || response.headers.get("content-length") === "0") {
                 return { success: true };
             }
@@ -44,21 +50,23 @@ export async function handleApi(options: ApiRequestOptions) {
         throw new ApiError(errorData.message, response.status);
 
     } catch (error: unknown) {
+        // Check if the error is a network error
         const isNetworkError = error instanceof TypeError && error.message === 'Failed to fetch';
         
-        if (!navigator.onLine || isNetworkError) {
-             if (method !== 'GET') {
-                console.log('Offline or network error. Adding request to outbox.');
-                await addToOutbox({ url, method, body, token });
-                
-                // This now works perfectly because TypeScript knows 'body' is a spreadable object or undefined.
-                return {
-                    ...(body || {}),
-                    optimistic: true,
-                };
-            }
+        // If we are offline (or a network error occurred) and it's a data-changing request
+        if ((!navigator.onLine || isNetworkError) && method !== 'GET') {
+            console.log('Offline or network error. Adding request to outbox.');
+            await addToOutbox({ url, method, body, token });
+            
+            // Return an optimistic response, including the original body data
+            // This now works perfectly because TypeScript knows 'body' is a spreadable object or undefined.
+            return {
+                ...(body || {}),
+                optimistic: true,
+            };
         }
         
+        // Re-throw other errors (e.g., JSON parsing errors, actual API errors)
         throw error;
     }
 }

@@ -60,11 +60,12 @@ export async function syncOutbox(): Promise<boolean> {
     const db = await getDb();
     const requests = await db.getAll(OUTBOX_STORE);
     if (requests.length === 0) {
-        return true;
+        return false; // No requests were synced
     }
 
     console.log(`Syncing ${requests.length} requests from outbox...`);
     
+    // Process requests in the order they were created
     requests.sort((a, b) => a.timestamp - b.timestamp);
 
     let allSucceeded = true;
@@ -81,10 +82,11 @@ export async function syncOutbox(): Promise<boolean> {
             });
 
             // If request succeeded or was a client error (like 404, 409), remove it.
-            // Server errors (5xx) will be retried.
+            // Server errors (5xx) will be retried later.
             if (response.ok || (response.status >= 400 && response.status < 500)) {
                 await db.delete(OUTBOX_STORE, req.id);
                 console.log(`Request ${req.id} synced and removed from outbox.`);
+                // Notify UI that the outbox has changed
                 window.dispatchEvent(new Event('outboxchange'));
             } else {
                  console.warn(`Request ${req.id} failed with status ${response.status}. Will retry later.`);
@@ -93,7 +95,7 @@ export async function syncOutbox(): Promise<boolean> {
         } catch (error) {
             console.error(`Network error syncing request ${req.id}. Will retry later.`, error);
             allSucceeded = false;
-            break; // Stop syncing if a network error occurs
+            break; // Stop syncing if a network error occurs, to preserve order
         }
     }
 
