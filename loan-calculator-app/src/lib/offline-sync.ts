@@ -2,9 +2,10 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'loan-calculator-db';
-const DB_VERSION = 2;
+const DB_VERSION = 3; // Bump version for new schema
 const OUTBOX_STORE = 'outbox';
 const ROOM_DATA_STORE = 'room-data';
+const ROOMS_LIST_STORE = 'rooms-list'; // New store for the user's room list
 
 // --- Type Definitions ---
 type HttpMethod = 'POST' | 'DELETE' | 'PUT';
@@ -18,14 +19,13 @@ interface OutboxRequest {
     token: string | null;
 }
 
-// **Define specific types for Room data to avoid 'any'**
 interface Member {
     id: number;
     username: string;
 }
 
 export interface Entry {
-    id: number;
+    id: number | string; // ID can be a temporary string for optimistic updates
     amount: string;
     description: string;
     created_at: string;
@@ -44,6 +44,11 @@ export interface LocalRoomData {
     lastUpdated: number;
 }
 
+export interface LocalRoomListItem {
+    id: number;
+    code: string;
+}
+
 interface OfflineDB extends DBSchema {
   [OUTBOX_STORE]: {
     key: string;
@@ -53,6 +58,10 @@ interface OfflineDB extends DBSchema {
     key: string;
     value: LocalRoomData;
   };
+  [ROOMS_LIST_STORE]: {
+      key: 'user-rooms'; // Use a static key for the single list
+      value: { rooms: LocalRoomListItem[] };
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<OfflineDB>> | null = null;
@@ -60,7 +69,6 @@ let dbPromise: Promise<IDBPDatabase<OfflineDB>> | null = null;
 function getDb(): Promise<IDBPDatabase<OfflineDB>> {
     if (!dbPromise) {
         dbPromise = openDB<OfflineDB>(DB_NAME, DB_VERSION, {
-            // **FIX: Remove the unused 'oldVersion' parameter**
             upgrade(db) {
                 if (!db.objectStoreNames.contains(OUTBOX_STORE)) {
                     db.createObjectStore(OUTBOX_STORE, { keyPath: 'id' });
@@ -68,30 +76,27 @@ function getDb(): Promise<IDBPDatabase<OfflineDB>> {
                 if (!db.objectStoreNames.contains(ROOM_DATA_STORE)) {
                     db.createObjectStore(ROOM_DATA_STORE, { keyPath: 'id' });
                 }
+                if (!db.objectStoreNames.contains(ROOMS_LIST_STORE)) {
+                    db.createObjectStore(ROOMS_LIST_STORE);
+                }
             },
         });
     }
     return dbPromise;
 }
 
-// **FIX: Specify a more concrete type for the request body**
+// --- Outbox & Sync Functions ---
 export async function addToOutbox(request: Omit<OutboxRequest, 'id' | 'timestamp'> & { body?: Record<string, unknown> }) {
     const db = await getDb();
     const outboxRequest: OutboxRequest = {
         ...request,
         id: crypto.randomUUID(),
         timestamp: Date.now(),
-        body: request.body || null
+        body: request.body || null,
     };
     await db.add(OUTBOX_STORE, outboxRequest);
     window.dispatchEvent(new Event('outboxchange'));
     return outboxRequest;
-}
-
-// --- (getOutboxCount and syncOutbox are fine) ---
-export async function getOutboxCount(): Promise<number> {
-    const db = await getDb();
-    return db.count(OUTBOX_STORE);
 }
 
 export async function syncOutbox(): Promise<boolean> {
@@ -117,18 +122,37 @@ export async function syncOutbox(): Promise<boolean> {
                 window.dispatchEvent(new Event('outboxchange'));
                 didSync = true;
             } else {
-                break;
+                break; 
             }
         } catch (error) {
             console.error(`Network error syncing request ${req.id}. Will retry later.`, error);
-            break;
+            break; 
         }
     }
     return didSync;
 }
 
+export async function getOutboxCount(): Promise<number> {
+    const db = await getDb();
+    return db.count(OUTBOX_STORE);
+}
 
-// --- Local Room Data Functions ---
+
+// --- Local Data Management ---
+
+// Room List
+export async function saveRoomsList(rooms: LocalRoomListItem[]) {
+    const db = await getDb();
+    await db.put(ROOMS_LIST_STORE, { rooms }, 'user-rooms');
+}
+
+export async function getRoomsList(): Promise<LocalRoomListItem[]> {
+    const db = await getDb();
+    const result = await db.get(ROOMS_LIST_STORE, 'user-rooms');
+    return result?.rooms || [];
+}
+
+// Single Room Data
 export async function saveRoomData(roomId: string, data: Omit<LocalRoomData, 'id' | 'lastUpdated'>) {
     const db = await getDb();
     const record: LocalRoomData = {
@@ -144,7 +168,6 @@ export async function getRoomData(roomId: string): Promise<LocalRoomData | undef
     return db.get(ROOM_DATA_STORE, roomId);
 }
 
-// **FIX: Use the specific 'Entry' type for the new entry**
 export async function addLocalEntry(roomId: string, newEntry: Entry, newBalances: { currentUserBalance: number, otherBalances: { [key: string]: number } }) {
     const db = await getDb();
     const tx = db.transaction(ROOM_DATA_STORE, 'readwrite');
