@@ -11,6 +11,7 @@
     "signupUsernameError": "Имя пользователя уже существует."
   },
   "Rooms": {
+    "welcomeBack": "С возвращением,",
     "joinOrCreateRoom": "Присоединиться или создать комнату",
     "roomCode": "Код комнаты",
     "joinRoom": "Присоединиться",
