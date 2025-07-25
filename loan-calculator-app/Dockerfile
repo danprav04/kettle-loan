@@ -9,30 +9,29 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# This environment variable is necessary for the build command to find the .env.local file
-# It can be an empty secret if you don't have build-time secrets
-ARG NEXT_PUBLIC_ENV
+# The build command will now generate the `.next/standalone` directory
+# because of the `output: 'standalone'` config.
 RUN npm run build
 
-# Stage 3: Production image
+# Stage 3: Production runner
 FROM node:20-alpine AS runner
 WORKDIR /app
 
 # Create a non-root user for security
-RUN addgroup -S nextjs
-RUN adduser -S nextjs -G nextjs
+RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
 USER nextjs
 
-ENV NODE_ENV=production
-
 # Copy the standalone output from the builder stage
-COPY --from=builder /app/.next/standalone ./
+# This will now work correctly
+COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
+
 # Copy the public assets and static files
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nextjs /app/public ./public
 COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
 
-# Expose the port the app runs on
+# Expose the port the app will run on
 EXPOSE 3000
+ENV PORT 3000
 
-# The command to start the application
+# The command to start the app is now the server.js inside the standalone folder
 CMD ["node", "server.js"]

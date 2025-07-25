@@ -41,9 +41,7 @@ const runtimeCaching = [
   },
   {
     urlPattern: ({ request, url }: { request: Request; url: URL }) => {
-      // Never cache API routes.
       if (url.pathname.startsWith('/api/')) return false;
-      // Cache all other GET requests (pages and other assets).
       return request.method === 'GET';
     },
     handler: 'NetworkFirst' as const,
@@ -53,7 +51,7 @@ const runtimeCaching = [
         maxEntries: 32,
         maxAgeSeconds: 24 * 60 * 60, // 1 day
       },
-      networkTimeoutSeconds: 10, // Try network for 10s, then fall back to cache
+      networkTimeoutSeconds: 10,
     },
   },
 ];
@@ -67,11 +65,15 @@ const withPWA = withPWAInit({
   reloadOnOnline: true,
   workboxOptions: {
     disableDevLogs: true,
-    skipWaiting: true, // Correctly moved inside workboxOptions
+    skipWaiting: true,
     runtimeCaching,
   },
 });
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  // This is the critical line that was missing.
+  // It tells Next.js to create the .next/standalone directory.
+  output: 'standalone',
+};
 
 export default withPWA(nextConfig);
