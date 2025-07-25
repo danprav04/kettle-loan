@@ -13,30 +13,43 @@ interface Member {
     username: string;
 }
 
+interface Entry {
+    id: number | string; // Allow string for optimistic entries
+    user_id: number;
+    username: string;
+    amount: string;
+    description: string;
+    created_at: string;
+    split_with_user_ids: number[] | null;
+    isOptimistic?: boolean;
+}
+
 export default function RoomPage() {
     const params = useParams<{ roomId: string }>();
     const { roomId } = params;
     const t = useTranslations('Room');
     const { isSimplified } = useSimplifiedLayout();
 
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
+    // State for all room data
     const [balance, setBalance] = useState(0);
     const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
     const [showDetails, setShowDetails] = useState(false);
     const [roomCode, setRoomCode] = useState('');
     const [members, setMembers] = useState<Member[]>([]);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-    const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
-    const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
     const [notification, setNotification] = useState<string | null>(null);
     const router = useRouter();
     
+    // Form state
+    const [amount, setAmount] = useState('');
+    const [description, setDescription] = useState('');
     const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
-
+    const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
+    const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
+    
     const otherMembers = useMemo(() => members.filter(m => m.id !== currentUserId), [members, currentUserId]);
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (isRetry = false) => {
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/');
@@ -53,23 +66,33 @@ export default function RoomPage() {
                 setRoomCode(code || '');
                 setMembers(members || []);
                 setCurrentUserId(currentUserId || null);
-                // Initialize split selection: all other members selected, plus self
+                // Initialize split selection to all other members
                 setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
                 setIncludeSelfInSplit(true);
             } else if (res.status === 401) {
                 router.push('/');
+            } else if (res.status === 404 && !isRetry) {
+                // If the room isn't found, it might be because of an offline->online sync delay.
+                // We'll wait a moment and try one more time.
+                setTimeout(() => fetchData(true), 1500);
             }
         } catch (e) {
             console.error("Failed to fetch room data. Possibly offline.", e);
         }
     }, [roomId, router]);
 
+    // This wrapper function has the correct EventListener signature.
+    const handleSyncDone = useCallback(() => {
+        console.log('Sync complete. Refetching room data...');
+        fetchData();
+    }, [fetchData]);
+
     useEffect(() => {
         fetchData();
-        // Add listener to refetch data after an offline sync completes
-        window.addEventListener('syncdone', fetchData);
-        return () => window.removeEventListener('syncdone', fetchData);
-    }, [fetchData]);
+        // We use the new handler function for the event listener.
+        window.addEventListener('syncdone', handleSyncDone);
+        return () => window.removeEventListener('syncdone', handleSyncDone);
+    }, [fetchData, handleSyncDone]);
     
     useEffect(() => {
         if (notification) {
@@ -97,12 +120,12 @@ export default function RoomPage() {
         e.preventDefault();
         setNotification(null);
         const parsedAmount = Math.abs(parseFloat(amount));
-        if (isNaN(parsedAmount) || parsedAmount <= 0) return;
+        if (isNaN(parsedAmount) || parsedAmount <= 0 || !currentUserId) return;
 
         let finalSplitWithIds: number[] | null = null;
         if (entryType === 'expense') {
             const participants = new Set(selectedMemberIds);
-            if (includeSelfInSplit && currentUserId) {
+            if (includeSelfInSplit) {
                 participants.add(currentUserId);
             }
             if (participants.size > 0) {
@@ -110,29 +133,44 @@ export default function RoomPage() {
             }
         }
         
+        // Corrected line: Use `parsedAmount` for the else case instead of self-referencing.
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
+
+        const optimisticEntryData = {
+            roomId,
+            amount: finalAmount,
+            description,
+            splitWithUserIds: finalSplitWithIds
+        };
+        
+        const numParticipants = finalSplitWithIds?.length || members.length;
+        const share = parsedAmount / (numParticipants > 0 ? numParticipants : 1);
+
+        if (entryType === 'expense') {
+            setBalance(prev => prev + (parsedAmount - share));
+        } else {
+            setBalance(prev => prev - parsedAmount);
+        }
+        
+        setAmount('');
+        setDescription('');
         
         try {
             const result = await handleApi({
                 method: 'POST',
                 url: '/api/entries',
-                body: { roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds },
+                body: optimisticEntryData,
             });
 
-            // If the request was queued offline, show a notification and DO NOT refetch.
             if (result?.optimistic) {
                 setNotification("Request queued offline. It will sync when you're back online.");
             } else {
-                // Otherwise, it was successful online, so refetch the latest data.
                 fetchData();
             }
-            // Clear the form in both cases.
-            setAmount('');
-            setDescription('');
-
         } catch (error) {
             console.error("Failed to add entry:", error);
             setNotification('Failed to add entry. Please try again.');
+            fetchData();
         }
     };
 
@@ -229,6 +267,7 @@ export default function RoomPage() {
                                         <div key={member.id} className="flex items-center">
                                             <input id={`member-${member.id}`} name="members" type="checkbox" checked={selectedMemberIds.has(member.id)} onChange={() => handleMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
                                             <label htmlFor={`member-${member.id}`} className="ms-2 block text-sm text-foreground">{member.username}</label>
+
                                         </div>
                                     ))}
                                 </div>
