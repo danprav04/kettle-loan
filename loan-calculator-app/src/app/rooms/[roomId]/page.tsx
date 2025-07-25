@@ -1,5 +1,4 @@
 // src/app/rooms/[roomId]/page.tsx
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -8,7 +7,6 @@ import { useTranslations } from 'next-intl';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import { FiArrowDown, FiInfo } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
-// ** Import the specific types we defined earlier **
 import { saveRoomData, getRoomData, addLocalEntry, LocalRoomData, Entry } from '@/lib/offline-sync';
 import { useSync } from '@/components/SyncProvider';
 
@@ -33,16 +31,15 @@ export default function RoomPage() {
     const [notification, setNotification] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
-    
+
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
-    
+
     const otherMembers = useMemo(() => members.filter(m => m.id !== currentUserId), [members, currentUserId]);
 
-    // **FIX: Use the specific LocalRoomData type here**
     const updateStateFromData = (data: LocalRoomData) => {
         setBalance(data.currentUserBalance || 0);
         setDetailedBalance(data.balances || {});
@@ -50,38 +47,37 @@ export default function RoomPage() {
         setMembers(data.members || []);
         setCurrentUserId(data.currentUserId || null);
         
-        const initialSelected = (data.members || [])
-            .filter((m: Member) => m.id !== data.currentUserId)
-            .map((m: Member) => m.id);
-        setSelectedMemberIds(new Set(initialSelected));
-        setIncludeSelfInSplit(true);
+        // Initialize member selection only once
+        if (members.length === 0 && data.members.length > 0) {
+            const initialSelected = (data.members || [])
+                .filter((m: Member) => m.id !== data.currentUserId)
+                .map((m: Member) => m.id);
+            setSelectedMemberIds(new Set(initialSelected));
+            setIncludeSelfInSplit(true);
+        }
     };
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (options: { forceLocal?: boolean } = {}) => {
+        setIsLoading(true);
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/');
             return;
         }
 
-        setIsLoading(true);
-
-        if (isOnline) {
+        if (isOnline && !options.forceLocal) {
             try {
                 const data = await handleApi({ method: 'GET', url: `/api/rooms/${roomId}` });
                 if (data) {
-                    await saveRoomData(roomId, data); // Save fresh data
+                    await saveRoomData(roomId, data);
                     updateStateFromData(data);
                 }
             } catch (e) {
                 console.warn("Online fetch failed, falling back to local data.", e);
                 const localData = await getRoomData(roomId);
-                if (localData) {
-                    updateStateFromData(localData);
-                }
+                if (localData) updateStateFromData(localData);
             }
-        } else { // Offline
-            console.log("Offline. Fetching from local DB.");
+        } else {
             const localData = await getRoomData(roomId);
             if (localData) {
                 updateStateFromData(localData);
@@ -90,10 +86,9 @@ export default function RoomPage() {
             }
         }
         setIsLoading(false);
-    }, [roomId, router, isOnline]);
+    }, [roomId, router, isOnline, members.length]);
 
     const handleSyncDone = useCallback(() => {
-        console.log('Sync complete event received. Refetching room data...');
         fetchData();
     }, [fetchData]);
 
@@ -103,6 +98,28 @@ export default function RoomPage() {
         return () => window.removeEventListener('syncdone', handleSyncDone);
     }, [fetchData, handleSyncDone]);
     
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
+
+    useEffect(() => {
+        if (isSimplified) {
+            setEntryType('loan');
+        } else {
+            const savedEntryType = localStorage.getItem('entryType') as 'expense' | 'loan';
+            setEntryType(savedEntryType && ['expense', 'loan'].includes(savedEntryType) ? savedEntryType : 'expense');
+        }
+    }, [isSimplified]);
+
+    const handleSetEntryType = (type: 'expense' | 'loan') => {
+        if (isSimplified) return;
+        setEntryType(type);
+        localStorage.setItem('entryType', type);
+    };
+
     const handleAddEntry = async (e: React.FormEvent) => {
         e.preventDefault();
         setNotification(null);
@@ -114,38 +131,44 @@ export default function RoomPage() {
         if (entryType === 'expense') {
             const participants = new Set(selectedMemberIds);
             if (includeSelfInSplit) participants.add(currentUserId);
-            if (participants.size > 0) finalSplitWithIds = Array.from(participants);
+            // If no one is selected, by default it's split with everyone
+            finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.map(m => m.id);
         }
-        
+
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
 
-        // --- Optimistic Update & Local DB Write ---
-        // **FIX: Create an object matching the 'Entry' type**
+        // --- Optimistic Update Calculation ---
         const optimisticEntry: Entry = {
-            id: Date.now(), // Temporary ID for React key
+            id: `temp-${Date.now()}`,
             amount: finalAmount.toFixed(2),
             description,
             created_at: new Date().toISOString(),
-            username: currentUser.username, 
+            username: currentUser.username,
             split_with_user_ids: finalSplitWithIds
         };
         
-        // Calculate new balances optimistically
-        const newBalance = balance + (entryType === 'expense' ? parsedAmount - (parsedAmount / (finalSplitWithIds?.length || members.length)) : -parsedAmount);
+        let newBalance = balance;
+        const numParticipants = finalSplitWithIds?.length || members.length;
+        const share = parsedAmount / (numParticipants > 0 ? numParticipants : 1);
+
+        if (entryType === 'expense') {
+            newBalance += parsedAmount; // User is credited the full amount they paid
+            if (finalSplitWithIds?.includes(currentUserId)) {
+                newBalance -= share; // User is debited their share
+            }
+        } else { // Loan
+            newBalance -= parsedAmount; // User owes the full amount
+        }
         
-        // This is a simplified balance calculation for the optimistic update.
-        // A full implementation would update detailed balances too.
+        // Persist the optimistic update to IndexedDB
         await addLocalEntry(roomId, optimisticEntry, { currentUserBalance: newBalance, otherBalances: detailedBalance });
 
-        // Update UI from our new local state
-        const updatedLocalData = await getRoomData(roomId);
-        if (updatedLocalData) {
-            updateStateFromData(updatedLocalData);
-        }
-
+        // Force a state update from the now-updated local DB
+        await fetchData({ forceLocal: true });
+        
         setAmount('');
         setDescription('');
-        
+
         // --- API Call ---
         try {
             const result = await handleApi({
@@ -156,7 +179,7 @@ export default function RoomPage() {
 
             if (result?.optimistic) {
                 setNotification("Request queued. It will sync when you're back online.");
-            } else {
+            } else if (isOnline) {
                 // If we were online and the request succeeded, refetch for consistency
                 fetchData();
             }
@@ -166,10 +189,6 @@ export default function RoomPage() {
             fetchData(); // Revert optimistic update by fetching from server
         }
     };
-    
-    if (isLoading) {
-        return <div className="max-w-md mx-auto p-8 text-center">Loading room...</div>;
-    }
 
     const handleMemberSelection = (memberId: number) => {
         const newSelection = new Set(selectedMemberIds);
@@ -181,7 +200,11 @@ export default function RoomPage() {
         setSelectedMemberIds(newSelection);
     };
     
-    const isSubmitDisabled = amount === '' || description === '' || (entryType === 'expense' && !includeSelfInSplit && selectedMemberIds.size === 0);
+    const isSubmitDisabled = amount === '' || description === '';
+
+    if (isLoading) {
+        return <div className="max-w-md mx-auto p-8 text-center text-muted-foreground animate-fadeIn">Loading room...</div>;
+    }
 
     return (
         <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
@@ -232,10 +255,10 @@ export default function RoomPage() {
                                         className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
                                         style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }}
                                     />
-                                    <button type="button" onClick={() => {setEntryType('expense'); localStorage.setItem('entryType', 'expense');}} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
+                                    <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
                                         {t('expense')}
                                     </button>
-                                    <button type="button" onClick={() => {setEntryType('loan'); localStorage.setItem('entryType', 'loan');}} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
+                                    <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
                                         {t('loan')}
                                     </button>
                                 </div>
@@ -264,7 +287,6 @@ export default function RoomPage() {
                                         <div key={member.id} className="flex items-center">
                                             <input id={`member-${member.id}`} name="members" type="checkbox" checked={selectedMemberIds.has(member.id)} onChange={() => handleMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
                                             <label htmlFor={`member-${member.id}`} className="ms-2 block text-sm text-foreground">{member.username}</label>
-
                                         </div>
                                     ))}
                                 </div>
