@@ -4,7 +4,7 @@ JWT_SECRET="your-super-secret-and-long-jwt-key"
 
 ---
 
---- File: dstabse-tables.sql ---
+--- File: dstabse-schema.sql ---
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(255) UNIQUE NOT NULL,
@@ -45,14 +45,30 @@ CREATE TABLE entries (
 ---
 
 --- File: next.config.ts ---
-import type { NextConfig } from "next";
+// next.config.ts
+import type { NextConfig } from 'next';
+import withPWAInit from '@ducanh2912/next-pwa';
+
+const withPWA = withPWAInit({
+  dest: 'public',
+  disable: process.env.NODE_ENV === 'development',
+  register: true,
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
+  workboxOptions: {
+    disableDevLogs: true,
+    skipWaiting: true,
+  },
+});
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  output: 'standalone', // Add this line
+  // swcMinify is a Next.js compiler option, not a PWA option.
+  // It is enabled by default in recent versions of Next.js, but explicitly setting it is fine.
+  swcMinify: true, 
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);
 
 ---
 
@@ -69,10 +85,12 @@ export default nextConfig;
     "build:local": "env-cmd -f .env.local next build"
   },
   "dependencies": {
+    "@ducanh2912/next-pwa": "^10.2.7",
     "@mdi/js": "^7.4.47",
     "@mdi/react": "^1.6.1",
     "bcryptjs": "^3.0.2",
     "i18next": "^25.2.1",
+    "idb": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "next": "15.3.4",
     "next-intl": "^4.1.0",
@@ -83,20 +101,30 @@ export default nextConfig;
     "react-icons": "^5.5.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
     "@types/pg": "^8.15.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.19",
     "env-cmd": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
-    "tailwindcss": "^4",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3",
     "typescript": "^5"
   }
+}
+
+---
+
+--- File: postcss.config.js ---
+module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
 }
 
 ---
@@ -367,8 +395,50 @@ export default config
 
 ---
 
+--- File: public/manifest.json ---
+{
+  "name": "Loan Calculator",
+  "short_name": "LoanCalc",
+  "description": "A simple loan calculator app with offline support.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+
+---
+
+--- File: public/sw.js ---
+if(!self.define){let e,s={};const n=(n,a)=>(n=new URL(n+".js",a).href,s[n]||new Promise(s=>{if("document"in self){const e=document.createElement("script");e.src=n,e.onload=s,document.head.appendChild(e)}else e=n,importScripts(n),s()}).then(()=>{let e=s[n];if(!e)throw new Error(`Module ${n} didn’t register its module`);return e}));self.define=(a,c)=>{const i=e||("document"in self?document.currentScript.src:"")||location.href;if(s[i])return;let t={};const r=e=>n(e,i),o={module:{uri:i},exports:t,require:r};s[i]=Promise.all(a.map(e=>o[e]||r(e))).then(e=>(c(...e),t))}}define(["./workbox-c2c0676f"],function(e){"use strict";importScripts(),self.skipWaiting(),e.clientsClaim(),e.precacheAndRoute([{url:"/_next/static/c7Ky_Td2bCgw5LpyCMnOl/_buildManifest.js",revision:"796284a6b0a32f5fe617465d0221e072"},{url:"/_next/static/c7Ky_Td2bCgw5LpyCMnOl/_ssgManifest.js",revision:"b6652df95db52feb4daf4eca35380933"},{url:"/_next/static/chunks/2a223334-c0c139bfff5a21c6.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/338-7af139210c37cfb1.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/341.df3329d77a5faa19.js",revision:"df3329d77a5faa19"},{url:"/_next/static/chunks/385-6cf5b4a5616400ab.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/467-2426cbe9036e4df1.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/472.a3826d29d6854395.js",revision:"a3826d29d6854395"},{url:"/_next/static/chunks/4bd1b696-c1b508e82507cebb.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/690-3952bdddbe6611d6.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/_not-found/page-9d5b2edd5843c02d.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/auth/login/route-8c489837276fe962.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/auth/signup/route-ef786d21283c9f14.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/entries/route-44bc68f5b31c95b5.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/rooms/%5BroomId%5D/members/route-8c8bf3b1824da16c.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/rooms/%5BroomId%5D/route-f7f33695bbbf2b0e.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/rooms/route-bb24c38d01b75451.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/user/rooms/route-cc9468ee86a92ebb.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/layout-76fbf1ae23492331.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/page-d35a3582992d2902.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/rooms/%5BroomId%5D/entries/page-8e53236fc168ea05.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/rooms/%5BroomId%5D/page-b7c292a234626dcd.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/rooms/layout-076c9f313a1f3ff9.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/rooms/page-43ff47a6b52e3193.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/ee560e2c-321bdf731901c8dd.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/framework-f593a28cde54158e.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/main-app-0c4a2a08bab46140.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/main-c9c2bd34f8be8107.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/pages/_app-92f2aae776f86b9c.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/pages/_error-71d2b6a7b832d02a.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/polyfills-42372ed130431b0a.js",revision:"846118c33b2c0e922d7b3a7676f81f6f"},{url:"/_next/static/chunks/webpack-75e90ec69d4ac2a5.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/css/618474562619554e.css",revision:"618474562619554e"},{url:"/_next/static/media/26a46d62cd723877-s.woff2",revision:"befd9c0fdfa3d8a645d5f95717ed6420"},{url:"/_next/static/media/55c55f0601d81cf3-s.woff2",revision:"43828e14271c77b87e3ed582dbff9f74"},{url:"/_next/static/media/581909926a08bbc8-s.woff2",revision:"f0b86e7c24f455280b8df606b89af891"},{url:"/_next/static/media/8e9860b6e62d6359-s.woff2",revision:"01ba6c2a184b8cba08b0d57167664d75"},{url:"/_next/static/media/97e0cb1ae144a2a9-s.woff2",revision:"e360c61c5bd8d90639fd4503c829c2dc"},{url:"/_next/static/media/df0a9ae256c0569c-s.woff2",revision:"d54db44de5ccb18886ece2fda72bdfe0"},{url:"/_next/static/media/e4af272ccee01ff0-s.p.woff2",revision:"65850a373e258f1c897a2b3d75eb74de"},{url:"/file.svg",revision:"d09f95206c3fa0bb9bd9fefabfd0ea71"},{url:"/globe.svg",revision:"2aaafa6a49b6563925fe440891e32717"},{url:"/manifest.json",revision:"7a6a8d046769ed648432d52149a2a050"},{url:"/next.svg",revision:"8e061864f388b47f33a1c3780831193e"},{url:"/swe-worker-5c72df51bb1f6ee0.js",revision:"76fdd3369f623a3edcf74ce2200bfdd0"},{url:"/vercel.svg",revision:"c0af2f507b369b085b35ef4bbe3bcf1e"},{url:"/window.svg",revision:"a2760511c65806022ad20adf74370ff3"}],{ignoreURLParametersMatching:[/^utm_/,/^fbclid$/]}),e.cleanupOutdatedCaches(),e.registerRoute("/",new e.NetworkFirst({cacheName:"start-url",plugins:[{cacheWillUpdate:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/^https:\/\/fonts\.(?:gstatic)\.com\/.*/i,new e.CacheFirst({cacheName:"google-fonts-webfonts",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:31536e3})]}),"GET"),e.registerRoute(/^https:\/\/fonts\.(?:googleapis)\.com\/.*/i,new e.StaleWhileRevalidate({cacheName:"google-fonts-stylesheets",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:604800})]}),"GET"),e.registerRoute(/\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,new e.StaleWhileRevalidate({cacheName:"static-font-assets",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:604800})]}),"GET"),e.registerRoute(/\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,new e.StaleWhileRevalidate({cacheName:"static-image-assets",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:2592e3})]}),"GET"),e.registerRoute(/\/_next\/static.+\.js$/i,new e.CacheFirst({cacheName:"next-static-js-assets",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\/_next\/image\?url=.+$/i,new e.StaleWhileRevalidate({cacheName:"next-image",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:mp3|wav|ogg)$/i,new e.CacheFirst({cacheName:"static-audio-assets",plugins:[new e.RangeRequestsPlugin,new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:mp4|webm)$/i,new e.CacheFirst({cacheName:"static-video-assets",plugins:[new e.RangeRequestsPlugin,new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:js)$/i,new e.StaleWhileRevalidate({cacheName:"static-js-assets",plugins:[new e.ExpirationPlugin({maxEntries:48,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:css|less)$/i,new e.StaleWhileRevalidate({cacheName:"static-style-assets",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\/_next\/data\/.+\/.+\.json$/i,new e.StaleWhileRevalidate({cacheName:"next-data",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:json|xml|csv)$/i,new e.NetworkFirst({cacheName:"static-data-assets",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(function(e){var s=e.sameOrigin,n=e.url.pathname;return!(!s||n.startsWith("/api/auth/callback")||!n.startsWith("/api/"))},new e.NetworkFirst({cacheName:"apis",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:16,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(function(e){var s=e.request,n=e.url.pathname,a=e.sameOrigin;return"1"===s.headers.get("RSC")&&"1"===s.headers.get("Next-Router-Prefetch")&&a&&!n.startsWith("/api/")},new e.NetworkFirst({cacheName:"pages-rsc-prefetch",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(function(e){var s=e.request,n=e.url.pathname,a=e.sameOrigin;return"1"===s.headers.get("RSC")&&a&&!n.startsWith("/api/")},new e.NetworkFirst({cacheName:"pages-rsc",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(function(e){var s=e.url.pathname;return e.sameOrigin&&!s.startsWith("/api/")},new e.NetworkFirst({cacheName:"pages",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(function(e){return!e.sameOrigin},new e.NetworkFirst({cacheName:"cross-origin",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:3600})]}),"GET"),self.__WB_DISABLE_DEV_LOGS=!0});
+
+---
+
+--- File: public/swe-worker-5c72df51bb1f6ee0.js ---
+(()=>{"use strict";self.onmessage=async e=>{switch(e.data.type){case"__START_URL_CACHE__":{let t=e.data.url,a=await fetch(t);if(!a.redirected)return(await caches.open("start-url")).put(t,a);return Promise.resolve()}case"__FRONTEND_NAV_CACHE__":{let t=e.data.url,a=await caches.open("pages");if(await a.match(t,{ignoreSearch:!0}))return;let s=await fetch(t);if(!s.ok)return;if(a.put(t,s.clone()),e.data.shouldCacheAggressively&&s.headers.get("Content-Type")?.includes("text/html"))try{let e=await s.text(),t=[],a=await caches.open("static-style-assets"),r=await caches.open("next-static-js-assets"),c=await caches.open("static-js-assets");for(let[s,r]of e.matchAll(/<link.*?href=['"](.*?)['"].*?>/g))/rel=['"]stylesheet['"]/.test(s)&&t.push(a.match(r).then(e=>e?Promise.resolve():a.add(r)));for(let[,a]of e.matchAll(/<script.*?src=['"](.*?)['"].*?>/g)){let e=/\/_next\/static.+\.js$/i.test(a)?r:c;t.push(e.match(a).then(t=>t?Promise.resolve():e.add(a)))}return await Promise.all(t)}catch{}return Promise.resolve()}default:return Promise.resolve()}}})();
+
+---
+
+--- File: public/workbox-c2c0676f.js ---
+define(["exports"],function(t){"use strict";try{self["workbox:core:7.0.0"]&&_()}catch(t){}const e=(t,...e)=>{let s=t;return e.length>0&&(s+=` :: ${JSON.stringify(e)}`),s};class s extends Error{constructor(t,s){super(e(t,s)),this.name=t,this.details=s}}try{self["workbox:routing:7.0.0"]&&_()}catch(t){}const n=t=>t&&"object"==typeof t?t:{handle:t};class r{constructor(t,e,s="GET"){this.handler=n(e),this.match=t,this.method=s}setCatchHandler(t){this.catchHandler=n(t)}}class i extends r{constructor(t,e,s){super(({url:e})=>{const s=t.exec(e.href);if(s&&(e.origin===location.origin||0===s.index))return s.slice(1)},e,s)}}class a{constructor(){this.t=new Map,this.i=new Map}get routes(){return this.t}addFetchListener(){self.addEventListener("fetch",t=>{const{request:e}=t,s=this.handleRequest({request:e,event:t});s&&t.respondWith(s)})}addCacheListener(){self.addEventListener("message",t=>{if(t.data&&"CACHE_URLS"===t.data.type){const{payload:e}=t.data,s=Promise.all(e.urlsToCache.map(e=>{"string"==typeof e&&(e=[e]);const s=new Request(...e);return this.handleRequest({request:s,event:t})}));t.waitUntil(s),t.ports&&t.ports[0]&&s.then(()=>t.ports[0].postMessage(!0))}})}handleRequest({request:t,event:e}){const s=new URL(t.url,location.href);if(!s.protocol.startsWith("http"))return;const n=s.origin===location.origin,{params:r,route:i}=this.findMatchingRoute({event:e,request:t,sameOrigin:n,url:s});let a=i&&i.handler;const o=t.method;if(!a&&this.i.has(o)&&(a=this.i.get(o)),!a)return;let c;try{c=a.handle({url:s,request:t,event:e,params:r})}catch(t){c=Promise.reject(t)}const h=i&&i.catchHandler;return c instanceof Promise&&(this.o||h)&&(c=c.catch(async n=>{if(h)try{return await h.handle({url:s,request:t,event:e,params:r})}catch(t){t instanceof Error&&(n=t)}if(this.o)return this.o.handle({url:s,request:t,event:e});throw n})),c}findMatchingRoute({url:t,sameOrigin:e,request:s,event:n}){const r=this.t.get(s.method)||[];for(const i of r){let r;const a=i.match({url:t,sameOrigin:e,request:s,event:n});if(a)return r=a,(Array.isArray(r)&&0===r.length||a.constructor===Object&&0===Object.keys(a).length||"boolean"==typeof a)&&(r=void 0),{route:i,params:r}}return{}}setDefaultHandler(t,e="GET"){this.i.set(e,n(t))}setCatchHandler(t){this.o=n(t)}registerRoute(t){this.t.has(t.method)||this.t.set(t.method,[]),this.t.get(t.method).push(t)}unregisterRoute(t){if(!this.t.has(t.method))throw new s("unregister-route-but-not-found-with-method",{method:t.method});const e=this.t.get(t.method).indexOf(t);if(!(e>-1))throw new s("unregister-route-route-not-registered");this.t.get(t.method).splice(e,1)}}let o;const c=()=>(o||(o=new a,o.addFetchListener(),o.addCacheListener()),o);function h(t,e,n){let a;if("string"==typeof t){const s=new URL(t,location.href);a=new r(({url:t})=>t.href===s.href,e,n)}else if(t instanceof RegExp)a=new i(t,e,n);else if("function"==typeof t)a=new r(t,e,n);else{if(!(t instanceof r))throw new s("unsupported-route-type",{moduleName:"workbox-routing",funcName:"registerRoute",paramName:"capture"});a=t}return c().registerRoute(a),a}try{self["workbox:strategies:7.0.0"]&&_()}catch(t){}const u={cacheWillUpdate:async({response:t})=>200===t.status||0===t.status?t:null},l={googleAnalytics:"googleAnalytics",precache:"precache-v2",prefix:"workbox",runtime:"runtime",suffix:"undefined"!=typeof registration?registration.scope:""},f=t=>[l.prefix,t,l.suffix].filter(t=>t&&t.length>0).join("-"),w=t=>t||f(l.precache),d=t=>t||f(l.runtime);function p(t,e){const s=new URL(t);for(const t of e)s.searchParams.delete(t);return s.href}class y{constructor(){this.promise=new Promise((t,e)=>{this.resolve=t,this.reject=e})}}const g=new Set;function m(t){return"string"==typeof t?new Request(t):t}class v{constructor(t,e){this.h={},Object.assign(this,e),this.event=e.event,this.u=t,this.l=new y,this.p=[],this.m=[...t.plugins],this.v=new Map;for(const t of this.m)this.v.set(t,{});this.event.waitUntil(this.l.promise)}async fetch(t){const{event:e}=this;let n=m(t);if("navigate"===n.mode&&e instanceof FetchEvent&&e.preloadResponse){const t=await e.preloadResponse;if(t)return t}const r=this.hasCallback("fetchDidFail")?n.clone():null;try{for(const t of this.iterateCallbacks("requestWillFetch"))n=await t({request:n.clone(),event:e})}catch(t){if(t instanceof Error)throw new s("plugin-error-request-will-fetch",{thrownErrorMessage:t.message})}const i=n.clone();try{let t;t=await fetch(n,"navigate"===n.mode?void 0:this.u.fetchOptions);for(const s of this.iterateCallbacks("fetchDidSucceed"))t=await s({event:e,request:i,response:t});return t}catch(t){throw r&&await this.runCallbacks("fetchDidFail",{error:t,event:e,originalRequest:r.clone(),request:i.clone()}),t}}async fetchAndCachePut(t){const e=await this.fetch(t),s=e.clone();return this.waitUntil(this.cachePut(t,s)),e}async cacheMatch(t){const e=m(t);let s;const{cacheName:n,matchOptions:r}=this.u,i=await this.getCacheKey(e,"read"),a=Object.assign(Object.assign({},r),{cacheName:n});s=await caches.match(i,a);for(const t of this.iterateCallbacks("cachedResponseWillBeUsed"))s=await t({cacheName:n,matchOptions:r,cachedResponse:s,request:i,event:this.event})||void 0;return s}async cachePut(t,e){const n=m(t);var r;await(r=0,new Promise(t=>setTimeout(t,r)));const i=await this.getCacheKey(n,"write");if(!e)throw new s("cache-put-with-no-response",{url:(a=i.url,new URL(String(a),location.href).href.replace(new RegExp(`^${location.origin}`),""))});var a;const o=await this.R(e);if(!o)return!1;const{cacheName:c,matchOptions:h}=this.u,u=await self.caches.open(c),l=this.hasCallback("cacheDidUpdate"),f=l?await async function(t,e,s,n){const r=p(e.url,s);if(e.url===r)return t.match(e,n);const i=Object.assign(Object.assign({},n),{ignoreSearch:!0}),a=await t.keys(e,i);for(const e of a)if(r===p(e.url,s))return t.match(e,n)}(u,i.clone(),["__WB_REVISION__"],h):null;try{await u.put(i,l?o.clone():o)}catch(t){if(t instanceof Error)throw"QuotaExceededError"===t.name&&await async function(){for(const t of g)await t()}(),t}for(const t of this.iterateCallbacks("cacheDidUpdate"))await t({cacheName:c,oldResponse:f,newResponse:o.clone(),request:i,event:this.event});return!0}async getCacheKey(t,e){const s=`${t.url} | ${e}`;if(!this.h[s]){let n=t;for(const t of this.iterateCallbacks("cacheKeyWillBeUsed"))n=m(await t({mode:e,request:n,event:this.event,params:this.params}));this.h[s]=n}return this.h[s]}hasCallback(t){for(const e of this.u.plugins)if(t in e)return!0;return!1}async runCallbacks(t,e){for(const s of this.iterateCallbacks(t))await s(e)}*iterateCallbacks(t){for(const e of this.u.plugins)if("function"==typeof e[t]){const s=this.v.get(e),n=n=>{const r=Object.assign(Object.assign({},n),{state:s});return e[t](r)};yield n}}waitUntil(t){return this.p.push(t),t}async doneWaiting(){let t;for(;t=this.p.shift();)await t}destroy(){this.l.resolve(null)}async R(t){let e=t,s=!1;for(const t of this.iterateCallbacks("cacheWillUpdate"))if(e=await t({request:this.request,response:e,event:this.event})||void 0,s=!0,!e)break;return s||e&&200!==e.status&&(e=void 0),e}}class R{constructor(t={}){this.cacheName=d(t.cacheName),this.plugins=t.plugins||[],this.fetchOptions=t.fetchOptions,this.matchOptions=t.matchOptions}handle(t){const[e]=this.handleAll(t);return e}handleAll(t){t instanceof FetchEvent&&(t={event:t,request:t.request});const e=t.event,s="string"==typeof t.request?new Request(t.request):t.request,n="params"in t?t.params:void 0,r=new v(this,{event:e,request:s,params:n}),i=this.q(r,s,e);return[i,this.D(i,r,s,e)]}async q(t,e,n){let r;await t.runCallbacks("handlerWillStart",{event:n,request:e});try{if(r=await this.U(e,t),!r||"error"===r.type)throw new s("no-response",{url:e.url})}catch(s){if(s instanceof Error)for(const i of t.iterateCallbacks("handlerDidError"))if(r=await i({error:s,event:n,request:e}),r)break;if(!r)throw s}for(const s of t.iterateCallbacks("handlerWillRespond"))r=await s({event:n,request:e,response:r});return r}async D(t,e,s,n){let r,i;try{r=await t}catch(i){}try{await e.runCallbacks("handlerDidRespond",{event:n,request:s,response:r}),await e.doneWaiting()}catch(t){t instanceof Error&&(i=t)}if(await e.runCallbacks("handlerDidComplete",{event:n,request:s,response:r,error:i}),e.destroy(),i)throw i}}function b(t){t.then(()=>{})}function q(){return q=Object.assign?Object.assign.bind():function(t){for(var e=1;e<arguments.length;e++){var s=arguments[e];for(var n in s)({}).hasOwnProperty.call(s,n)&&(t[n]=s[n])}return t},q.apply(null,arguments)}let D,U;const x=new WeakMap,L=new WeakMap,I=new WeakMap,C=new WeakMap,E=new WeakMap;let N={get(t,e,s){if(t instanceof IDBTransaction){if("done"===e)return L.get(t);if("objectStoreNames"===e)return t.objectStoreNames||I.get(t);if("store"===e)return s.objectStoreNames[1]?void 0:s.objectStore(s.objectStoreNames[0])}return k(t[e])},set:(t,e,s)=>(t[e]=s,!0),has:(t,e)=>t instanceof IDBTransaction&&("done"===e||"store"===e)||e in t};function O(t){return t!==IDBDatabase.prototype.transaction||"objectStoreNames"in IDBTransaction.prototype?(U||(U=[IDBCursor.prototype.advance,IDBCursor.prototype.continue,IDBCursor.prototype.continuePrimaryKey])).includes(t)?function(...e){return t.apply(B(this),e),k(x.get(this))}:function(...e){return k(t.apply(B(this),e))}:function(e,...s){const n=t.call(B(this),e,...s);return I.set(n,e.sort?e.sort():[e]),k(n)}}function T(t){return"function"==typeof t?O(t):(t instanceof IDBTransaction&&function(t){if(L.has(t))return;const e=new Promise((e,s)=>{const n=()=>{t.removeEventListener("complete",r),t.removeEventListener("error",i),t.removeEventListener("abort",i)},r=()=>{e(),n()},i=()=>{s(t.error||new DOMException("AbortError","AbortError")),n()};t.addEventListener("complete",r),t.addEventListener("error",i),t.addEventListener("abort",i)});L.set(t,e)}(t),e=t,(D||(D=[IDBDatabase,IDBObjectStore,IDBIndex,IDBCursor,IDBTransaction])).some(t=>e instanceof t)?new Proxy(t,N):t);var e}function k(t){if(t instanceof IDBRequest)return function(t){const e=new Promise((e,s)=>{const n=()=>{t.removeEventListener("success",r),t.removeEventListener("error",i)},r=()=>{e(k(t.result)),n()},i=()=>{s(t.error),n()};t.addEventListener("success",r),t.addEventListener("error",i)});return e.then(e=>{e instanceof IDBCursor&&x.set(e,t)}).catch(()=>{}),E.set(e,t),e}(t);if(C.has(t))return C.get(t);const e=T(t);return e!==t&&(C.set(t,e),E.set(e,t)),e}const B=t=>E.get(t);const P=["get","getKey","getAll","getAllKeys","count"],M=["put","add","delete","clear"],W=new Map;function j(t,e){if(!(t instanceof IDBDatabase)||e in t||"string"!=typeof e)return;if(W.get(e))return W.get(e);const s=e.replace(/FromIndex$/,""),n=e!==s,r=M.includes(s);if(!(s in(n?IDBIndex:IDBObjectStore).prototype)||!r&&!P.includes(s))return;const i=async function(t,...e){const i=this.transaction(t,r?"readwrite":"readonly");let a=i.store;return n&&(a=a.index(e.shift())),(await Promise.all([a[s](...e),r&&i.done]))[0]};return W.set(e,i),i}N=(t=>q({},t,{get:(e,s,n)=>j(e,s)||t.get(e,s,n),has:(e,s)=>!!j(e,s)||t.has(e,s)}))(N);try{self["workbox:expiration:7.0.0"]&&_()}catch(t){}const S="cache-entries",K=t=>{const e=new URL(t,location.href);return e.hash="",e.href};class A{constructor(t){this._=null,this.L=t}I(t){const e=t.createObjectStore(S,{keyPath:"id"});e.createIndex("cacheName","cacheName",{unique:!1}),e.createIndex("timestamp","timestamp",{unique:!1})}C(t){this.I(t),this.L&&function(t,{blocked:e}={}){const s=indexedDB.deleteDatabase(t);e&&s.addEventListener("blocked",t=>e(t.oldVersion,t)),k(s).then(()=>{})}(this.L)}async setTimestamp(t,e){const s={url:t=K(t),timestamp:e,cacheName:this.L,id:this.N(t)},n=(await this.getDb()).transaction(S,"readwrite",{durability:"relaxed"});await n.store.put(s),await n.done}async getTimestamp(t){const e=await this.getDb(),s=await e.get(S,this.N(t));return null==s?void 0:s.timestamp}async expireEntries(t,e){const s=await this.getDb();let n=await s.transaction(S).store.index("timestamp").openCursor(null,"prev");const r=[];let i=0;for(;n;){const s=n.value;s.cacheName===this.L&&(t&&s.timestamp<t||e&&i>=e?r.push(n.value):i++),n=await n.continue()}const a=[];for(const t of r)await s.delete(S,t.id),a.push(t.url);return a}N(t){return this.L+"|"+K(t)}async getDb(){return this._||(this._=await function(t,e,{blocked:s,upgrade:n,blocking:r,terminated:i}={}){const a=indexedDB.open(t,e),o=k(a);return n&&a.addEventListener("upgradeneeded",t=>{n(k(a.result),t.oldVersion,t.newVersion,k(a.transaction),t)}),s&&a.addEventListener("blocked",t=>s(t.oldVersion,t.newVersion,t)),o.then(t=>{i&&t.addEventListener("close",()=>i()),r&&t.addEventListener("versionchange",t=>r(t.oldVersion,t.newVersion,t))}).catch(()=>{}),o}("workbox-expiration",1,{upgrade:this.C.bind(this)})),this._}}class F{constructor(t,e={}){this.O=!1,this.T=!1,this.k=e.maxEntries,this.B=e.maxAgeSeconds,this.P=e.matchOptions,this.L=t,this.M=new A(t)}async expireEntries(){if(this.O)return void(this.T=!0);this.O=!0;const t=this.B?Date.now()-1e3*this.B:0,e=await this.M.expireEntries(t,this.k),s=await self.caches.open(this.L);for(const t of e)await s.delete(t,this.P);this.O=!1,this.T&&(this.T=!1,b(this.expireEntries()))}async updateTimestamp(t){await this.M.setTimestamp(t,Date.now())}async isURLExpired(t){if(this.B){const e=await this.M.getTimestamp(t),s=Date.now()-1e3*this.B;return void 0===e||e<s}return!1}async delete(){this.T=!1,await this.M.expireEntries(1/0)}}try{self["workbox:range-requests:7.0.0"]&&_()}catch(t){}async function H(t,e){try{if(206===e.status)return e;const n=t.headers.get("range");if(!n)throw new s("no-range-header");const r=function(t){const e=t.trim().toLowerCase();if(!e.startsWith("bytes="))throw new s("unit-must-be-bytes",{normalizedRangeHeader:e});if(e.includes(","))throw new s("single-range-only",{normalizedRangeHeader:e});const n=/(\d*)-(\d*)/.exec(e);if(!n||!n[1]&&!n[2])throw new s("invalid-range-values",{normalizedRangeHeader:e});return{start:""===n[1]?void 0:Number(n[1]),end:""===n[2]?void 0:Number(n[2])}}(n),i=await e.blob(),a=function(t,e,n){const r=t.size;if(n&&n>r||e&&e<0)throw new s("range-not-satisfiable",{size:r,end:n,start:e});let i,a;return void 0!==e&&void 0!==n?(i=e,a=n+1):void 0!==e&&void 0===n?(i=e,a=r):void 0!==n&&void 0===e&&(i=r-n,a=r),{start:i,end:a}}(i,r.start,r.end),o=i.slice(a.start,a.end),c=o.size,h=new Response(o,{status:206,statusText:"Partial Content",headers:e.headers});return h.headers.set("Content-Length",String(c)),h.headers.set("Content-Range",`bytes ${a.start}-${a.end-1}/${i.size}`),h}catch(t){return new Response("",{status:416,statusText:"Range Not Satisfiable"})}}function $(t,e){const s=e();return t.waitUntil(s),s}try{self["workbox:precaching:7.0.0"]&&_()}catch(t){}function z(t){if(!t)throw new s("add-to-cache-list-unexpected-type",{entry:t});if("string"==typeof t){const e=new URL(t,location.href);return{cacheKey:e.href,url:e.href}}const{revision:e,url:n}=t;if(!n)throw new s("add-to-cache-list-unexpected-type",{entry:t});if(!e){const t=new URL(n,location.href);return{cacheKey:t.href,url:t.href}}const r=new URL(n,location.href),i=new URL(n,location.href);return r.searchParams.set("__WB_REVISION__",e),{cacheKey:r.href,url:i.href}}class G{constructor(){this.updatedURLs=[],this.notUpdatedURLs=[],this.handlerWillStart=async({request:t,state:e})=>{e&&(e.originalRequest=t)},this.cachedResponseWillBeUsed=async({event:t,state:e,cachedResponse:s})=>{if("install"===t.type&&e&&e.originalRequest&&e.originalRequest instanceof Request){const t=e.originalRequest.url;s?this.notUpdatedURLs.push(t):this.updatedURLs.push(t)}return s}}}class V{constructor({precacheController:t}){this.cacheKeyWillBeUsed=async({request:t,params:e})=>{const s=(null==e?void 0:e.cacheKey)||this.W.getCacheKeyForURL(t.url);return s?new Request(s,{headers:t.headers}):t},this.W=t}}let J,Q;async function X(t,e){let n=null;if(t.url){n=new URL(t.url).origin}if(n!==self.location.origin)throw new s("cross-origin-copy-response",{origin:n});const r=t.clone(),i={headers:new Headers(r.headers),status:r.status,statusText:r.statusText},a=e?e(i):i,o=function(){if(void 0===J){const t=new Response("");if("body"in t)try{new Response(t.body),J=!0}catch(t){J=!1}J=!1}return J}()?r.body:await r.blob();return new Response(o,a)}class Y extends R{constructor(t={}){t.cacheName=w(t.cacheName),super(t),this.j=!1!==t.fallbackToNetwork,this.plugins.push(Y.copyRedirectedCacheableResponsesPlugin)}async U(t,e){const s=await e.cacheMatch(t);return s||(e.event&&"install"===e.event.type?await this.S(t,e):await this.K(t,e))}async K(t,e){let n;const r=e.params||{};if(!this.j)throw new s("missing-precache-entry",{cacheName:this.cacheName,url:t.url});{const s=r.integrity,i=t.integrity,a=!i||i===s;n=await e.fetch(new Request(t,{integrity:"no-cors"!==t.mode?i||s:void 0})),s&&a&&"no-cors"!==t.mode&&(this.A(),await e.cachePut(t,n.clone()))}return n}async S(t,e){this.A();const n=await e.fetch(t);if(!await e.cachePut(t,n.clone()))throw new s("bad-precaching-response",{url:t.url,status:n.status});return n}A(){let t=null,e=0;for(const[s,n]of this.plugins.entries())n!==Y.copyRedirectedCacheableResponsesPlugin&&(n===Y.defaultPrecacheCacheabilityPlugin&&(t=s),n.cacheWillUpdate&&e++);0===e?this.plugins.push(Y.defaultPrecacheCacheabilityPlugin):e>1&&null!==t&&this.plugins.splice(t,1)}}Y.defaultPrecacheCacheabilityPlugin={cacheWillUpdate:async({response:t})=>!t||t.status>=400?null:t},Y.copyRedirectedCacheableResponsesPlugin={cacheWillUpdate:async({response:t})=>t.redirected?await X(t):t};class Z{constructor({cacheName:t,plugins:e=[],fallbackToNetwork:s=!0}={}){this.F=new Map,this.H=new Map,this.$=new Map,this.u=new Y({cacheName:w(t),plugins:[...e,new V({precacheController:this})],fallbackToNetwork:s}),this.install=this.install.bind(this),this.activate=this.activate.bind(this)}get strategy(){return this.u}precache(t){this.addToCacheList(t),this.G||(self.addEventListener("install",this.install),self.addEventListener("activate",this.activate),this.G=!0)}addToCacheList(t){const e=[];for(const n of t){"string"==typeof n?e.push(n):n&&void 0===n.revision&&e.push(n.url);const{cacheKey:t,url:r}=z(n),i="string"!=typeof n&&n.revision?"reload":"default";if(this.F.has(r)&&this.F.get(r)!==t)throw new s("add-to-cache-list-conflicting-entries",{firstEntry:this.F.get(r),secondEntry:t});if("string"!=typeof n&&n.integrity){if(this.$.has(t)&&this.$.get(t)!==n.integrity)throw new s("add-to-cache-list-conflicting-integrities",{url:r});this.$.set(t,n.integrity)}if(this.F.set(r,t),this.H.set(r,i),e.length>0){const t=`Workbox is precaching URLs without revision info: ${e.join(", ")}\nThis is generally NOT safe. Learn more at https://bit.ly/wb-precache`;console.warn(t)}}}install(t){return $(t,async()=>{const e=new G;this.strategy.plugins.push(e);for(const[e,s]of this.F){const n=this.$.get(s),r=this.H.get(e),i=new Request(e,{integrity:n,cache:r,credentials:"same-origin"});await Promise.all(this.strategy.handleAll({params:{cacheKey:s},request:i,event:t}))}const{updatedURLs:s,notUpdatedURLs:n}=e;return{updatedURLs:s,notUpdatedURLs:n}})}activate(t){return $(t,async()=>{const t=await self.caches.open(this.strategy.cacheName),e=await t.keys(),s=new Set(this.F.values()),n=[];for(const r of e)s.has(r.url)||(await t.delete(r),n.push(r.url));return{deletedURLs:n}})}getURLsToCacheKeys(){return this.F}getCachedURLs(){return[...this.F.keys()]}getCacheKeyForURL(t){const e=new URL(t,location.href);return this.F.get(e.href)}getIntegrityForCacheKey(t){return this.$.get(t)}async matchPrecache(t){const e=t instanceof Request?t.url:t,s=this.getCacheKeyForURL(e);if(s){return(await self.caches.open(this.strategy.cacheName)).match(s)}}createHandlerBoundToURL(t){const e=this.getCacheKeyForURL(t);if(!e)throw new s("non-precached-url",{url:t});return s=>(s.request=new Request(t),s.params=Object.assign({cacheKey:e},s.params),this.strategy.handle(s))}}const tt=()=>(Q||(Q=new Z),Q);class et extends r{constructor(t,e){super(({request:s})=>{const n=t.getURLsToCacheKeys();for(const r of function*(t,{ignoreURLParametersMatching:e=[/^utm_/,/^fbclid$/],directoryIndex:s="index.html",cleanURLs:n=!0,urlManipulation:r}={}){const i=new URL(t,location.href);i.hash="",yield i.href;const a=function(t,e=[]){for(const s of[...t.searchParams.keys()])e.some(t=>t.test(s))&&t.searchParams.delete(s);return t}(i,e);if(yield a.href,s&&a.pathname.endsWith("/")){const t=new URL(a.href);t.pathname+=s,yield t.href}if(n){const t=new URL(a.href);t.pathname+=".html",yield t.href}if(r){const t=r({url:i});for(const e of t)yield e.href}}(s.url,e)){const e=n.get(r);if(e){return{cacheKey:e,integrity:t.getIntegrityForCacheKey(e)}}}},t.strategy)}}t.CacheFirst=class extends R{async U(t,e){let n,r=await e.cacheMatch(t);if(!r)try{r=await e.fetchAndCachePut(t)}catch(t){t instanceof Error&&(n=t)}if(!r)throw new s("no-response",{url:t.url,error:n});return r}},t.ExpirationPlugin=class{constructor(t={}){this.cachedResponseWillBeUsed=async({event:t,request:e,cacheName:s,cachedResponse:n})=>{if(!n)return null;const r=this.V(n),i=this.J(s);b(i.expireEntries());const a=i.updateTimestamp(e.url);if(t)try{t.waitUntil(a)}catch(t){}return r?n:null},this.cacheDidUpdate=async({cacheName:t,request:e})=>{const s=this.J(t);await s.updateTimestamp(e.url),await s.expireEntries()},this.X=t,this.B=t.maxAgeSeconds,this.Y=new Map,t.purgeOnQuotaError&&function(t){g.add(t)}(()=>this.deleteCacheAndMetadata())}J(t){if(t===d())throw new s("expire-custom-caches-only");let e=this.Y.get(t);return e||(e=new F(t,this.X),this.Y.set(t,e)),e}V(t){if(!this.B)return!0;const e=this.Z(t);if(null===e)return!0;return e>=Date.now()-1e3*this.B}Z(t){if(!t.headers.has("date"))return null;const e=t.headers.get("date"),s=new Date(e).getTime();return isNaN(s)?null:s}async deleteCacheAndMetadata(){for(const[t,e]of this.Y)await self.caches.delete(t),await e.delete();this.Y=new Map}},t.NetworkFirst=class extends R{constructor(t={}){super(t),this.plugins.some(t=>"cacheWillUpdate"in t)||this.plugins.unshift(u),this.tt=t.networkTimeoutSeconds||0}async U(t,e){const n=[],r=[];let i;if(this.tt){const{id:s,promise:a}=this.et({request:t,logs:n,handler:e});i=s,r.push(a)}const a=this.st({timeoutId:i,request:t,logs:n,handler:e});r.push(a);const o=await e.waitUntil((async()=>await e.waitUntil(Promise.race(r))||await a)());if(!o)throw new s("no-response",{url:t.url});return o}et({request:t,logs:e,handler:s}){let n;return{promise:new Promise(e=>{n=setTimeout(async()=>{e(await s.cacheMatch(t))},1e3*this.tt)}),id:n}}async st({timeoutId:t,request:e,logs:s,handler:n}){let r,i;try{i=await n.fetchAndCachePut(e)}catch(t){t instanceof Error&&(r=t)}return t&&clearTimeout(t),!r&&i||(i=await n.cacheMatch(e)),i}},t.RangeRequestsPlugin=class{constructor(){this.cachedResponseWillBeUsed=async({request:t,cachedResponse:e})=>e&&t.headers.has("range")?await H(t,e):e}},t.StaleWhileRevalidate=class extends R{constructor(t={}){super(t),this.plugins.some(t=>"cacheWillUpdate"in t)||this.plugins.unshift(u)}async U(t,e){const n=e.fetchAndCachePut(t).catch(()=>{});e.waitUntil(n);let r,i=await e.cacheMatch(t);if(i);else try{i=await n}catch(t){t instanceof Error&&(r=t)}if(!i)throw new s("no-response",{url:t.url,error:r});return i}},t.cleanupOutdatedCaches=function(){self.addEventListener("activate",t=>{const e=w();t.waitUntil((async(t,e="-precache-")=>{const s=(await self.caches.keys()).filter(s=>s.includes(e)&&s.includes(self.registration.scope)&&s!==t);return await Promise.all(s.map(t=>self.caches.delete(t))),s})(e).then(t=>{}))})},t.clientsClaim=function(){self.addEventListener("activate",()=>self.clients.claim())},t.precacheAndRoute=function(t,e){!function(t){tt().precache(t)}(t),function(t){const e=tt();h(new et(e,t))}(e)},t.registerRoute=h});
+
+---
+
 --- File: src/app/globals.css ---
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --background: #ffffff;
@@ -525,18 +595,30 @@ button, a, input {
 
 --- File: src/app/layout.tsx ---
 // src/app/layout.tsx
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import IntlProvider from "@/components/IntlProvider";
 import ThemeProvider from "@/components/ThemeProvider";
 import SimplifiedLayoutProvider from "@/components/SimplifiedLayoutProvider";
+import SyncProvider from "@/components/SyncProvider";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Loan Calculator",
-  description: "A simple loan calculator app",
+  description: "A simple loan calculator app with offline support.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Loan Calculator",
+  },
+};
+
+// Add this new viewport export
+export const viewport: Viewport = {
+  themeColor: "#3b82f6",
 };
 
 export default function RootLayout({
@@ -545,12 +627,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html>
+    <html lang="en">
+      <head />
       <body className={inter.className}>
         <ThemeProvider>
           <IntlProvider>
             <SimplifiedLayoutProvider>
-              <main>{children}</main>
+              <SyncProvider>
+                <main>{children}</main>
+              </SyncProvider>
             </SimplifiedLayoutProvider>
           </IntlProvider>
         </ThemeProvider>
@@ -770,7 +855,6 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
-// Define a type for the potential Postgres error to make our catch block type-safe
 interface PostgresError extends Error {
     code?: string;
     constraint?: string;
@@ -784,84 +868,66 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        let body = {};
-        // The request might not have a body for create room, so we handle that case.
-        try {
-            const text = await req.text();
-            if (text) {
-              body = JSON.parse(text);
+        // Try to parse the body. If it's empty or malformed, default to an empty object.
+        const body = await req.json().catch(() => ({}));
+        
+        // Check if the intent is to JOIN a room.
+        // This is true if 'roomCode' is a property in the body.
+        if (typeof body.roomCode === 'string') {
+            const roomCode = body.roomCode.trim().toUpperCase();
+
+            // Explicitly block empty room codes.
+            if (!roomCode) {
+                 return NextResponse.json({ message: 'joinFailed' }, { status: 400 }); // Bad Request
             }
-        } catch {
-            // Ignore error if body is empty or invalid, which is expected when creating a room.
-        }
-        const { roomCode } = body as { roomCode?: string };
 
-
-        if (roomCode) {
-            // Join an existing room
             const roomResult = await db.query('SELECT id FROM rooms WHERE code = $1', [roomCode]);
             if (roomResult.rows.length === 0) {
-                // Using i18n key for consistency
                 return NextResponse.json({ message: 'joinFailed' }, { status: 404 });
             }
             const roomId = roomResult.rows[0].id;
 
-            // Use ON CONFLICT to gracefully handle cases where the user is already a member.
             await db.query('INSERT INTO room_members (user_id, room_id) VALUES ($1, $2) ON CONFLICT (user_id, room_id) DO NOTHING', [user.userId, roomId]);
-
             return NextResponse.json({ roomId });
+
         } else {
-            // Create a new room with retry logic to ensure the generated code is unique.
+            // Intent is to CREATE a new room.
             const MAX_RETRIES = 5;
             for (let i = 0; i < MAX_RETRIES; i++) {
-                // Generate a 6-character alphanumeric code.
                 const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
                 const client = await db.connect();
                 try {
-                    // Start a transaction
                     await client.query('BEGIN');
-
                     const roomResult = await client.query(
                         'INSERT INTO rooms (code, creator_id) VALUES ($1, $2) RETURNING id',
                         [newCode, user.userId]
                     );
                     const roomId = roomResult.rows[0].id;
 
-                    // Add the creator as the first member of the new room.
                     await client.query(
                         'INSERT INTO room_members (user_id, room_id) VALUES ($1, $2)',
                         [user.userId, roomId]
                     );
 
-                    // Commit the transaction
                     await client.query('COMMIT');
-
-                    // Successfully created room, return the details.
                     return NextResponse.json({ roomId, code: newCode }, { status: 201 });
                 } catch (e: unknown) {
-                    // Rollback the transaction in case of an error
                     await client.query('ROLLBACK');
-
                     const error = e as PostgresError;
-                    // Check if the error is a unique violation on the room code.
                     if (error.code === '23505' && error.constraint === 'rooms_code_key') {
                         console.warn(`Attempt ${i + 1}: Duplicate room code generated ('${newCode}'). Retrying...`);
-                        // The loop will continue to the next iteration to try a new code.
                     } else {
-                        // For any other database error, re-throw it to be caught by the outer handler.
                         throw error;
                     }
                 } finally {
                     client.release();
                 }
             }
-            // If the loop completes without returning, it means we failed to generate a unique code.
             console.error(`Failed to create a room after ${MAX_RETRIES} attempts due to duplicate codes.`);
             return NextResponse.json({ message: 'createFailed' }, { status: 500 });
         }
     } catch (error) {
         console.error('An error occurred in /api/rooms:', error);
-        // Generic error for the client. The details are logged on the server.
         return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
     }
 }
@@ -1148,12 +1214,9 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
 
             {/* Sidebar container. Handles mobile slide-in and static desktop display. */}
             <div
-                className={`fixed top-0 left-0 h-full z-40 transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 md:shrink-0 ${
+                className={`fixed top-0 left-0 h-full z-40 transform transition-transform duration-300 ease-in-out md:static md:translate-x-0 md:shrink-0 bg-background ${
                     isSidebarOpen ? "translate-x-0" : "-translate-x-full"
                 }`}
-                style={{
-                    backgroundColor: 'var(--background)'
-                }}
             >
                 <RoomsSidebar closeSidebar={() => setIsSidebarOpen(false)} />
             </div>
@@ -1270,6 +1333,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import { FiArrowDown } from 'react-icons/fi';
+import { handleApi } from '@/lib/api';
 
 interface Member {
     id: number;
@@ -1304,26 +1368,31 @@ export default function RoomPage() {
             router.push('/');
             return;
         }
-        const res = await fetch(`/api/rooms/${roomId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-            const { currentUserBalance, balances, code, members, currentUserId } = await res.json();
-            setBalance(currentUserBalance || 0);
-            setDetailedBalance(balances || {});
-            setRoomCode(code || '');
-            setMembers(members || []);
-            setCurrentUserId(currentUserId || null);
-            // Default to selecting all other members for an expense
-            setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
-            setIncludeSelfInSplit(true);
-        } else if (res.status === 401) {
-            router.push('/');
+        try {
+            const res = await fetch(`/api/rooms/${roomId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const { currentUserBalance, balances, code, members, currentUserId } = await res.json();
+                setBalance(currentUserBalance || 0);
+                setDetailedBalance(balances || {});
+                setRoomCode(code || '');
+                setMembers(members || []);
+                setCurrentUserId(currentUserId || null);
+                setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
+                setIncludeSelfInSplit(true);
+            } else if (res.status === 401) {
+                router.push('/');
+            }
+        } catch (e) {
+            console.error("Failed to fetch room data. Possibly offline.", e);
         }
     }, [roomId, router]);
 
     useEffect(() => {
         fetchData();
+        window.addEventListener('syncdone', fetchData);
+        return () => window.removeEventListener('syncdone', fetchData);
     }, [fetchData]);
 
     useEffect(() => {
@@ -1343,7 +1412,6 @@ export default function RoomPage() {
 
     const handleAddEntry = async (e: React.FormEvent) => {
         e.preventDefault();
-        const token = localStorage.getItem('token');
         const parsedAmount = Math.abs(parseFloat(amount));
         if (isNaN(parsedAmount) || parsedAmount <= 0) return;
 
@@ -1353,8 +1421,6 @@ export default function RoomPage() {
             if (includeSelfInSplit && currentUserId) {
                 participants.add(currentUserId);
             }
-            // If no one is selected and the payer doesn't include themselves, it's an invalid state.
-            // However, we prevent this by disabling the button below.
             if (participants.size > 0) {
                 finalSplitWithIds = Array.from(participants);
             }
@@ -1362,17 +1428,18 @@ export default function RoomPage() {
         
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
         
-        await fetch('/api/entries', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds }),
-        });
-        setAmount('');
-        setDescription('');
-        fetchData(); // Refetch data
+        try {
+            await handleApi({
+                method: 'POST',
+                url: '/api/entries',
+                body: { roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds },
+            });
+            setAmount('');
+            setDescription('');
+            fetchData();
+        } catch (error) {
+            console.error("Failed to add entry:", error);
+        }
     };
 
     const handleMemberSelection = (memberId: number) => {
@@ -1388,9 +1455,7 @@ export default function RoomPage() {
     const isSubmitDisabled = entryType === 'expense' && !includeSelfInSplit && selectedMemberIds.size === 0;
 
     return (
-        <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn" style={{
-            backgroundColor: 'var(--card)'
-        }}>
+        <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
             <div className="p-8">
                 <div className="text-center mb-6">
                     <h1 className="text-xl font-bold text-card-foreground">
@@ -1515,19 +1580,28 @@ export default function EntriesPage() {
             router.push('/');
             return;
         }
-        const res = await fetch(`/api/rooms/${roomId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-            const { entries } = await res.json();
-            setEntries(entries);
-        } else if (res.status === 401) {
-            router.push('/');
+        try {
+            const res = await fetch(`/api/rooms/${roomId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const { entries } = await res.json();
+                setEntries(entries);
+            } else if (res.status === 401) {
+                router.push('/');
+            }
+        } catch (e) {
+            console.error("Failed to fetch entries. Possibly offline.", e);
         }
     }, [roomId, router]);
 
     useEffect(() => {
         fetchEntries();
+        // Add event listener for when sync completes to refetch entries
+        window.addEventListener('syncdone', fetchEntries);
+        return () => {
+            window.removeEventListener('syncdone', fetchEntries);
+        };
     }, [fetchEntries]);
 
     return (
@@ -1549,7 +1623,7 @@ export default function EntriesPage() {
                                 </p>
                             </div>
                             <div className="text-lg font-bold text-card-foreground">
-                                {entry.amount} ILS
+                                {parseFloat(entry.amount).toFixed(2)} ILS
                             </div>
                         </li>
                     ))}
@@ -1587,10 +1661,10 @@ export default function ConfirmationDialog({ isOpen, onClose, onConfirm, title, 
       role="dialog"
       aria-modal="true"
     >
-      <div className="rounded-xl shadow-lg border w-full max-w-md m-4 p-6 animate-scaleIn" role="document" style={{
-        borderColor: 'var(--card-border)',
-        backgroundColor: 'var(--background)'
-      }}>
+      <div 
+        className="rounded-xl shadow-lg border border-card-border bg-background w-full max-w-md m-4 p-6 animate-scaleIn" 
+        role="document"
+      >
         <h2 id="confirmation-dialog-title" className="text-xl font-bold text-card-foreground mb-4">
           {title}
         </h2>
@@ -1773,13 +1847,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff } from 'react-icons/fi';
 import Icon from '@mdi/react';
 import { mdiKettle } from '@mdi/js';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import ConfirmationDialog from './ConfirmationDialog';
+import { useSync } from './SyncProvider';
+import { handleApi } from '@/lib/api';
 
 interface Room {
     id: number;
@@ -1802,9 +1878,15 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
     const { isSimplified, setIsSimplified } = useSimplifiedLayout();
+    const { isOnline } = useSync();
 
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
+
+    const handleLogout = useCallback(() => {
+        localStorage.removeItem('token');
+        router.push('/');
+    }, [router]);
 
     const fetchRooms = useCallback(async () => {
         const token = localStorage.getItem('token');
@@ -1812,109 +1894,92 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             router.push('/');
             return;
         }
-        const res = await fetch('/api/user/rooms', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        try {
+            const res = await fetch('/api/user/rooms', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-        if (res.ok) {
-            const data = await res.json();
-            setRooms(data);
-        } else if (res.status === 401) {
-            router.push('/');
+            if (res.ok) {
+                const data = await res.json();
+                setRooms(data);
+            } else if (res.status === 401) {
+                handleLogout();
+            }
+        } catch (e) {
+            console.error("Could not fetch rooms, possibly offline.", e);
         }
-    }, [router]);
+    }, [router, handleLogout]);
 
     useEffect(() => {
         fetchRooms();
+        window.addEventListener('syncdone', fetchRooms);
+        return () => window.removeEventListener('syncdone', fetchRooms);
     }, [fetchRooms, pathname]);
 
     const handleCopyToClipboard = (code: string) => {
-        setError('');
-        const fallbackCopy = (text: string) => {
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.top = "0";
-            textArea.style.left = "0";
-            textArea.style.position = "fixed";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    setCopiedCode(code);
-                    setTimeout(() => setCopiedCode(null), 2000);
-                } else {
-                     setError(t('copyFailed'));
-                }
-            } catch (err) {
-                console.error('Fallback: Oops, unable to copy', err);
-                setError(t('copyFailed'));
-            }
-            document.body.removeChild(textArea);
-        }
-
-        if (!navigator.clipboard) {
-            fallbackCopy(code);
-            return;
-        }
         navigator.clipboard.writeText(code).then(() => {
             setCopiedCode(code);
             setTimeout(() => setCopiedCode(null), 2000);
-        }).catch(err => {
-            console.error('Could not copy text: ', err);
-            fallbackCopy(code);
-        });
+        }).catch(() => setError(t('copyFailed')));
     };
 
     const handleJoinRoom = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/rooms', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ roomCode }),
-        });
 
-        if (res.ok) {
-            const { roomId } = await res.json();
-            setRoomCode('');
-            router.push(`/rooms/${roomId}`);
-            closeSidebar();
-        } else {
-            const { message } = await res.json();
-            console.error("Join failed:", message);
-            setError(t('joinFailed'));
+        // Client-side validation to prevent empty submissions
+        if (!roomCode.trim()) {
+            setError(t('joinFailed')); // Use a generic "failed" message or create a new one
+            return;
+        }
+
+        try {
+            const result = await handleApi({
+                method: 'POST',
+                url: '/api/rooms',
+                body: { roomCode },
+            });
+
+            if (result?.optimistic) {
+                setError("Request queued while offline.");
+                return;
+            }
+            if (result.roomId) {
+                setRoomCode('');
+                router.push(`/rooms/${result.roomId}`);
+                closeSidebar();
+            } else {
+                setError(t('joinFailed'));
+            }
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            setError(message || t('joinFailed'));
         }
     };
 
     const handleCreateRoom = async () => {
         setError('');
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/rooms', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({}),
-        });
+        try {
+            const result = await handleApi({
+                method: 'POST',
+                url: '/api/rooms',
+                body: {}, // Send an empty body to signify creation
+            });
 
-        if (res.ok) {
-            const { roomId } = await res.json();
-            router.push(`/rooms/${roomId}`);
-            closeSidebar();
-        } else {
-            const { message } = await res.json();
-            console.error("Create failed:", message);
-            setError(t('createFailed'));
+            if (result?.optimistic) {
+                setError("Request queued while offline.");
+                return;
+            }
+            if (result.roomId) {
+                router.push(`/rooms/${result.roomId}`);
+                closeSidebar();
+            } else {
+                setError(t('createFailed'));
+            }
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            setError(message || t('createFailed'));
         }
-    };
-
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        router.push('/');
     };
     
     const openLeaveDialog = (room: Room) => {
@@ -1924,44 +1989,41 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
 
     const handleLeaveRoom = async () => {
         if (!selectedRoomToLeave) return;
-
         setError('');
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/rooms/${selectedRoomToLeave.id}/members`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
-
-        if (res.ok) {
-            setIsLeaveDialogOpen(false);
-            if (pathname.includes(`/rooms/${selectedRoomToLeave.id}`)) {
-                router.push('/rooms');
-            }
-            fetchRooms();
-        } else {
-            const { message } = await res.json();
-            setError(message || t('leaveRoomFailed'));
-            setIsLeaveDialogOpen(false);
+        
+        const originalRooms = rooms;
+        setRooms(prev => prev.filter(r => r.id !== selectedRoomToLeave!.id));
+        setIsLeaveDialogOpen(false);
+        if (pathname.includes(`/rooms/${selectedRoomToLeave.id}`)) {
+            router.push('/rooms');
         }
-        setSelectedRoomToLeave(null);
+
+        try {
+            await handleApi({
+                method: 'DELETE',
+                url: `/api/rooms/${selectedRoomToLeave.id}/members`,
+            });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            setError(message || t('leaveRoomFailed'));
+            setRooms(originalRooms);
+        } finally {
+            setSelectedRoomToLeave(null);
+        }
     };
 
-    const toggleTheme = () => setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
-    
-    const cycleLanguage = () => {
-        const languages = ['en', 'ru', 'he'];
-        const currentIndex = languages.indexOf(locale);
-        const nextIndex = (currentIndex + 1) % languages.length;
-        setLocale(languages[nextIndex]);
-    };
-
+    const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+    const cycleLanguage = () => setLocale(l => (l === 'en' ? 'ru' : l === 'ru' ? 'he' : 'en'));
     const toggleSimplifiedLayout = () => setIsSimplified(prev => !prev);
 
     return (
         <>
             <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
                 <div className="flex items-center justify-between mb-6 px-2">
-                    <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
+                    <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                        <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
+                        {!isOnline && <FiWifiOff className="text-danger" title="You are offline" />}
+                    </div>
                     <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
                         <FiX size={24} />
                     </button>
@@ -2087,6 +2149,84 @@ export function useSimplifiedLayout() {
 
 ---
 
+--- File: src/components/SyncProvider.tsx ---
+// src/components/SyncProvider.tsx
+"use client";
+
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { syncOutbox } from '@/lib/offline-sync';
+
+interface SyncContextType {
+  isOnline: boolean;
+  isSyncing: boolean;
+}
+
+const SyncContext = createContext<SyncContextType | undefined>(undefined);
+
+export default function SyncProvider({ children }: { children: ReactNode }) {
+  const [isOnline, setIsOnline] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    // Set initial online status on component mount
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+        setIsOnline(navigator.onLine);
+    }
+
+    const handleOnline = async () => {
+      console.log('Application is online.');
+      setIsOnline(true);
+      setIsSyncing(true);
+      try {
+        const success = await syncOutbox();
+        if (success) {
+            console.log("Sync complete. Refreshing data.");
+            // Dispatch a global event that components can listen to for refetching data.
+            window.dispatchEvent(new Event('syncdone'));
+        }
+      } catch (error) {
+        console.error('Error during sync:', error);
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+
+    const handleOffline = () => {
+      console.log('Application is offline.');
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // Initial sync check on load if online
+    if (navigator.onLine) {
+        handleOnline();
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  return (
+    <SyncContext.Provider value={{ isOnline, isSyncing }}>
+      {children}
+    </SyncContext.Provider>
+  );
+}
+
+export function useSync() {
+  const context = useContext(SyncContext);
+  if (context === undefined) {
+    throw new Error('useSync must be used within a SyncProvider');
+  }
+  return context;
+}
+
+---
+
 --- File: src/components/ThemeProvider.tsx ---
 // src/components/ThemeProvider.tsx
 "use client";
@@ -2165,6 +2305,74 @@ export default function ThemeSwitcher() {
 
 ---
 
+--- File: src/lib/api.ts ---
+// src/lib/api.ts
+import { addToOutbox } from './offline-sync';
+
+type HttpMethod = 'POST' | 'GET' | 'DELETE' | 'PUT';
+
+// This interface is updated to be more specific, as you suggested.
+// This is the best fix as it enforces type safety at the call site.
+interface ApiRequestOptions {
+    method: HttpMethod;
+    url: string;
+    body?: Record<string, unknown>; // More specific than 'unknown'
+}
+
+class ApiError extends Error {
+    status: number;
+    constructor(message: string, status: number) {
+        super(message);
+        this.status = status;
+    }
+}
+
+export async function handleApi(options: ApiRequestOptions) {
+    const { method, url, body } = options;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+    try {
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` }),
+            },
+            ...(body && { body: JSON.stringify(body) }),
+        });
+
+        if (response.ok) {
+            if (response.status === 204 || response.headers.get("content-length") === "0") {
+                return { success: true };
+            }
+            return response.json();
+        }
+
+        const errorData = await response.json().catch(() => ({ message: 'API Error' }));
+        throw new ApiError(errorData.message, response.status);
+
+    } catch (error: unknown) {
+        const isNetworkError = error instanceof TypeError && error.message === 'Failed to fetch';
+        
+        if (!navigator.onLine || isNetworkError) {
+             if (method !== 'GET') {
+                console.log('Offline or network error. Adding request to outbox.');
+                await addToOutbox({ url, method, body, token });
+                
+                // This now works perfectly because TypeScript knows 'body' is a spreadable object or undefined.
+                return {
+                    ...(body || {}),
+                    optimistic: true,
+                };
+            }
+        }
+        
+        throw error;
+    }
+}
+
+---
+
 --- File: src/lib/auth.ts ---
 import { verify } from 'jsonwebtoken';
 import { JWT_SECRET } from './constants';
@@ -2201,6 +2409,104 @@ import { POSTGRES_URL } from './constants';
 export const db = new Pool({
     connectionString: POSTGRES_URL,
 });
+
+---
+
+--- File: src/lib/offline-sync.ts ---
+// src/lib/offline-sync.ts
+import { openDB, DBSchema, IDBPDatabase } from 'idb';
+
+const DB_NAME = 'loan-calculator-db';
+const DB_VERSION = 1;
+const OUTBOX_STORE = 'outbox';
+
+type HttpMethod = 'POST' | 'DELETE' | 'PUT';
+
+interface OutboxRequest {
+    id: string;
+    url: string;
+    method: HttpMethod;
+    body: unknown; // Changed from 'any' to 'unknown'
+    timestamp: number;
+    token: string | null;
+}
+
+interface OfflineDB extends DBSchema {
+  [OUTBOX_STORE]: {
+    key: string;
+    value: OutboxRequest;
+  };
+}
+
+let dbPromise: Promise<IDBPDatabase<OfflineDB>> | null = null;
+
+function getDb(): Promise<IDBPDatabase<OfflineDB>> {
+    if (!dbPromise) {
+        dbPromise = openDB<OfflineDB>(DB_NAME, DB_VERSION, {
+            upgrade(db) {
+                if (!db.objectStoreNames.contains(OUTBOX_STORE)) {
+                    db.createObjectStore(OUTBOX_STORE, { keyPath: 'id' });
+                }
+            },
+        });
+    }
+    return dbPromise;
+}
+
+export async function addToOutbox(request: Omit<OutboxRequest, 'id' | 'timestamp'> & { id?: string }) {
+    const db = await getDb();
+    const tx = db.transaction(OUTBOX_STORE, 'readwrite');
+    const outboxRequest: OutboxRequest = {
+        ...request,
+        id: request.id || crypto.randomUUID(),
+        timestamp: Date.now()
+    };
+    await tx.store.add(outboxRequest);
+    await tx.done;
+    console.log('Request added to outbox:', outboxRequest);
+    return outboxRequest;
+}
+
+export async function syncOutbox(): Promise<boolean> {
+    const db = await getDb();
+    const requests = await db.getAll(OUTBOX_STORE);
+    if (requests.length === 0) {
+        return true;
+    }
+
+    console.log(`Syncing ${requests.length} requests from outbox...`);
+    
+    requests.sort((a, b) => a.timestamp - b.timestamp);
+
+    let allSucceeded = true;
+
+    for (const req of requests) {
+        try {
+            const response = await fetch(req.url, {
+                method: req.method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${req.token}`,
+                },
+                body: JSON.stringify(req.body),
+            });
+
+            if (response.ok || (response.status >= 400 && response.status < 500)) {
+                await db.delete(OUTBOX_STORE, req.id);
+                console.log(`Request ${req.id} synced and removed from outbox.`);
+            } else {
+                 console.warn(`Request ${req.id} failed with status ${response.status}. Will retry later.`);
+                 allSucceeded = false;
+            }
+        } catch (error) {
+            console.error(`Network error syncing request ${req.id}. Will retry later.`, error);
+            allSucceeded = false;
+            break;
+        }
+    }
+
+    return allSucceeded;
+}
 
 ---
 

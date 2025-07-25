@@ -1,16 +1,19 @@
+// src/components/RoomsSidebar.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff, FiLoader } from 'react-icons/fi';
 import Icon from '@mdi/react';
 import { mdiKettle } from '@mdi/js';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import ConfirmationDialog from './ConfirmationDialog';
+import { useSync } from './SyncProvider';
+import { handleApi } from '@/lib/api';
 
 interface Room {
     id: number;
@@ -28,14 +31,20 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const pathname = usePathname();
     const [rooms, setRooms] = useState<Room[]>([]);
     const [roomCode, setRoomCode] = useState('');
-    const [error, setError] = useState('');
+    const [notification, setNotification] = useState('');
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
     const { isSimplified, setIsSimplified } = useSimplifiedLayout();
+    const { isOnline, isSyncing, pendingRequestCount } = useSync();
 
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
+
+    const handleLogout = useCallback(() => {
+        localStorage.removeItem('token');
+        router.push('/');
+    }, [router]);
 
     const fetchRooms = useCallback(async () => {
         const token = localStorage.getItem('token');
@@ -43,109 +52,91 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             router.push('/');
             return;
         }
-        const res = await fetch('/api/user/rooms', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        try {
+            const res = await fetch('/api/user/rooms', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-        if (res.ok) {
-            const data = await res.json();
-            setRooms(data);
-        } else if (res.status === 401) {
-            router.push('/');
+            if (res.ok) {
+                const data = await res.json();
+                setRooms(data);
+            } else if (res.status === 401) {
+                handleLogout();
+            }
+        } catch {
+            console.error("Could not fetch rooms, possibly offline.");
         }
-    }, [router]);
+    }, [router, handleLogout]);
 
     useEffect(() => {
         fetchRooms();
-    }, [fetchRooms, pathname]);
+        window.addEventListener('syncdone', fetchRooms);
+        return () => window.removeEventListener('syncdone', fetchRooms);
+    }, [fetchRooms]);
 
     const handleCopyToClipboard = (code: string) => {
-        setError('');
-        const fallbackCopy = (text: string) => {
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.top = "0";
-            textArea.style.left = "0";
-            textArea.style.position = "fixed";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    setCopiedCode(code);
-                    setTimeout(() => setCopiedCode(null), 2000);
-                } else {
-                     setError(t('copyFailed'));
-                }
-            } catch (err) {
-                console.error('Fallback: Oops, unable to copy', err);
-                setError(t('copyFailed'));
-            }
-            document.body.removeChild(textArea);
-        }
-
-        if (!navigator.clipboard) {
-            fallbackCopy(code);
-            return;
-        }
         navigator.clipboard.writeText(code).then(() => {
             setCopiedCode(code);
             setTimeout(() => setCopiedCode(null), 2000);
-        }).catch(err => {
-            console.error('Could not copy text: ', err);
-            fallbackCopy(code);
-        });
+        }).catch(() => setNotification(t('copyFailed')));
     };
 
     const handleJoinRoom = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/rooms', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ roomCode }),
-        });
+        setNotification('');
+        if (!roomCode.trim()) {
+            setNotification(t('joinFailed'));
+            return;
+        }
 
-        if (res.ok) {
-            const { roomId } = await res.json();
-            setRoomCode('');
-            router.push(`/rooms/${roomId}`);
-            closeSidebar();
-        } else {
-            const { message } = await res.json();
-            console.error("Join failed:", message);
-            setError(t('joinFailed'));
+        try {
+            const result = await handleApi({
+                method: 'POST',
+                url: '/api/rooms',
+                body: { roomCode },
+            });
+
+            if (result?.optimistic) {
+                setNotification("Join request queued offline.");
+                setRoomCode('');
+                return;
+            }
+            if (result.roomId) {
+                setRoomCode('');
+                fetchRooms(); // Refetch to show the new room
+                router.push(`/rooms/${result.roomId}`);
+                closeSidebar();
+            } else {
+                setNotification(t('joinFailed'));
+            }
+        } catch {
+            setNotification(t('joinFailed'));
         }
     };
 
     const handleCreateRoom = async () => {
-        setError('');
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/rooms', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({}),
-        });
+        setNotification('');
+        try {
+            const result = await handleApi({
+                method: 'POST',
+                url: '/api/rooms',
+                body: {},
+            });
 
-        if (res.ok) {
-            const { roomId } = await res.json();
-            router.push(`/rooms/${roomId}`);
-            closeSidebar();
-        } else {
-            const { message } = await res.json();
-            console.error("Create failed:", message);
-            setError(t('createFailed'));
+            if (result?.optimistic) {
+                setNotification("Create room request queued offline.");
+                return;
+            }
+            if (result.roomId) {
+                fetchRooms(); // Refetch to show the new room
+                router.push(`/rooms/${result.roomId}`);
+                closeSidebar();
+            } else {
+                setNotification(t('createFailed'));
+            }
+        } catch {
+            setNotification(t('createFailed'));
         }
-    };
-
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        router.push('/');
     };
     
     const openLeaveDialog = (room: Room) => {
@@ -155,44 +146,56 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
 
     const handleLeaveRoom = async () => {
         if (!selectedRoomToLeave) return;
-
-        setError('');
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/rooms/${selectedRoomToLeave.id}/members`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
-
-        if (res.ok) {
-            setIsLeaveDialogOpen(false);
-            if (pathname.includes(`/rooms/${selectedRoomToLeave.id}`)) {
-                router.push('/rooms');
-            }
-            fetchRooms();
-        } else {
-            const { message } = await res.json();
-            setError(message || t('leaveRoomFailed'));
-            setIsLeaveDialogOpen(false);
+        setNotification('');
+        
+        // Optimistic UI: Remove the room from the list immediately
+        const originalRooms = rooms;
+        setRooms(prev => prev.filter(r => r.id !== selectedRoomToLeave!.id));
+        setIsLeaveDialogOpen(false);
+        if (pathname.includes(`/rooms/${selectedRoomToLeave.id}`)) {
+            router.push('/rooms');
         }
-        setSelectedRoomToLeave(null);
+
+        try {
+            const result = await handleApi({
+                method: 'DELETE',
+                url: `/api/rooms/${selectedRoomToLeave.id}/members`,
+            });
+            if (result?.optimistic) {
+                setNotification("Leave room request queued offline.");
+            }
+        } catch {
+            setNotification(t('leaveRoomFailed'));
+            // Revert UI change if API call fails for a reason other than being offline
+            setRooms(originalRooms);
+        } finally {
+            setSelectedRoomToLeave(null);
+        }
     };
 
-    const toggleTheme = () => setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
-    
-    const cycleLanguage = () => {
-        const languages = ['en', 'ru', 'he'];
-        const currentIndex = languages.indexOf(locale);
-        const nextIndex = (currentIndex + 1) % languages.length;
-        setLocale(languages[nextIndex]);
-    };
-
+    const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+    const cycleLanguage = () => setLocale(l => (l === 'en' ? 'ru' : l === 'ru' ? 'he' : 'en'));
     const toggleSimplifiedLayout = () => setIsSimplified(prev => !prev);
 
     return (
         <>
             <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
                 <div className="flex items-center justify-between mb-6 px-2">
-                    <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
+                    <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                        <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
+                        {isSyncing ? (
+                            <FiLoader className="animate-spin text-primary" title="Syncing..." />
+                        ) : !isOnline && (
+                             <div className="flex items-center space-x-1 text-danger" title={`You are offline. ${pendingRequestCount} request(s) pending.`}>
+                                <FiWifiOff />
+                                {pendingRequestCount > 0 && (
+                                    <span className="text-xs font-bold bg-danger text-white rounded-full h-4 w-4 flex items-center justify-center">
+                                        {pendingRequestCount}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
                     <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
                         <FiX size={24} />
                     </button>
@@ -205,7 +208,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                             return (
                                 <li key={room.id} style={{ animationDelay: `${index * 50}ms`, opacity: 0 }} className="animate-fadeIn px-2">
                                     <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
-                                        <Link href={`/rooms/${room.id}`} className="flex-grow p-3 text-sm font-semibold truncate">
+                                        <Link href={`/rooms/${room.id}`} onClick={closeSidebar} className="flex-grow p-3 text-sm font-semibold truncate">
                                             Room #{room.code}
                                         </Link>
                                         <div className="flex items-center">
@@ -224,10 +227,10 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                 </nav>
 
                 <div className="mt-auto pt-4 border-t border-card-border">
-                    {error && <p className="text-danger text-sm text-center mb-2">{error}</p>}
+                    {notification && <p className="text-blue-600 dark:text-blue-400 text-sm text-center mb-2 animate-fadeIn">{notification}</p>}
                     
                     <form onSubmit={handleJoinRoom} className="mb-4">
-                        <input type="text" placeholder={t('roomCode')} value={roomCode} onChange={(e) => setRoomCode(e.target.value)} className="w-full px-3 py-2 rounded-lg mb-2 themed-input" />
+                        <input type="text" placeholder={t('roomCode')} value={roomCode} onChange={(e) => setRoomCode(e.target.value.toUpperCase())} className="w-full px-3 py-2 rounded-lg mb-2 themed-input" />
                         <button type="submit" className="w-full py-2 rounded-lg btn-primary">{t('joinRoom')}</button>
                     </form>
 
