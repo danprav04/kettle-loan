@@ -1,16 +1,9 @@
 // src/app/~offline/page.tsx
 "use client";
 
-import { useTranslations } from 'next-intl';
 import { FiWifiOff } from 'react-icons/fi';
 
 export default function OfflinePage() {
-  // Although we can't fetch translations offline if the locale messages aren't cached,
-  // next-intl might have them from a previous session. We'll include a fallback.
-  // For a truly robust offline page, hardcoded English text might be safest,
-  // but we'll stick to the app's pattern for consistency.
-  const t = useTranslations('Rooms'); // Using an existing namespace for simplicity
-
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted p-4 text-center">
         <div className="max-w-md">
