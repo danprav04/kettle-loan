@@ -8,8 +8,8 @@ import { useTranslations } from 'next-intl';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import { FiArrowDown, FiInfo } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
-// ** Import new DB functions **
-import { saveRoomData, getRoomData, addLocalEntry } from '@/lib/offline-sync';
+// ** Import the specific types we defined earlier **
+import { saveRoomData, getRoomData, addLocalEntry, LocalRoomData, Entry } from '@/lib/offline-sync';
 import { useSync } from '@/components/SyncProvider';
 
 interface Member {
@@ -42,7 +42,8 @@ export default function RoomPage() {
     
     const otherMembers = useMemo(() => members.filter(m => m.id !== currentUserId), [members, currentUserId]);
 
-    const updateStateFromData = (data: any) => {
+    // **FIX: Use the specific LocalRoomData type here**
+    const updateStateFromData = (data: LocalRoomData) => {
         setBalance(data.currentUserBalance || 0);
         setDetailedBalance(data.balances || {});
         setRoomCode(data.code || '');
@@ -119,12 +120,13 @@ export default function RoomPage() {
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
 
         // --- Optimistic Update & Local DB Write ---
-        const optimisticEntry = {
+        // **FIX: Create an object matching the 'Entry' type**
+        const optimisticEntry: Entry = {
             id: Date.now(), // Temporary ID for React key
             amount: finalAmount.toFixed(2),
             description,
             created_at: new Date().toISOString(),
-            username: currentUser.username, // Add current user's name
+            username: currentUser.username, 
             split_with_user_ids: finalSplitWithIds
         };
         
@@ -164,17 +166,11 @@ export default function RoomPage() {
             fetchData(); // Revert optimistic update by fetching from server
         }
     };
-
-    // ... (rest of your component remains the same)
-    // You may want to add a loading indicator based on the `isLoading` state
     
     if (isLoading) {
         return <div className="max-w-md mx-auto p-8 text-center">Loading room...</div>;
     }
 
-
-    // ... (the return part of your component with JSX)
-    // ... no changes needed for the JSX return block ...
     const handleMemberSelection = (memberId: number) => {
         const newSelection = new Set(selectedMemberIds);
         if (newSelection.has(memberId)) {

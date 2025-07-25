@@ -1,11 +1,10 @@
 // src/lib/offline-sync.ts
-
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'loan-calculator-db';
-const DB_VERSION = 2; // **Bump version for schema change**
+const DB_VERSION = 2;
 const OUTBOX_STORE = 'outbox';
-const ROOM_DATA_STORE = 'room-data'; // **New store for room data**
+const ROOM_DATA_STORE = 'room-data';
 
 // --- Type Definitions ---
 type HttpMethod = 'POST' | 'DELETE' | 'PUT';
@@ -19,14 +18,28 @@ interface OutboxRequest {
     token: string | null;
 }
 
-// **New type for storing room data locally**
+// **Define specific types for Room data to avoid 'any'**
+interface Member {
+    id: number;
+    username: string;
+}
+
+export interface Entry {
+    id: number;
+    amount: string;
+    description: string;
+    created_at: string;
+    username: string;
+    split_with_user_ids: number[] | null;
+}
+
 export interface LocalRoomData {
-    id: string; // Use roomId as the key
+    id: string;
     code: string;
-    entries: any[];
+    entries: Entry[];
     balances: { [key: string]: number };
     currentUserBalance: number;
-    members: any[];
+    members: Member[];
     currentUserId: number | null;
     lastUpdated: number;
 }
@@ -36,7 +49,6 @@ interface OfflineDB extends DBSchema {
     key: string;
     value: OutboxRequest;
   };
-  // **Define the new store in the schema**
   [ROOM_DATA_STORE]: {
     key: string;
     value: LocalRoomData;
@@ -48,11 +60,11 @@ let dbPromise: Promise<IDBPDatabase<OfflineDB>> | null = null;
 function getDb(): Promise<IDBPDatabase<OfflineDB>> {
     if (!dbPromise) {
         dbPromise = openDB<OfflineDB>(DB_NAME, DB_VERSION, {
-            upgrade(db, oldVersion) {
+            // **FIX: Remove the unused 'oldVersion' parameter**
+            upgrade(db) {
                 if (!db.objectStoreNames.contains(OUTBOX_STORE)) {
                     db.createObjectStore(OUTBOX_STORE, { keyPath: 'id' });
                 }
-                // **Create the new object store**
                 if (!db.objectStoreNames.contains(ROOM_DATA_STORE)) {
                     db.createObjectStore(ROOM_DATA_STORE, { keyPath: 'id' });
                 }
@@ -62,19 +74,21 @@ function getDb(): Promise<IDBPDatabase<OfflineDB>> {
     return dbPromise;
 }
 
-// --- Outbox Functions (Unchanged but included for context) ---
-export async function addToOutbox(request: Omit<OutboxRequest, 'id' | 'timestamp'>) {
+// **FIX: Specify a more concrete type for the request body**
+export async function addToOutbox(request: Omit<OutboxRequest, 'id' | 'timestamp'> & { body?: Record<string, unknown> }) {
     const db = await getDb();
     const outboxRequest: OutboxRequest = {
         ...request,
         id: crypto.randomUUID(),
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        body: request.body || null
     };
     await db.add(OUTBOX_STORE, outboxRequest);
     window.dispatchEvent(new Event('outboxchange'));
     return outboxRequest;
 }
 
+// --- (getOutboxCount and syncOutbox are fine) ---
 export async function getOutboxCount(): Promise<number> {
     const db = await getDb();
     return db.count(OUTBOX_STORE);
@@ -103,21 +117,18 @@ export async function syncOutbox(): Promise<boolean> {
                 window.dispatchEvent(new Event('outboxchange'));
                 didSync = true;
             } else {
-                break; 
+                break;
             }
         } catch (error) {
             console.error(`Network error syncing request ${req.id}. Will retry later.`, error);
-            break; 
+            break;
         }
     }
     return didSync;
 }
 
-// --- NEW Local Room Data Functions ---
 
-/**
- * Saves fetched room data to IndexedDB.
- */
+// --- Local Room Data Functions ---
 export async function saveRoomData(roomId: string, data: Omit<LocalRoomData, 'id' | 'lastUpdated'>) {
     const db = await getDb();
     const record: LocalRoomData = {
@@ -128,24 +139,18 @@ export async function saveRoomData(roomId: string, data: Omit<LocalRoomData, 'id
     await db.put(ROOM_DATA_STORE, record);
 }
 
-/**
- * Retrieves room data from IndexedDB for offline use.
- */
 export async function getRoomData(roomId: string): Promise<LocalRoomData | undefined> {
     const db = await getDb();
     return db.get(ROOM_DATA_STORE, roomId);
 }
 
-/**
- * Adds a new entry to the local room data store for optimistic updates.
- */
-export async function addLocalEntry(roomId: string, newEntry: any, newBalances: { currentUserBalance: number, otherBalances: { [key: string]: number } }) {
+// **FIX: Use the specific 'Entry' type for the new entry**
+export async function addLocalEntry(roomId: string, newEntry: Entry, newBalances: { currentUserBalance: number, otherBalances: { [key: string]: number } }) {
     const db = await getDb();
     const tx = db.transaction(ROOM_DATA_STORE, 'readwrite');
     const roomData = await tx.store.get(roomId);
 
     if (roomData) {
-        // Add to the start of the array to match server's reverse order
         roomData.entries.unshift(newEntry);
         roomData.currentUserBalance = newBalances.currentUserBalance;
         roomData.balances = newBalances.otherBalances;
