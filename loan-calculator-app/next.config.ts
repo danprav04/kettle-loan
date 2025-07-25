@@ -68,6 +68,11 @@ const withPWA = withPWAInit({
     skipWaiting: true,
     runtimeCaching,
   },
+  // Add this fallback for a complete offline experience.
+  // It tells the service worker to serve '/~offline' if a navigation request fails.
+  fallbacks: {
+    document: "/~offline",
+  },
 });
 
 const nextConfig: NextConfig = {

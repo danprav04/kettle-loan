@@ -49,6 +49,60 @@ CREATE TABLE entries (
 import type { NextConfig } from 'next';
 import withPWAInit from '@ducanh2912/next-pwa';
 
+// Define the runtime caching strategies for the service worker.
+const runtimeCaching = [
+  {
+    urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+    handler: 'CacheFirst' as const,
+    options: {
+      cacheName: 'google-fonts',
+      expiration: {
+        maxEntries: 4,
+        maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
+      },
+    },
+  },
+  {
+    urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font.css|jpg|jpeg|gif|png|svg|ico|webp)$/i,
+    handler: 'StaleWhileRevalidate' as const,
+    options: {
+      cacheName: 'static-assets',
+      expiration: {
+        maxEntries: 64,
+        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+      },
+    },
+  },
+  {
+    urlPattern: /^\/api\/.*/i,
+    handler: 'NetworkFirst' as const,
+    method: 'GET' as const,
+    options: {
+      cacheName: 'api-cache',
+      expiration: {
+        maxEntries: 64,
+        maxAgeSeconds: 24 * 60 * 60, // 1 day
+      },
+      networkTimeoutSeconds: 10,
+    },
+  },
+  {
+    urlPattern: ({ request, url }: { request: Request; url: URL }) => {
+      if (url.pathname.startsWith('/api/')) return false;
+      return request.method === 'GET';
+    },
+    handler: 'NetworkFirst' as const,
+    options: {
+      cacheName: 'pages-cache',
+      expiration: {
+        maxEntries: 32,
+        maxAgeSeconds: 24 * 60 * 60, // 1 day
+      },
+      networkTimeoutSeconds: 10,
+    },
+  },
+];
+
 const withPWA = withPWAInit({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
@@ -59,13 +113,14 @@ const withPWA = withPWAInit({
   workboxOptions: {
     disableDevLogs: true,
     skipWaiting: true,
+    runtimeCaching,
   },
 });
 
 const nextConfig: NextConfig = {
-  // swcMinify is a Next.js compiler option, not a PWA option.
-  // It is enabled by default in recent versions of Next.js, but explicitly setting it is fine.
-  swcMinify: true, 
+  // This is the critical line that was missing.
+  // It tells Next.js to create the .next/standalone directory.
+  output: 'standalone',
 };
 
 export default withPWA(nextConfig);
@@ -401,6 +456,8 @@ export default config
   "short_name": "LoanCalc",
   "description": "A simple loan calculator app with offline support.",
   "start_url": "/",
+  "scope": "/",
+  "id": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#3b82f6",
@@ -408,12 +465,14 @@ export default config
     {
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
@@ -421,7 +480,7 @@ export default config
 ---
 
 --- File: public/sw.js ---
-if(!self.define){let e,s={};const n=(n,a)=>(n=new URL(n+".js",a).href,s[n]||new Promise(s=>{if("document"in self){const e=document.createElement("script");e.src=n,e.onload=s,document.head.appendChild(e)}else e=n,importScripts(n),s()}).then(()=>{let e=s[n];if(!e)throw new Error(`Module ${n} didn’t register its module`);return e}));self.define=(a,c)=>{const i=e||("document"in self?document.currentScript.src:"")||location.href;if(s[i])return;let t={};const r=e=>n(e,i),o={module:{uri:i},exports:t,require:r};s[i]=Promise.all(a.map(e=>o[e]||r(e))).then(e=>(c(...e),t))}}define(["./workbox-c2c0676f"],function(e){"use strict";importScripts(),self.skipWaiting(),e.clientsClaim(),e.precacheAndRoute([{url:"/_next/static/c7Ky_Td2bCgw5LpyCMnOl/_buildManifest.js",revision:"796284a6b0a32f5fe617465d0221e072"},{url:"/_next/static/c7Ky_Td2bCgw5LpyCMnOl/_ssgManifest.js",revision:"b6652df95db52feb4daf4eca35380933"},{url:"/_next/static/chunks/2a223334-c0c139bfff5a21c6.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/338-7af139210c37cfb1.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/341.df3329d77a5faa19.js",revision:"df3329d77a5faa19"},{url:"/_next/static/chunks/385-6cf5b4a5616400ab.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/467-2426cbe9036e4df1.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/472.a3826d29d6854395.js",revision:"a3826d29d6854395"},{url:"/_next/static/chunks/4bd1b696-c1b508e82507cebb.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/690-3952bdddbe6611d6.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/_not-found/page-9d5b2edd5843c02d.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/auth/login/route-8c489837276fe962.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/auth/signup/route-ef786d21283c9f14.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/entries/route-44bc68f5b31c95b5.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/rooms/%5BroomId%5D/members/route-8c8bf3b1824da16c.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/rooms/%5BroomId%5D/route-f7f33695bbbf2b0e.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/rooms/route-bb24c38d01b75451.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/api/user/rooms/route-cc9468ee86a92ebb.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/layout-76fbf1ae23492331.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/page-d35a3582992d2902.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/rooms/%5BroomId%5D/entries/page-8e53236fc168ea05.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/rooms/%5BroomId%5D/page-b7c292a234626dcd.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/rooms/layout-076c9f313a1f3ff9.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/app/rooms/page-43ff47a6b52e3193.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/ee560e2c-321bdf731901c8dd.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/framework-f593a28cde54158e.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/main-app-0c4a2a08bab46140.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/main-c9c2bd34f8be8107.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/pages/_app-92f2aae776f86b9c.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/pages/_error-71d2b6a7b832d02a.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/chunks/polyfills-42372ed130431b0a.js",revision:"846118c33b2c0e922d7b3a7676f81f6f"},{url:"/_next/static/chunks/webpack-75e90ec69d4ac2a5.js",revision:"c7Ky_Td2bCgw5LpyCMnOl"},{url:"/_next/static/css/618474562619554e.css",revision:"618474562619554e"},{url:"/_next/static/media/26a46d62cd723877-s.woff2",revision:"befd9c0fdfa3d8a645d5f95717ed6420"},{url:"/_next/static/media/55c55f0601d81cf3-s.woff2",revision:"43828e14271c77b87e3ed582dbff9f74"},{url:"/_next/static/media/581909926a08bbc8-s.woff2",revision:"f0b86e7c24f455280b8df606b89af891"},{url:"/_next/static/media/8e9860b6e62d6359-s.woff2",revision:"01ba6c2a184b8cba08b0d57167664d75"},{url:"/_next/static/media/97e0cb1ae144a2a9-s.woff2",revision:"e360c61c5bd8d90639fd4503c829c2dc"},{url:"/_next/static/media/df0a9ae256c0569c-s.woff2",revision:"d54db44de5ccb18886ece2fda72bdfe0"},{url:"/_next/static/media/e4af272ccee01ff0-s.p.woff2",revision:"65850a373e258f1c897a2b3d75eb74de"},{url:"/file.svg",revision:"d09f95206c3fa0bb9bd9fefabfd0ea71"},{url:"/globe.svg",revision:"2aaafa6a49b6563925fe440891e32717"},{url:"/manifest.json",revision:"7a6a8d046769ed648432d52149a2a050"},{url:"/next.svg",revision:"8e061864f388b47f33a1c3780831193e"},{url:"/swe-worker-5c72df51bb1f6ee0.js",revision:"76fdd3369f623a3edcf74ce2200bfdd0"},{url:"/vercel.svg",revision:"c0af2f507b369b085b35ef4bbe3bcf1e"},{url:"/window.svg",revision:"a2760511c65806022ad20adf74370ff3"}],{ignoreURLParametersMatching:[/^utm_/,/^fbclid$/]}),e.cleanupOutdatedCaches(),e.registerRoute("/",new e.NetworkFirst({cacheName:"start-url",plugins:[{cacheWillUpdate:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/^https:\/\/fonts\.(?:gstatic)\.com\/.*/i,new e.CacheFirst({cacheName:"google-fonts-webfonts",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:31536e3})]}),"GET"),e.registerRoute(/^https:\/\/fonts\.(?:googleapis)\.com\/.*/i,new e.StaleWhileRevalidate({cacheName:"google-fonts-stylesheets",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:604800})]}),"GET"),e.registerRoute(/\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,new e.StaleWhileRevalidate({cacheName:"static-font-assets",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:604800})]}),"GET"),e.registerRoute(/\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,new e.StaleWhileRevalidate({cacheName:"static-image-assets",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:2592e3})]}),"GET"),e.registerRoute(/\/_next\/static.+\.js$/i,new e.CacheFirst({cacheName:"next-static-js-assets",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\/_next\/image\?url=.+$/i,new e.StaleWhileRevalidate({cacheName:"next-image",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:mp3|wav|ogg)$/i,new e.CacheFirst({cacheName:"static-audio-assets",plugins:[new e.RangeRequestsPlugin,new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:mp4|webm)$/i,new e.CacheFirst({cacheName:"static-video-assets",plugins:[new e.RangeRequestsPlugin,new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:js)$/i,new e.StaleWhileRevalidate({cacheName:"static-js-assets",plugins:[new e.ExpirationPlugin({maxEntries:48,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:css|less)$/i,new e.StaleWhileRevalidate({cacheName:"static-style-assets",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\/_next\/data\/.+\/.+\.json$/i,new e.StaleWhileRevalidate({cacheName:"next-data",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(/\.(?:json|xml|csv)$/i,new e.NetworkFirst({cacheName:"static-data-assets",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(function(e){var s=e.sameOrigin,n=e.url.pathname;return!(!s||n.startsWith("/api/auth/callback")||!n.startsWith("/api/"))},new e.NetworkFirst({cacheName:"apis",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:16,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(function(e){var s=e.request,n=e.url.pathname,a=e.sameOrigin;return"1"===s.headers.get("RSC")&&"1"===s.headers.get("Next-Router-Prefetch")&&a&&!n.startsWith("/api/")},new e.NetworkFirst({cacheName:"pages-rsc-prefetch",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(function(e){var s=e.request,n=e.url.pathname,a=e.sameOrigin;return"1"===s.headers.get("RSC")&&a&&!n.startsWith("/api/")},new e.NetworkFirst({cacheName:"pages-rsc",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(function(e){var s=e.url.pathname;return e.sameOrigin&&!s.startsWith("/api/")},new e.NetworkFirst({cacheName:"pages",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(function(e){return!e.sameOrigin},new e.NetworkFirst({cacheName:"cross-origin",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:3600})]}),"GET"),self.__WB_DISABLE_DEV_LOGS=!0});
+if(!self.define){let e,s={};const c=(c,i)=>(c=new URL(c+".js",i).href,s[c]||new Promise(s=>{if("document"in self){const e=document.createElement("script");e.src=c,e.onload=s,document.head.appendChild(e)}else e=c,importScripts(c),s()}).then(()=>{let e=s[c];if(!e)throw new Error(`Module ${c} didn’t register its module`);return e}));self.define=(i,t)=>{const a=e||("document"in self?document.currentScript.src:"")||location.href;if(s[a])return;let n={};const r=e=>c(e,a),f={module:{uri:a},exports:n,require:r};s[a]=Promise.all(i.map(e=>f[e]||r(e))).then(e=>(t(...e),n))}}define(["./workbox-7af0af7c"],function(e){"use strict";importScripts(),self.skipWaiting(),e.clientsClaim(),e.precacheAndRoute([{url:"/_next/static/JgMcKAhTdO9_9mz-Ifj4u/_buildManifest.js",revision:"796284a6b0a32f5fe617465d0221e072"},{url:"/_next/static/JgMcKAhTdO9_9mz-Ifj4u/_ssgManifest.js",revision:"b6652df95db52feb4daf4eca35380933"},{url:"/_next/static/chunks/2a223334-c0c139bfff5a21c6.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/338-7af139210c37cfb1.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/341.df3329d77a5faa19.js",revision:"df3329d77a5faa19"},{url:"/_next/static/chunks/385-6cf5b4a5616400ab.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/467-2426cbe9036e4df1.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/472.a3826d29d6854395.js",revision:"a3826d29d6854395"},{url:"/_next/static/chunks/4bd1b696-c1b508e82507cebb.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/690-3952bdddbe6611d6.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/_not-found/page-9d5b2edd5843c02d.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/auth/login/route-8c489837276fe962.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/auth/signup/route-ef786d21283c9f14.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/entries/route-44bc68f5b31c95b5.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/rooms/%5BroomId%5D/members/route-8c8bf3b1824da16c.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/rooms/%5BroomId%5D/route-f7f33695bbbf2b0e.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/rooms/route-bb24c38d01b75451.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/api/user/rooms/route-cc9468ee86a92ebb.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/layout-56ebe2085b02e300.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/page-d35a3582992d2902.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/rooms/%5BroomId%5D/entries/page-8e53236fc168ea05.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/rooms/%5BroomId%5D/page-a92ac2c5d28c98c7.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/rooms/layout-7c3129306e6b7dc0.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/app/rooms/page-43ff47a6b52e3193.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/ee560e2c-0b53eab3923b4f0b.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/framework-f593a28cde54158e.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/main-app-0c4a2a08bab46140.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/main-c9c2bd34f8be8107.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/pages/_app-92f2aae776f86b9c.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/pages/_error-71d2b6a7b832d02a.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/chunks/polyfills-42372ed130431b0a.js",revision:"846118c33b2c0e922d7b3a7676f81f6f"},{url:"/_next/static/chunks/webpack-75e90ec69d4ac2a5.js",revision:"JgMcKAhTdO9_9mz-Ifj4u"},{url:"/_next/static/css/2816c390b814fedc.css",revision:"2816c390b814fedc"},{url:"/_next/static/media/26a46d62cd723877-s.woff2",revision:"befd9c0fdfa3d8a645d5f95717ed6420"},{url:"/_next/static/media/55c55f0601d81cf3-s.woff2",revision:"43828e14271c77b87e3ed582dbff9f74"},{url:"/_next/static/media/581909926a08bbc8-s.woff2",revision:"f0b86e7c24f455280b8df606b89af891"},{url:"/_next/static/media/8e9860b6e62d6359-s.woff2",revision:"01ba6c2a184b8cba08b0d57167664d75"},{url:"/_next/static/media/97e0cb1ae144a2a9-s.woff2",revision:"e360c61c5bd8d90639fd4503c829c2dc"},{url:"/_next/static/media/df0a9ae256c0569c-s.woff2",revision:"d54db44de5ccb18886ece2fda72bdfe0"},{url:"/_next/static/media/e4af272ccee01ff0-s.p.woff2",revision:"65850a373e258f1c897a2b3d75eb74de"},{url:"/file.svg",revision:"d09f95206c3fa0bb9bd9fefabfd0ea71"},{url:"/globe.svg",revision:"2aaafa6a49b6563925fe440891e32717"},{url:"/manifest.json",revision:"05fdbfdc8e349dfc19ff45d450333340"},{url:"/next.svg",revision:"8e061864f388b47f33a1c3780831193e"},{url:"/swe-worker-5c72df51bb1f6ee0.js",revision:"76fdd3369f623a3edcf74ce2200bfdd0"},{url:"/vercel.svg",revision:"c0af2f507b369b085b35ef4bbe3bcf1e"},{url:"/window.svg",revision:"a2760511c65806022ad20adf74370ff3"}],{ignoreURLParametersMatching:[/^utm_/,/^fbclid$/]}),e.cleanupOutdatedCaches(),e.registerRoute("/",new e.NetworkFirst({cacheName:"start-url",plugins:[{cacheWillUpdate:function(e){return _ref.apply(this,arguments)}}]}),"GET"),e.registerRoute(/^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,new e.CacheFirst({cacheName:"google-fonts",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:31536e3})]}),"GET"),e.registerRoute(/\.(?:eot|otf|ttc|ttf|woff|woff2|font.css|jpg|jpeg|gif|png|svg|ico|webp)$/i,new e.StaleWhileRevalidate({cacheName:"static-assets",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:2592e3})]}),"GET"),e.registerRoute(/^\/api\/.*/i,new e.NetworkFirst({cacheName:"api-cache",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:86400})]}),"GET"),e.registerRoute(function(e){var s=e.request;return!e.url.pathname.startsWith("/api/")&&"GET"===s.method},new e.NetworkFirst({cacheName:"pages-cache",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400})]}),"GET"),self.__WB_DISABLE_DEV_LOGS=!0});
 
 ---
 
@@ -430,8 +489,8 @@ if(!self.define){let e,s={};const n=(n,a)=>(n=new URL(n+".js",a).href,s[n]||new 
 
 ---
 
---- File: public/workbox-c2c0676f.js ---
-define(["exports"],function(t){"use strict";try{self["workbox:core:7.0.0"]&&_()}catch(t){}const e=(t,...e)=>{let s=t;return e.length>0&&(s+=` :: ${JSON.stringify(e)}`),s};class s extends Error{constructor(t,s){super(e(t,s)),this.name=t,this.details=s}}try{self["workbox:routing:7.0.0"]&&_()}catch(t){}const n=t=>t&&"object"==typeof t?t:{handle:t};class r{constructor(t,e,s="GET"){this.handler=n(e),this.match=t,this.method=s}setCatchHandler(t){this.catchHandler=n(t)}}class i extends r{constructor(t,e,s){super(({url:e})=>{const s=t.exec(e.href);if(s&&(e.origin===location.origin||0===s.index))return s.slice(1)},e,s)}}class a{constructor(){this.t=new Map,this.i=new Map}get routes(){return this.t}addFetchListener(){self.addEventListener("fetch",t=>{const{request:e}=t,s=this.handleRequest({request:e,event:t});s&&t.respondWith(s)})}addCacheListener(){self.addEventListener("message",t=>{if(t.data&&"CACHE_URLS"===t.data.type){const{payload:e}=t.data,s=Promise.all(e.urlsToCache.map(e=>{"string"==typeof e&&(e=[e]);const s=new Request(...e);return this.handleRequest({request:s,event:t})}));t.waitUntil(s),t.ports&&t.ports[0]&&s.then(()=>t.ports[0].postMessage(!0))}})}handleRequest({request:t,event:e}){const s=new URL(t.url,location.href);if(!s.protocol.startsWith("http"))return;const n=s.origin===location.origin,{params:r,route:i}=this.findMatchingRoute({event:e,request:t,sameOrigin:n,url:s});let a=i&&i.handler;const o=t.method;if(!a&&this.i.has(o)&&(a=this.i.get(o)),!a)return;let c;try{c=a.handle({url:s,request:t,event:e,params:r})}catch(t){c=Promise.reject(t)}const h=i&&i.catchHandler;return c instanceof Promise&&(this.o||h)&&(c=c.catch(async n=>{if(h)try{return await h.handle({url:s,request:t,event:e,params:r})}catch(t){t instanceof Error&&(n=t)}if(this.o)return this.o.handle({url:s,request:t,event:e});throw n})),c}findMatchingRoute({url:t,sameOrigin:e,request:s,event:n}){const r=this.t.get(s.method)||[];for(const i of r){let r;const a=i.match({url:t,sameOrigin:e,request:s,event:n});if(a)return r=a,(Array.isArray(r)&&0===r.length||a.constructor===Object&&0===Object.keys(a).length||"boolean"==typeof a)&&(r=void 0),{route:i,params:r}}return{}}setDefaultHandler(t,e="GET"){this.i.set(e,n(t))}setCatchHandler(t){this.o=n(t)}registerRoute(t){this.t.has(t.method)||this.t.set(t.method,[]),this.t.get(t.method).push(t)}unregisterRoute(t){if(!this.t.has(t.method))throw new s("unregister-route-but-not-found-with-method",{method:t.method});const e=this.t.get(t.method).indexOf(t);if(!(e>-1))throw new s("unregister-route-route-not-registered");this.t.get(t.method).splice(e,1)}}let o;const c=()=>(o||(o=new a,o.addFetchListener(),o.addCacheListener()),o);function h(t,e,n){let a;if("string"==typeof t){const s=new URL(t,location.href);a=new r(({url:t})=>t.href===s.href,e,n)}else if(t instanceof RegExp)a=new i(t,e,n);else if("function"==typeof t)a=new r(t,e,n);else{if(!(t instanceof r))throw new s("unsupported-route-type",{moduleName:"workbox-routing",funcName:"registerRoute",paramName:"capture"});a=t}return c().registerRoute(a),a}try{self["workbox:strategies:7.0.0"]&&_()}catch(t){}const u={cacheWillUpdate:async({response:t})=>200===t.status||0===t.status?t:null},l={googleAnalytics:"googleAnalytics",precache:"precache-v2",prefix:"workbox",runtime:"runtime",suffix:"undefined"!=typeof registration?registration.scope:""},f=t=>[l.prefix,t,l.suffix].filter(t=>t&&t.length>0).join("-"),w=t=>t||f(l.precache),d=t=>t||f(l.runtime);function p(t,e){const s=new URL(t);for(const t of e)s.searchParams.delete(t);return s.href}class y{constructor(){this.promise=new Promise((t,e)=>{this.resolve=t,this.reject=e})}}const g=new Set;function m(t){return"string"==typeof t?new Request(t):t}class v{constructor(t,e){this.h={},Object.assign(this,e),this.event=e.event,this.u=t,this.l=new y,this.p=[],this.m=[...t.plugins],this.v=new Map;for(const t of this.m)this.v.set(t,{});this.event.waitUntil(this.l.promise)}async fetch(t){const{event:e}=this;let n=m(t);if("navigate"===n.mode&&e instanceof FetchEvent&&e.preloadResponse){const t=await e.preloadResponse;if(t)return t}const r=this.hasCallback("fetchDidFail")?n.clone():null;try{for(const t of this.iterateCallbacks("requestWillFetch"))n=await t({request:n.clone(),event:e})}catch(t){if(t instanceof Error)throw new s("plugin-error-request-will-fetch",{thrownErrorMessage:t.message})}const i=n.clone();try{let t;t=await fetch(n,"navigate"===n.mode?void 0:this.u.fetchOptions);for(const s of this.iterateCallbacks("fetchDidSucceed"))t=await s({event:e,request:i,response:t});return t}catch(t){throw r&&await this.runCallbacks("fetchDidFail",{error:t,event:e,originalRequest:r.clone(),request:i.clone()}),t}}async fetchAndCachePut(t){const e=await this.fetch(t),s=e.clone();return this.waitUntil(this.cachePut(t,s)),e}async cacheMatch(t){const e=m(t);let s;const{cacheName:n,matchOptions:r}=this.u,i=await this.getCacheKey(e,"read"),a=Object.assign(Object.assign({},r),{cacheName:n});s=await caches.match(i,a);for(const t of this.iterateCallbacks("cachedResponseWillBeUsed"))s=await t({cacheName:n,matchOptions:r,cachedResponse:s,request:i,event:this.event})||void 0;return s}async cachePut(t,e){const n=m(t);var r;await(r=0,new Promise(t=>setTimeout(t,r)));const i=await this.getCacheKey(n,"write");if(!e)throw new s("cache-put-with-no-response",{url:(a=i.url,new URL(String(a),location.href).href.replace(new RegExp(`^${location.origin}`),""))});var a;const o=await this.R(e);if(!o)return!1;const{cacheName:c,matchOptions:h}=this.u,u=await self.caches.open(c),l=this.hasCallback("cacheDidUpdate"),f=l?await async function(t,e,s,n){const r=p(e.url,s);if(e.url===r)return t.match(e,n);const i=Object.assign(Object.assign({},n),{ignoreSearch:!0}),a=await t.keys(e,i);for(const e of a)if(r===p(e.url,s))return t.match(e,n)}(u,i.clone(),["__WB_REVISION__"],h):null;try{await u.put(i,l?o.clone():o)}catch(t){if(t instanceof Error)throw"QuotaExceededError"===t.name&&await async function(){for(const t of g)await t()}(),t}for(const t of this.iterateCallbacks("cacheDidUpdate"))await t({cacheName:c,oldResponse:f,newResponse:o.clone(),request:i,event:this.event});return!0}async getCacheKey(t,e){const s=`${t.url} | ${e}`;if(!this.h[s]){let n=t;for(const t of this.iterateCallbacks("cacheKeyWillBeUsed"))n=m(await t({mode:e,request:n,event:this.event,params:this.params}));this.h[s]=n}return this.h[s]}hasCallback(t){for(const e of this.u.plugins)if(t in e)return!0;return!1}async runCallbacks(t,e){for(const s of this.iterateCallbacks(t))await s(e)}*iterateCallbacks(t){for(const e of this.u.plugins)if("function"==typeof e[t]){const s=this.v.get(e),n=n=>{const r=Object.assign(Object.assign({},n),{state:s});return e[t](r)};yield n}}waitUntil(t){return this.p.push(t),t}async doneWaiting(){let t;for(;t=this.p.shift();)await t}destroy(){this.l.resolve(null)}async R(t){let e=t,s=!1;for(const t of this.iterateCallbacks("cacheWillUpdate"))if(e=await t({request:this.request,response:e,event:this.event})||void 0,s=!0,!e)break;return s||e&&200!==e.status&&(e=void 0),e}}class R{constructor(t={}){this.cacheName=d(t.cacheName),this.plugins=t.plugins||[],this.fetchOptions=t.fetchOptions,this.matchOptions=t.matchOptions}handle(t){const[e]=this.handleAll(t);return e}handleAll(t){t instanceof FetchEvent&&(t={event:t,request:t.request});const e=t.event,s="string"==typeof t.request?new Request(t.request):t.request,n="params"in t?t.params:void 0,r=new v(this,{event:e,request:s,params:n}),i=this.q(r,s,e);return[i,this.D(i,r,s,e)]}async q(t,e,n){let r;await t.runCallbacks("handlerWillStart",{event:n,request:e});try{if(r=await this.U(e,t),!r||"error"===r.type)throw new s("no-response",{url:e.url})}catch(s){if(s instanceof Error)for(const i of t.iterateCallbacks("handlerDidError"))if(r=await i({error:s,event:n,request:e}),r)break;if(!r)throw s}for(const s of t.iterateCallbacks("handlerWillRespond"))r=await s({event:n,request:e,response:r});return r}async D(t,e,s,n){let r,i;try{r=await t}catch(i){}try{await e.runCallbacks("handlerDidRespond",{event:n,request:s,response:r}),await e.doneWaiting()}catch(t){t instanceof Error&&(i=t)}if(await e.runCallbacks("handlerDidComplete",{event:n,request:s,response:r,error:i}),e.destroy(),i)throw i}}function b(t){t.then(()=>{})}function q(){return q=Object.assign?Object.assign.bind():function(t){for(var e=1;e<arguments.length;e++){var s=arguments[e];for(var n in s)({}).hasOwnProperty.call(s,n)&&(t[n]=s[n])}return t},q.apply(null,arguments)}let D,U;const x=new WeakMap,L=new WeakMap,I=new WeakMap,C=new WeakMap,E=new WeakMap;let N={get(t,e,s){if(t instanceof IDBTransaction){if("done"===e)return L.get(t);if("objectStoreNames"===e)return t.objectStoreNames||I.get(t);if("store"===e)return s.objectStoreNames[1]?void 0:s.objectStore(s.objectStoreNames[0])}return k(t[e])},set:(t,e,s)=>(t[e]=s,!0),has:(t,e)=>t instanceof IDBTransaction&&("done"===e||"store"===e)||e in t};function O(t){return t!==IDBDatabase.prototype.transaction||"objectStoreNames"in IDBTransaction.prototype?(U||(U=[IDBCursor.prototype.advance,IDBCursor.prototype.continue,IDBCursor.prototype.continuePrimaryKey])).includes(t)?function(...e){return t.apply(B(this),e),k(x.get(this))}:function(...e){return k(t.apply(B(this),e))}:function(e,...s){const n=t.call(B(this),e,...s);return I.set(n,e.sort?e.sort():[e]),k(n)}}function T(t){return"function"==typeof t?O(t):(t instanceof IDBTransaction&&function(t){if(L.has(t))return;const e=new Promise((e,s)=>{const n=()=>{t.removeEventListener("complete",r),t.removeEventListener("error",i),t.removeEventListener("abort",i)},r=()=>{e(),n()},i=()=>{s(t.error||new DOMException("AbortError","AbortError")),n()};t.addEventListener("complete",r),t.addEventListener("error",i),t.addEventListener("abort",i)});L.set(t,e)}(t),e=t,(D||(D=[IDBDatabase,IDBObjectStore,IDBIndex,IDBCursor,IDBTransaction])).some(t=>e instanceof t)?new Proxy(t,N):t);var e}function k(t){if(t instanceof IDBRequest)return function(t){const e=new Promise((e,s)=>{const n=()=>{t.removeEventListener("success",r),t.removeEventListener("error",i)},r=()=>{e(k(t.result)),n()},i=()=>{s(t.error),n()};t.addEventListener("success",r),t.addEventListener("error",i)});return e.then(e=>{e instanceof IDBCursor&&x.set(e,t)}).catch(()=>{}),E.set(e,t),e}(t);if(C.has(t))return C.get(t);const e=T(t);return e!==t&&(C.set(t,e),E.set(e,t)),e}const B=t=>E.get(t);const P=["get","getKey","getAll","getAllKeys","count"],M=["put","add","delete","clear"],W=new Map;function j(t,e){if(!(t instanceof IDBDatabase)||e in t||"string"!=typeof e)return;if(W.get(e))return W.get(e);const s=e.replace(/FromIndex$/,""),n=e!==s,r=M.includes(s);if(!(s in(n?IDBIndex:IDBObjectStore).prototype)||!r&&!P.includes(s))return;const i=async function(t,...e){const i=this.transaction(t,r?"readwrite":"readonly");let a=i.store;return n&&(a=a.index(e.shift())),(await Promise.all([a[s](...e),r&&i.done]))[0]};return W.set(e,i),i}N=(t=>q({},t,{get:(e,s,n)=>j(e,s)||t.get(e,s,n),has:(e,s)=>!!j(e,s)||t.has(e,s)}))(N);try{self["workbox:expiration:7.0.0"]&&_()}catch(t){}const S="cache-entries",K=t=>{const e=new URL(t,location.href);return e.hash="",e.href};class A{constructor(t){this._=null,this.L=t}I(t){const e=t.createObjectStore(S,{keyPath:"id"});e.createIndex("cacheName","cacheName",{unique:!1}),e.createIndex("timestamp","timestamp",{unique:!1})}C(t){this.I(t),this.L&&function(t,{blocked:e}={}){const s=indexedDB.deleteDatabase(t);e&&s.addEventListener("blocked",t=>e(t.oldVersion,t)),k(s).then(()=>{})}(this.L)}async setTimestamp(t,e){const s={url:t=K(t),timestamp:e,cacheName:this.L,id:this.N(t)},n=(await this.getDb()).transaction(S,"readwrite",{durability:"relaxed"});await n.store.put(s),await n.done}async getTimestamp(t){const e=await this.getDb(),s=await e.get(S,this.N(t));return null==s?void 0:s.timestamp}async expireEntries(t,e){const s=await this.getDb();let n=await s.transaction(S).store.index("timestamp").openCursor(null,"prev");const r=[];let i=0;for(;n;){const s=n.value;s.cacheName===this.L&&(t&&s.timestamp<t||e&&i>=e?r.push(n.value):i++),n=await n.continue()}const a=[];for(const t of r)await s.delete(S,t.id),a.push(t.url);return a}N(t){return this.L+"|"+K(t)}async getDb(){return this._||(this._=await function(t,e,{blocked:s,upgrade:n,blocking:r,terminated:i}={}){const a=indexedDB.open(t,e),o=k(a);return n&&a.addEventListener("upgradeneeded",t=>{n(k(a.result),t.oldVersion,t.newVersion,k(a.transaction),t)}),s&&a.addEventListener("blocked",t=>s(t.oldVersion,t.newVersion,t)),o.then(t=>{i&&t.addEventListener("close",()=>i()),r&&t.addEventListener("versionchange",t=>r(t.oldVersion,t.newVersion,t))}).catch(()=>{}),o}("workbox-expiration",1,{upgrade:this.C.bind(this)})),this._}}class F{constructor(t,e={}){this.O=!1,this.T=!1,this.k=e.maxEntries,this.B=e.maxAgeSeconds,this.P=e.matchOptions,this.L=t,this.M=new A(t)}async expireEntries(){if(this.O)return void(this.T=!0);this.O=!0;const t=this.B?Date.now()-1e3*this.B:0,e=await this.M.expireEntries(t,this.k),s=await self.caches.open(this.L);for(const t of e)await s.delete(t,this.P);this.O=!1,this.T&&(this.T=!1,b(this.expireEntries()))}async updateTimestamp(t){await this.M.setTimestamp(t,Date.now())}async isURLExpired(t){if(this.B){const e=await this.M.getTimestamp(t),s=Date.now()-1e3*this.B;return void 0===e||e<s}return!1}async delete(){this.T=!1,await this.M.expireEntries(1/0)}}try{self["workbox:range-requests:7.0.0"]&&_()}catch(t){}async function H(t,e){try{if(206===e.status)return e;const n=t.headers.get("range");if(!n)throw new s("no-range-header");const r=function(t){const e=t.trim().toLowerCase();if(!e.startsWith("bytes="))throw new s("unit-must-be-bytes",{normalizedRangeHeader:e});if(e.includes(","))throw new s("single-range-only",{normalizedRangeHeader:e});const n=/(\d*)-(\d*)/.exec(e);if(!n||!n[1]&&!n[2])throw new s("invalid-range-values",{normalizedRangeHeader:e});return{start:""===n[1]?void 0:Number(n[1]),end:""===n[2]?void 0:Number(n[2])}}(n),i=await e.blob(),a=function(t,e,n){const r=t.size;if(n&&n>r||e&&e<0)throw new s("range-not-satisfiable",{size:r,end:n,start:e});let i,a;return void 0!==e&&void 0!==n?(i=e,a=n+1):void 0!==e&&void 0===n?(i=e,a=r):void 0!==n&&void 0===e&&(i=r-n,a=r),{start:i,end:a}}(i,r.start,r.end),o=i.slice(a.start,a.end),c=o.size,h=new Response(o,{status:206,statusText:"Partial Content",headers:e.headers});return h.headers.set("Content-Length",String(c)),h.headers.set("Content-Range",`bytes ${a.start}-${a.end-1}/${i.size}`),h}catch(t){return new Response("",{status:416,statusText:"Range Not Satisfiable"})}}function $(t,e){const s=e();return t.waitUntil(s),s}try{self["workbox:precaching:7.0.0"]&&_()}catch(t){}function z(t){if(!t)throw new s("add-to-cache-list-unexpected-type",{entry:t});if("string"==typeof t){const e=new URL(t,location.href);return{cacheKey:e.href,url:e.href}}const{revision:e,url:n}=t;if(!n)throw new s("add-to-cache-list-unexpected-type",{entry:t});if(!e){const t=new URL(n,location.href);return{cacheKey:t.href,url:t.href}}const r=new URL(n,location.href),i=new URL(n,location.href);return r.searchParams.set("__WB_REVISION__",e),{cacheKey:r.href,url:i.href}}class G{constructor(){this.updatedURLs=[],this.notUpdatedURLs=[],this.handlerWillStart=async({request:t,state:e})=>{e&&(e.originalRequest=t)},this.cachedResponseWillBeUsed=async({event:t,state:e,cachedResponse:s})=>{if("install"===t.type&&e&&e.originalRequest&&e.originalRequest instanceof Request){const t=e.originalRequest.url;s?this.notUpdatedURLs.push(t):this.updatedURLs.push(t)}return s}}}class V{constructor({precacheController:t}){this.cacheKeyWillBeUsed=async({request:t,params:e})=>{const s=(null==e?void 0:e.cacheKey)||this.W.getCacheKeyForURL(t.url);return s?new Request(s,{headers:t.headers}):t},this.W=t}}let J,Q;async function X(t,e){let n=null;if(t.url){n=new URL(t.url).origin}if(n!==self.location.origin)throw new s("cross-origin-copy-response",{origin:n});const r=t.clone(),i={headers:new Headers(r.headers),status:r.status,statusText:r.statusText},a=e?e(i):i,o=function(){if(void 0===J){const t=new Response("");if("body"in t)try{new Response(t.body),J=!0}catch(t){J=!1}J=!1}return J}()?r.body:await r.blob();return new Response(o,a)}class Y extends R{constructor(t={}){t.cacheName=w(t.cacheName),super(t),this.j=!1!==t.fallbackToNetwork,this.plugins.push(Y.copyRedirectedCacheableResponsesPlugin)}async U(t,e){const s=await e.cacheMatch(t);return s||(e.event&&"install"===e.event.type?await this.S(t,e):await this.K(t,e))}async K(t,e){let n;const r=e.params||{};if(!this.j)throw new s("missing-precache-entry",{cacheName:this.cacheName,url:t.url});{const s=r.integrity,i=t.integrity,a=!i||i===s;n=await e.fetch(new Request(t,{integrity:"no-cors"!==t.mode?i||s:void 0})),s&&a&&"no-cors"!==t.mode&&(this.A(),await e.cachePut(t,n.clone()))}return n}async S(t,e){this.A();const n=await e.fetch(t);if(!await e.cachePut(t,n.clone()))throw new s("bad-precaching-response",{url:t.url,status:n.status});return n}A(){let t=null,e=0;for(const[s,n]of this.plugins.entries())n!==Y.copyRedirectedCacheableResponsesPlugin&&(n===Y.defaultPrecacheCacheabilityPlugin&&(t=s),n.cacheWillUpdate&&e++);0===e?this.plugins.push(Y.defaultPrecacheCacheabilityPlugin):e>1&&null!==t&&this.plugins.splice(t,1)}}Y.defaultPrecacheCacheabilityPlugin={cacheWillUpdate:async({response:t})=>!t||t.status>=400?null:t},Y.copyRedirectedCacheableResponsesPlugin={cacheWillUpdate:async({response:t})=>t.redirected?await X(t):t};class Z{constructor({cacheName:t,plugins:e=[],fallbackToNetwork:s=!0}={}){this.F=new Map,this.H=new Map,this.$=new Map,this.u=new Y({cacheName:w(t),plugins:[...e,new V({precacheController:this})],fallbackToNetwork:s}),this.install=this.install.bind(this),this.activate=this.activate.bind(this)}get strategy(){return this.u}precache(t){this.addToCacheList(t),this.G||(self.addEventListener("install",this.install),self.addEventListener("activate",this.activate),this.G=!0)}addToCacheList(t){const e=[];for(const n of t){"string"==typeof n?e.push(n):n&&void 0===n.revision&&e.push(n.url);const{cacheKey:t,url:r}=z(n),i="string"!=typeof n&&n.revision?"reload":"default";if(this.F.has(r)&&this.F.get(r)!==t)throw new s("add-to-cache-list-conflicting-entries",{firstEntry:this.F.get(r),secondEntry:t});if("string"!=typeof n&&n.integrity){if(this.$.has(t)&&this.$.get(t)!==n.integrity)throw new s("add-to-cache-list-conflicting-integrities",{url:r});this.$.set(t,n.integrity)}if(this.F.set(r,t),this.H.set(r,i),e.length>0){const t=`Workbox is precaching URLs without revision info: ${e.join(", ")}\nThis is generally NOT safe. Learn more at https://bit.ly/wb-precache`;console.warn(t)}}}install(t){return $(t,async()=>{const e=new G;this.strategy.plugins.push(e);for(const[e,s]of this.F){const n=this.$.get(s),r=this.H.get(e),i=new Request(e,{integrity:n,cache:r,credentials:"same-origin"});await Promise.all(this.strategy.handleAll({params:{cacheKey:s},request:i,event:t}))}const{updatedURLs:s,notUpdatedURLs:n}=e;return{updatedURLs:s,notUpdatedURLs:n}})}activate(t){return $(t,async()=>{const t=await self.caches.open(this.strategy.cacheName),e=await t.keys(),s=new Set(this.F.values()),n=[];for(const r of e)s.has(r.url)||(await t.delete(r),n.push(r.url));return{deletedURLs:n}})}getURLsToCacheKeys(){return this.F}getCachedURLs(){return[...this.F.keys()]}getCacheKeyForURL(t){const e=new URL(t,location.href);return this.F.get(e.href)}getIntegrityForCacheKey(t){return this.$.get(t)}async matchPrecache(t){const e=t instanceof Request?t.url:t,s=this.getCacheKeyForURL(e);if(s){return(await self.caches.open(this.strategy.cacheName)).match(s)}}createHandlerBoundToURL(t){const e=this.getCacheKeyForURL(t);if(!e)throw new s("non-precached-url",{url:t});return s=>(s.request=new Request(t),s.params=Object.assign({cacheKey:e},s.params),this.strategy.handle(s))}}const tt=()=>(Q||(Q=new Z),Q);class et extends r{constructor(t,e){super(({request:s})=>{const n=t.getURLsToCacheKeys();for(const r of function*(t,{ignoreURLParametersMatching:e=[/^utm_/,/^fbclid$/],directoryIndex:s="index.html",cleanURLs:n=!0,urlManipulation:r}={}){const i=new URL(t,location.href);i.hash="",yield i.href;const a=function(t,e=[]){for(const s of[...t.searchParams.keys()])e.some(t=>t.test(s))&&t.searchParams.delete(s);return t}(i,e);if(yield a.href,s&&a.pathname.endsWith("/")){const t=new URL(a.href);t.pathname+=s,yield t.href}if(n){const t=new URL(a.href);t.pathname+=".html",yield t.href}if(r){const t=r({url:i});for(const e of t)yield e.href}}(s.url,e)){const e=n.get(r);if(e){return{cacheKey:e,integrity:t.getIntegrityForCacheKey(e)}}}},t.strategy)}}t.CacheFirst=class extends R{async U(t,e){let n,r=await e.cacheMatch(t);if(!r)try{r=await e.fetchAndCachePut(t)}catch(t){t instanceof Error&&(n=t)}if(!r)throw new s("no-response",{url:t.url,error:n});return r}},t.ExpirationPlugin=class{constructor(t={}){this.cachedResponseWillBeUsed=async({event:t,request:e,cacheName:s,cachedResponse:n})=>{if(!n)return null;const r=this.V(n),i=this.J(s);b(i.expireEntries());const a=i.updateTimestamp(e.url);if(t)try{t.waitUntil(a)}catch(t){}return r?n:null},this.cacheDidUpdate=async({cacheName:t,request:e})=>{const s=this.J(t);await s.updateTimestamp(e.url),await s.expireEntries()},this.X=t,this.B=t.maxAgeSeconds,this.Y=new Map,t.purgeOnQuotaError&&function(t){g.add(t)}(()=>this.deleteCacheAndMetadata())}J(t){if(t===d())throw new s("expire-custom-caches-only");let e=this.Y.get(t);return e||(e=new F(t,this.X),this.Y.set(t,e)),e}V(t){if(!this.B)return!0;const e=this.Z(t);if(null===e)return!0;return e>=Date.now()-1e3*this.B}Z(t){if(!t.headers.has("date"))return null;const e=t.headers.get("date"),s=new Date(e).getTime();return isNaN(s)?null:s}async deleteCacheAndMetadata(){for(const[t,e]of this.Y)await self.caches.delete(t),await e.delete();this.Y=new Map}},t.NetworkFirst=class extends R{constructor(t={}){super(t),this.plugins.some(t=>"cacheWillUpdate"in t)||this.plugins.unshift(u),this.tt=t.networkTimeoutSeconds||0}async U(t,e){const n=[],r=[];let i;if(this.tt){const{id:s,promise:a}=this.et({request:t,logs:n,handler:e});i=s,r.push(a)}const a=this.st({timeoutId:i,request:t,logs:n,handler:e});r.push(a);const o=await e.waitUntil((async()=>await e.waitUntil(Promise.race(r))||await a)());if(!o)throw new s("no-response",{url:t.url});return o}et({request:t,logs:e,handler:s}){let n;return{promise:new Promise(e=>{n=setTimeout(async()=>{e(await s.cacheMatch(t))},1e3*this.tt)}),id:n}}async st({timeoutId:t,request:e,logs:s,handler:n}){let r,i;try{i=await n.fetchAndCachePut(e)}catch(t){t instanceof Error&&(r=t)}return t&&clearTimeout(t),!r&&i||(i=await n.cacheMatch(e)),i}},t.RangeRequestsPlugin=class{constructor(){this.cachedResponseWillBeUsed=async({request:t,cachedResponse:e})=>e&&t.headers.has("range")?await H(t,e):e}},t.StaleWhileRevalidate=class extends R{constructor(t={}){super(t),this.plugins.some(t=>"cacheWillUpdate"in t)||this.plugins.unshift(u)}async U(t,e){const n=e.fetchAndCachePut(t).catch(()=>{});e.waitUntil(n);let r,i=await e.cacheMatch(t);if(i);else try{i=await n}catch(t){t instanceof Error&&(r=t)}if(!i)throw new s("no-response",{url:t.url,error:r});return i}},t.cleanupOutdatedCaches=function(){self.addEventListener("activate",t=>{const e=w();t.waitUntil((async(t,e="-precache-")=>{const s=(await self.caches.keys()).filter(s=>s.includes(e)&&s.includes(self.registration.scope)&&s!==t);return await Promise.all(s.map(t=>self.caches.delete(t))),s})(e).then(t=>{}))})},t.clientsClaim=function(){self.addEventListener("activate",()=>self.clients.claim())},t.precacheAndRoute=function(t,e){!function(t){tt().precache(t)}(t),function(t){const e=tt();h(new et(e,t))}(e)},t.registerRoute=h});
+--- File: public/workbox-7af0af7c.js ---
+define(["exports"],function(t){"use strict";try{self["workbox:core:7.0.0"]&&_()}catch(t){}const e=(t,...e)=>{let s=t;return e.length>0&&(s+=` :: ${JSON.stringify(e)}`),s};class s extends Error{constructor(t,s){super(e(t,s)),this.name=t,this.details=s}}try{self["workbox:routing:7.0.0"]&&_()}catch(t){}const n=t=>t&&"object"==typeof t?t:{handle:t};class i{constructor(t,e,s="GET"){this.handler=n(e),this.match=t,this.method=s}setCatchHandler(t){this.catchHandler=n(t)}}class r extends i{constructor(t,e,s){super(({url:e})=>{const s=t.exec(e.href);if(s&&(e.origin===location.origin||0===s.index))return s.slice(1)},e,s)}}class a{constructor(){this.t=new Map,this.i=new Map}get routes(){return this.t}addFetchListener(){self.addEventListener("fetch",t=>{const{request:e}=t,s=this.handleRequest({request:e,event:t});s&&t.respondWith(s)})}addCacheListener(){self.addEventListener("message",t=>{if(t.data&&"CACHE_URLS"===t.data.type){const{payload:e}=t.data,s=Promise.all(e.urlsToCache.map(e=>{"string"==typeof e&&(e=[e]);const s=new Request(...e);return this.handleRequest({request:s,event:t})}));t.waitUntil(s),t.ports&&t.ports[0]&&s.then(()=>t.ports[0].postMessage(!0))}})}handleRequest({request:t,event:e}){const s=new URL(t.url,location.href);if(!s.protocol.startsWith("http"))return;const n=s.origin===location.origin,{params:i,route:r}=this.findMatchingRoute({event:e,request:t,sameOrigin:n,url:s});let a=r&&r.handler;const o=t.method;if(!a&&this.i.has(o)&&(a=this.i.get(o)),!a)return;let c;try{c=a.handle({url:s,request:t,event:e,params:i})}catch(t){c=Promise.reject(t)}const h=r&&r.catchHandler;return c instanceof Promise&&(this.o||h)&&(c=c.catch(async n=>{if(h)try{return await h.handle({url:s,request:t,event:e,params:i})}catch(t){t instanceof Error&&(n=t)}if(this.o)return this.o.handle({url:s,request:t,event:e});throw n})),c}findMatchingRoute({url:t,sameOrigin:e,request:s,event:n}){const i=this.t.get(s.method)||[];for(const r of i){let i;const a=r.match({url:t,sameOrigin:e,request:s,event:n});if(a)return i=a,(Array.isArray(i)&&0===i.length||a.constructor===Object&&0===Object.keys(a).length||"boolean"==typeof a)&&(i=void 0),{route:r,params:i}}return{}}setDefaultHandler(t,e="GET"){this.i.set(e,n(t))}setCatchHandler(t){this.o=n(t)}registerRoute(t){this.t.has(t.method)||this.t.set(t.method,[]),this.t.get(t.method).push(t)}unregisterRoute(t){if(!this.t.has(t.method))throw new s("unregister-route-but-not-found-with-method",{method:t.method});const e=this.t.get(t.method).indexOf(t);if(!(e>-1))throw new s("unregister-route-route-not-registered");this.t.get(t.method).splice(e,1)}}let o;const c=()=>(o||(o=new a,o.addFetchListener(),o.addCacheListener()),o);function h(t,e,n){let a;if("string"==typeof t){const s=new URL(t,location.href);a=new i(({url:t})=>t.href===s.href,e,n)}else if(t instanceof RegExp)a=new r(t,e,n);else if("function"==typeof t)a=new i(t,e,n);else{if(!(t instanceof i))throw new s("unsupported-route-type",{moduleName:"workbox-routing",funcName:"registerRoute",paramName:"capture"});a=t}return c().registerRoute(a),a}try{self["workbox:strategies:7.0.0"]&&_()}catch(t){}const u={cacheWillUpdate:async({response:t})=>200===t.status||0===t.status?t:null},l={googleAnalytics:"googleAnalytics",precache:"precache-v2",prefix:"workbox",runtime:"runtime",suffix:"undefined"!=typeof registration?registration.scope:""},f=t=>[l.prefix,t,l.suffix].filter(t=>t&&t.length>0).join("-"),w=t=>t||f(l.precache),d=t=>t||f(l.runtime);function p(t,e){const s=new URL(t);for(const t of e)s.searchParams.delete(t);return s.href}class y{constructor(){this.promise=new Promise((t,e)=>{this.resolve=t,this.reject=e})}}const m=new Set;function g(t){return"string"==typeof t?new Request(t):t}class R{constructor(t,e){this.h={},Object.assign(this,e),this.event=e.event,this.u=t,this.l=new y,this.p=[],this.m=[...t.plugins],this.R=new Map;for(const t of this.m)this.R.set(t,{});this.event.waitUntil(this.l.promise)}async fetch(t){const{event:e}=this;let n=g(t);if("navigate"===n.mode&&e instanceof FetchEvent&&e.preloadResponse){const t=await e.preloadResponse;if(t)return t}const i=this.hasCallback("fetchDidFail")?n.clone():null;try{for(const t of this.iterateCallbacks("requestWillFetch"))n=await t({request:n.clone(),event:e})}catch(t){if(t instanceof Error)throw new s("plugin-error-request-will-fetch",{thrownErrorMessage:t.message})}const r=n.clone();try{let t;t=await fetch(n,"navigate"===n.mode?void 0:this.u.fetchOptions);for(const s of this.iterateCallbacks("fetchDidSucceed"))t=await s({event:e,request:r,response:t});return t}catch(t){throw i&&await this.runCallbacks("fetchDidFail",{error:t,event:e,originalRequest:i.clone(),request:r.clone()}),t}}async fetchAndCachePut(t){const e=await this.fetch(t),s=e.clone();return this.waitUntil(this.cachePut(t,s)),e}async cacheMatch(t){const e=g(t);let s;const{cacheName:n,matchOptions:i}=this.u,r=await this.getCacheKey(e,"read"),a=Object.assign(Object.assign({},i),{cacheName:n});s=await caches.match(r,a);for(const t of this.iterateCallbacks("cachedResponseWillBeUsed"))s=await t({cacheName:n,matchOptions:i,cachedResponse:s,request:r,event:this.event})||void 0;return s}async cachePut(t,e){const n=g(t);var i;await(i=0,new Promise(t=>setTimeout(t,i)));const r=await this.getCacheKey(n,"write");if(!e)throw new s("cache-put-with-no-response",{url:(a=r.url,new URL(String(a),location.href).href.replace(new RegExp(`^${location.origin}`),""))});var a;const o=await this.v(e);if(!o)return!1;const{cacheName:c,matchOptions:h}=this.u,u=await self.caches.open(c),l=this.hasCallback("cacheDidUpdate"),f=l?await async function(t,e,s,n){const i=p(e.url,s);if(e.url===i)return t.match(e,n);const r=Object.assign(Object.assign({},n),{ignoreSearch:!0}),a=await t.keys(e,r);for(const e of a)if(i===p(e.url,s))return t.match(e,n)}(u,r.clone(),["__WB_REVISION__"],h):null;try{await u.put(r,l?o.clone():o)}catch(t){if(t instanceof Error)throw"QuotaExceededError"===t.name&&await async function(){for(const t of m)await t()}(),t}for(const t of this.iterateCallbacks("cacheDidUpdate"))await t({cacheName:c,oldResponse:f,newResponse:o.clone(),request:r,event:this.event});return!0}async getCacheKey(t,e){const s=`${t.url} | ${e}`;if(!this.h[s]){let n=t;for(const t of this.iterateCallbacks("cacheKeyWillBeUsed"))n=g(await t({mode:e,request:n,event:this.event,params:this.params}));this.h[s]=n}return this.h[s]}hasCallback(t){for(const e of this.u.plugins)if(t in e)return!0;return!1}async runCallbacks(t,e){for(const s of this.iterateCallbacks(t))await s(e)}*iterateCallbacks(t){for(const e of this.u.plugins)if("function"==typeof e[t]){const s=this.R.get(e),n=n=>{const i=Object.assign(Object.assign({},n),{state:s});return e[t](i)};yield n}}waitUntil(t){return this.p.push(t),t}async doneWaiting(){let t;for(;t=this.p.shift();)await t}destroy(){this.l.resolve(null)}async v(t){let e=t,s=!1;for(const t of this.iterateCallbacks("cacheWillUpdate"))if(e=await t({request:this.request,response:e,event:this.event})||void 0,s=!0,!e)break;return s||e&&200!==e.status&&(e=void 0),e}}class v{constructor(t={}){this.cacheName=d(t.cacheName),this.plugins=t.plugins||[],this.fetchOptions=t.fetchOptions,this.matchOptions=t.matchOptions}handle(t){const[e]=this.handleAll(t);return e}handleAll(t){t instanceof FetchEvent&&(t={event:t,request:t.request});const e=t.event,s="string"==typeof t.request?new Request(t.request):t.request,n="params"in t?t.params:void 0,i=new R(this,{event:e,request:s,params:n}),r=this.q(i,s,e);return[r,this.D(r,i,s,e)]}async q(t,e,n){let i;await t.runCallbacks("handlerWillStart",{event:n,request:e});try{if(i=await this.U(e,t),!i||"error"===i.type)throw new s("no-response",{url:e.url})}catch(s){if(s instanceof Error)for(const r of t.iterateCallbacks("handlerDidError"))if(i=await r({error:s,event:n,request:e}),i)break;if(!i)throw s}for(const s of t.iterateCallbacks("handlerWillRespond"))i=await s({event:n,request:e,response:i});return i}async D(t,e,s,n){let i,r;try{i=await t}catch(r){}try{await e.runCallbacks("handlerDidRespond",{event:n,request:s,response:i}),await e.doneWaiting()}catch(t){t instanceof Error&&(r=t)}if(await e.runCallbacks("handlerDidComplete",{event:n,request:s,response:i,error:r}),e.destroy(),r)throw r}}function b(t){t.then(()=>{})}function q(){return q=Object.assign?Object.assign.bind():function(t){for(var e=1;e<arguments.length;e++){var s=arguments[e];for(var n in s)({}).hasOwnProperty.call(s,n)&&(t[n]=s[n])}return t},q.apply(null,arguments)}let D,U;const x=new WeakMap,I=new WeakMap,L=new WeakMap,E=new WeakMap,C=new WeakMap;let N={get(t,e,s){if(t instanceof IDBTransaction){if("done"===e)return I.get(t);if("objectStoreNames"===e)return t.objectStoreNames||L.get(t);if("store"===e)return s.objectStoreNames[1]?void 0:s.objectStore(s.objectStoreNames[0])}return B(t[e])},set:(t,e,s)=>(t[e]=s,!0),has:(t,e)=>t instanceof IDBTransaction&&("done"===e||"store"===e)||e in t};function O(t){return t!==IDBDatabase.prototype.transaction||"objectStoreNames"in IDBTransaction.prototype?(U||(U=[IDBCursor.prototype.advance,IDBCursor.prototype.continue,IDBCursor.prototype.continuePrimaryKey])).includes(t)?function(...e){return t.apply(T(this),e),B(x.get(this))}:function(...e){return B(t.apply(T(this),e))}:function(e,...s){const n=t.call(T(this),e,...s);return L.set(n,e.sort?e.sort():[e]),B(n)}}function k(t){return"function"==typeof t?O(t):(t instanceof IDBTransaction&&function(t){if(I.has(t))return;const e=new Promise((e,s)=>{const n=()=>{t.removeEventListener("complete",i),t.removeEventListener("error",r),t.removeEventListener("abort",r)},i=()=>{e(),n()},r=()=>{s(t.error||new DOMException("AbortError","AbortError")),n()};t.addEventListener("complete",i),t.addEventListener("error",r),t.addEventListener("abort",r)});I.set(t,e)}(t),e=t,(D||(D=[IDBDatabase,IDBObjectStore,IDBIndex,IDBCursor,IDBTransaction])).some(t=>e instanceof t)?new Proxy(t,N):t);var e}function B(t){if(t instanceof IDBRequest)return function(t){const e=new Promise((e,s)=>{const n=()=>{t.removeEventListener("success",i),t.removeEventListener("error",r)},i=()=>{e(B(t.result)),n()},r=()=>{s(t.error),n()};t.addEventListener("success",i),t.addEventListener("error",r)});return e.then(e=>{e instanceof IDBCursor&&x.set(e,t)}).catch(()=>{}),C.set(e,t),e}(t);if(E.has(t))return E.get(t);const e=k(t);return e!==t&&(E.set(t,e),C.set(e,t)),e}const T=t=>C.get(t);const M=["get","getKey","getAll","getAllKeys","count"],P=["put","add","delete","clear"],W=new Map;function j(t,e){if(!(t instanceof IDBDatabase)||e in t||"string"!=typeof e)return;if(W.get(e))return W.get(e);const s=e.replace(/FromIndex$/,""),n=e!==s,i=P.includes(s);if(!(s in(n?IDBIndex:IDBObjectStore).prototype)||!i&&!M.includes(s))return;const r=async function(t,...e){const r=this.transaction(t,i?"readwrite":"readonly");let a=r.store;return n&&(a=a.index(e.shift())),(await Promise.all([a[s](...e),i&&r.done]))[0]};return W.set(e,r),r}N=(t=>q({},t,{get:(e,s,n)=>j(e,s)||t.get(e,s,n),has:(e,s)=>!!j(e,s)||t.has(e,s)}))(N);try{self["workbox:expiration:7.0.0"]&&_()}catch(t){}const S="cache-entries",K=t=>{const e=new URL(t,location.href);return e.hash="",e.href};class A{constructor(t){this._=null,this.I=t}L(t){const e=t.createObjectStore(S,{keyPath:"id"});e.createIndex("cacheName","cacheName",{unique:!1}),e.createIndex("timestamp","timestamp",{unique:!1})}C(t){this.L(t),this.I&&function(t,{blocked:e}={}){const s=indexedDB.deleteDatabase(t);e&&s.addEventListener("blocked",t=>e(t.oldVersion,t)),B(s).then(()=>{})}(this.I)}async setTimestamp(t,e){const s={url:t=K(t),timestamp:e,cacheName:this.I,id:this.N(t)},n=(await this.getDb()).transaction(S,"readwrite",{durability:"relaxed"});await n.store.put(s),await n.done}async getTimestamp(t){const e=await this.getDb(),s=await e.get(S,this.N(t));return null==s?void 0:s.timestamp}async expireEntries(t,e){const s=await this.getDb();let n=await s.transaction(S).store.index("timestamp").openCursor(null,"prev");const i=[];let r=0;for(;n;){const s=n.value;s.cacheName===this.I&&(t&&s.timestamp<t||e&&r>=e?i.push(n.value):r++),n=await n.continue()}const a=[];for(const t of i)await s.delete(S,t.id),a.push(t.url);return a}N(t){return this.I+"|"+K(t)}async getDb(){return this._||(this._=await function(t,e,{blocked:s,upgrade:n,blocking:i,terminated:r}={}){const a=indexedDB.open(t,e),o=B(a);return n&&a.addEventListener("upgradeneeded",t=>{n(B(a.result),t.oldVersion,t.newVersion,B(a.transaction),t)}),s&&a.addEventListener("blocked",t=>s(t.oldVersion,t.newVersion,t)),o.then(t=>{r&&t.addEventListener("close",()=>r()),i&&t.addEventListener("versionchange",t=>i(t.oldVersion,t.newVersion,t))}).catch(()=>{}),o}("workbox-expiration",1,{upgrade:this.C.bind(this)})),this._}}class F{constructor(t,e={}){this.O=!1,this.k=!1,this.B=e.maxEntries,this.T=e.maxAgeSeconds,this.M=e.matchOptions,this.I=t,this.P=new A(t)}async expireEntries(){if(this.O)return void(this.k=!0);this.O=!0;const t=this.T?Date.now()-1e3*this.T:0,e=await this.P.expireEntries(t,this.B),s=await self.caches.open(this.I);for(const t of e)await s.delete(t,this.M);this.O=!1,this.k&&(this.k=!1,b(this.expireEntries()))}async updateTimestamp(t){await this.P.setTimestamp(t,Date.now())}async isURLExpired(t){if(this.T){const e=await this.P.getTimestamp(t),s=Date.now()-1e3*this.T;return void 0===e||e<s}return!1}async delete(){this.k=!1,await this.P.expireEntries(1/0)}}function H(t,e){const s=e();return t.waitUntil(s),s}try{self["workbox:precaching:7.0.0"]&&_()}catch(t){}function $(t){if(!t)throw new s("add-to-cache-list-unexpected-type",{entry:t});if("string"==typeof t){const e=new URL(t,location.href);return{cacheKey:e.href,url:e.href}}const{revision:e,url:n}=t;if(!n)throw new s("add-to-cache-list-unexpected-type",{entry:t});if(!e){const t=new URL(n,location.href);return{cacheKey:t.href,url:t.href}}const i=new URL(n,location.href),r=new URL(n,location.href);return i.searchParams.set("__WB_REVISION__",e),{cacheKey:i.href,url:r.href}}class G{constructor(){this.updatedURLs=[],this.notUpdatedURLs=[],this.handlerWillStart=async({request:t,state:e})=>{e&&(e.originalRequest=t)},this.cachedResponseWillBeUsed=async({event:t,state:e,cachedResponse:s})=>{if("install"===t.type&&e&&e.originalRequest&&e.originalRequest instanceof Request){const t=e.originalRequest.url;s?this.notUpdatedURLs.push(t):this.updatedURLs.push(t)}return s}}}class V{constructor({precacheController:t}){this.cacheKeyWillBeUsed=async({request:t,params:e})=>{const s=(null==e?void 0:e.cacheKey)||this.W.getCacheKeyForURL(t.url);return s?new Request(s,{headers:t.headers}):t},this.W=t}}let J,Q;async function z(t,e){let n=null;if(t.url){n=new URL(t.url).origin}if(n!==self.location.origin)throw new s("cross-origin-copy-response",{origin:n});const i=t.clone(),r={headers:new Headers(i.headers),status:i.status,statusText:i.statusText},a=e?e(r):r,o=function(){if(void 0===J){const t=new Response("");if("body"in t)try{new Response(t.body),J=!0}catch(t){J=!1}J=!1}return J}()?i.body:await i.blob();return new Response(o,a)}class X extends v{constructor(t={}){t.cacheName=w(t.cacheName),super(t),this.j=!1!==t.fallbackToNetwork,this.plugins.push(X.copyRedirectedCacheableResponsesPlugin)}async U(t,e){const s=await e.cacheMatch(t);return s||(e.event&&"install"===e.event.type?await this.S(t,e):await this.K(t,e))}async K(t,e){let n;const i=e.params||{};if(!this.j)throw new s("missing-precache-entry",{cacheName:this.cacheName,url:t.url});{const s=i.integrity,r=t.integrity,a=!r||r===s;n=await e.fetch(new Request(t,{integrity:"no-cors"!==t.mode?r||s:void 0})),s&&a&&"no-cors"!==t.mode&&(this.A(),await e.cachePut(t,n.clone()))}return n}async S(t,e){this.A();const n=await e.fetch(t);if(!await e.cachePut(t,n.clone()))throw new s("bad-precaching-response",{url:t.url,status:n.status});return n}A(){let t=null,e=0;for(const[s,n]of this.plugins.entries())n!==X.copyRedirectedCacheableResponsesPlugin&&(n===X.defaultPrecacheCacheabilityPlugin&&(t=s),n.cacheWillUpdate&&e++);0===e?this.plugins.push(X.defaultPrecacheCacheabilityPlugin):e>1&&null!==t&&this.plugins.splice(t,1)}}X.defaultPrecacheCacheabilityPlugin={cacheWillUpdate:async({response:t})=>!t||t.status>=400?null:t},X.copyRedirectedCacheableResponsesPlugin={cacheWillUpdate:async({response:t})=>t.redirected?await z(t):t};class Y{constructor({cacheName:t,plugins:e=[],fallbackToNetwork:s=!0}={}){this.F=new Map,this.H=new Map,this.$=new Map,this.u=new X({cacheName:w(t),plugins:[...e,new V({precacheController:this})],fallbackToNetwork:s}),this.install=this.install.bind(this),this.activate=this.activate.bind(this)}get strategy(){return this.u}precache(t){this.addToCacheList(t),this.G||(self.addEventListener("install",this.install),self.addEventListener("activate",this.activate),this.G=!0)}addToCacheList(t){const e=[];for(const n of t){"string"==typeof n?e.push(n):n&&void 0===n.revision&&e.push(n.url);const{cacheKey:t,url:i}=$(n),r="string"!=typeof n&&n.revision?"reload":"default";if(this.F.has(i)&&this.F.get(i)!==t)throw new s("add-to-cache-list-conflicting-entries",{firstEntry:this.F.get(i),secondEntry:t});if("string"!=typeof n&&n.integrity){if(this.$.has(t)&&this.$.get(t)!==n.integrity)throw new s("add-to-cache-list-conflicting-integrities",{url:i});this.$.set(t,n.integrity)}if(this.F.set(i,t),this.H.set(i,r),e.length>0){const t=`Workbox is precaching URLs without revision info: ${e.join(", ")}\nThis is generally NOT safe. Learn more at https://bit.ly/wb-precache`;console.warn(t)}}}install(t){return H(t,async()=>{const e=new G;this.strategy.plugins.push(e);for(const[e,s]of this.F){const n=this.$.get(s),i=this.H.get(e),r=new Request(e,{integrity:n,cache:i,credentials:"same-origin"});await Promise.all(this.strategy.handleAll({params:{cacheKey:s},request:r,event:t}))}const{updatedURLs:s,notUpdatedURLs:n}=e;return{updatedURLs:s,notUpdatedURLs:n}})}activate(t){return H(t,async()=>{const t=await self.caches.open(this.strategy.cacheName),e=await t.keys(),s=new Set(this.F.values()),n=[];for(const i of e)s.has(i.url)||(await t.delete(i),n.push(i.url));return{deletedURLs:n}})}getURLsToCacheKeys(){return this.F}getCachedURLs(){return[...this.F.keys()]}getCacheKeyForURL(t){const e=new URL(t,location.href);return this.F.get(e.href)}getIntegrityForCacheKey(t){return this.$.get(t)}async matchPrecache(t){const e=t instanceof Request?t.url:t,s=this.getCacheKeyForURL(e);if(s){return(await self.caches.open(this.strategy.cacheName)).match(s)}}createHandlerBoundToURL(t){const e=this.getCacheKeyForURL(t);if(!e)throw new s("non-precached-url",{url:t});return s=>(s.request=new Request(t),s.params=Object.assign({cacheKey:e},s.params),this.strategy.handle(s))}}const Z=()=>(Q||(Q=new Y),Q);class tt extends i{constructor(t,e){super(({request:s})=>{const n=t.getURLsToCacheKeys();for(const i of function*(t,{ignoreURLParametersMatching:e=[/^utm_/,/^fbclid$/],directoryIndex:s="index.html",cleanURLs:n=!0,urlManipulation:i}={}){const r=new URL(t,location.href);r.hash="",yield r.href;const a=function(t,e=[]){for(const s of[...t.searchParams.keys()])e.some(t=>t.test(s))&&t.searchParams.delete(s);return t}(r,e);if(yield a.href,s&&a.pathname.endsWith("/")){const t=new URL(a.href);t.pathname+=s,yield t.href}if(n){const t=new URL(a.href);t.pathname+=".html",yield t.href}if(i){const t=i({url:r});for(const e of t)yield e.href}}(s.url,e)){const e=n.get(i);if(e){return{cacheKey:e,integrity:t.getIntegrityForCacheKey(e)}}}},t.strategy)}}t.CacheFirst=class extends v{async U(t,e){let n,i=await e.cacheMatch(t);if(!i)try{i=await e.fetchAndCachePut(t)}catch(t){t instanceof Error&&(n=t)}if(!i)throw new s("no-response",{url:t.url,error:n});return i}},t.ExpirationPlugin=class{constructor(t={}){this.cachedResponseWillBeUsed=async({event:t,request:e,cacheName:s,cachedResponse:n})=>{if(!n)return null;const i=this.V(n),r=this.J(s);b(r.expireEntries());const a=r.updateTimestamp(e.url);if(t)try{t.waitUntil(a)}catch(t){}return i?n:null},this.cacheDidUpdate=async({cacheName:t,request:e})=>{const s=this.J(t);await s.updateTimestamp(e.url),await s.expireEntries()},this.X=t,this.T=t.maxAgeSeconds,this.Y=new Map,t.purgeOnQuotaError&&function(t){m.add(t)}(()=>this.deleteCacheAndMetadata())}J(t){if(t===d())throw new s("expire-custom-caches-only");let e=this.Y.get(t);return e||(e=new F(t,this.X),this.Y.set(t,e)),e}V(t){if(!this.T)return!0;const e=this.Z(t);if(null===e)return!0;return e>=Date.now()-1e3*this.T}Z(t){if(!t.headers.has("date"))return null;const e=t.headers.get("date"),s=new Date(e).getTime();return isNaN(s)?null:s}async deleteCacheAndMetadata(){for(const[t,e]of this.Y)await self.caches.delete(t),await e.delete();this.Y=new Map}},t.NetworkFirst=class extends v{constructor(t={}){super(t),this.plugins.some(t=>"cacheWillUpdate"in t)||this.plugins.unshift(u),this.tt=t.networkTimeoutSeconds||0}async U(t,e){const n=[],i=[];let r;if(this.tt){const{id:s,promise:a}=this.et({request:t,logs:n,handler:e});r=s,i.push(a)}const a=this.st({timeoutId:r,request:t,logs:n,handler:e});i.push(a);const o=await e.waitUntil((async()=>await e.waitUntil(Promise.race(i))||await a)());if(!o)throw new s("no-response",{url:t.url});return o}et({request:t,logs:e,handler:s}){let n;return{promise:new Promise(e=>{n=setTimeout(async()=>{e(await s.cacheMatch(t))},1e3*this.tt)}),id:n}}async st({timeoutId:t,request:e,logs:s,handler:n}){let i,r;try{r=await n.fetchAndCachePut(e)}catch(t){t instanceof Error&&(i=t)}return t&&clearTimeout(t),!i&&r||(r=await n.cacheMatch(e)),r}},t.StaleWhileRevalidate=class extends v{constructor(t={}){super(t),this.plugins.some(t=>"cacheWillUpdate"in t)||this.plugins.unshift(u)}async U(t,e){const n=e.fetchAndCachePut(t).catch(()=>{});e.waitUntil(n);let i,r=await e.cacheMatch(t);if(r);else try{r=await n}catch(t){t instanceof Error&&(i=t)}if(!r)throw new s("no-response",{url:t.url,error:i});return r}},t.cleanupOutdatedCaches=function(){self.addEventListener("activate",t=>{const e=w();t.waitUntil((async(t,e="-precache-")=>{const s=(await self.caches.keys()).filter(s=>s.includes(e)&&s.includes(self.registration.scope)&&s!==t);return await Promise.all(s.map(t=>self.caches.delete(t))),s})(e).then(t=>{}))})},t.clientsClaim=function(){self.addEventListener("activate",()=>self.clients.claim())},t.precacheAndRoute=function(t,e){!function(t){Z().precache(t)}(t),function(t){const e=Z();h(new tt(e,t))}(e)},t.registerRoute=h});
 
 ---
 
@@ -609,6 +668,9 @@ export const metadata: Metadata = {
   title: "Loan Calculator",
   description: "A simple loan calculator app with offline support.",
   manifest: "/manifest.json",
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -616,7 +678,6 @@ export const metadata: Metadata = {
   },
 };
 
-// Add this new viewport export
 export const viewport: Viewport = {
   themeColor: "#3b82f6",
 };
@@ -628,7 +689,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head />
+      <head>
+        <meta name="theme-color" content="#3b82f6" />
+      </head>
       <body className={inter.className}>
         <ThemeProvider>
           <IntlProvider>
@@ -1326,13 +1389,14 @@ export default function RoomsPage() {
 ---
 
 --- File: src/app/rooms/[roomId]/page.tsx ---
+// src/app/rooms/[roomId]/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
-import { FiArrowDown } from 'react-icons/fi';
+import { FiArrowDown, FiInfo } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
 
 interface Member {
@@ -1356,6 +1420,7 @@ export default function RoomPage() {
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
+    const [notification, setNotification] = useState<string | null>(null);
     const router = useRouter();
     
     const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
@@ -1379,6 +1444,7 @@ export default function RoomPage() {
                 setRoomCode(code || '');
                 setMembers(members || []);
                 setCurrentUserId(currentUserId || null);
+                // Initialize split selection: all other members selected, plus self
                 setSelectedMemberIds(new Set(members.filter((m: Member) => m.id !== currentUserId).map((m: Member) => m.id)));
                 setIncludeSelfInSplit(true);
             } else if (res.status === 401) {
@@ -1391,9 +1457,17 @@ export default function RoomPage() {
 
     useEffect(() => {
         fetchData();
+        // Add listener to refetch data after an offline sync completes
         window.addEventListener('syncdone', fetchData);
         return () => window.removeEventListener('syncdone', fetchData);
     }, [fetchData]);
+    
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
 
     useEffect(() => {
         if (isSimplified) {
@@ -1412,6 +1486,7 @@ export default function RoomPage() {
 
     const handleAddEntry = async (e: React.FormEvent) => {
         e.preventDefault();
+        setNotification(null);
         const parsedAmount = Math.abs(parseFloat(amount));
         if (isNaN(parsedAmount) || parsedAmount <= 0) return;
 
@@ -1429,16 +1504,26 @@ export default function RoomPage() {
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
         
         try {
-            await handleApi({
+            const result = await handleApi({
                 method: 'POST',
                 url: '/api/entries',
                 body: { roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds },
             });
+
+            // If the request was queued offline, show a notification and DO NOT refetch.
+            if (result?.optimistic) {
+                setNotification("Request queued offline. It will sync when you're back online.");
+            } else {
+                // Otherwise, it was successful online, so refetch the latest data.
+                fetchData();
+            }
+            // Clear the form in both cases.
             setAmount('');
             setDescription('');
-            fetchData();
+
         } catch (error) {
             console.error("Failed to add entry:", error);
+            setNotification('Failed to add entry. Please try again.');
         }
     };
 
@@ -1452,7 +1537,7 @@ export default function RoomPage() {
         setSelectedMemberIds(newSelection);
     };
     
-    const isSubmitDisabled = entryType === 'expense' && !includeSelfInSplit && selectedMemberIds.size === 0;
+    const isSubmitDisabled = amount === '' || description === '' || (entryType === 'expense' && !includeSelfInSplit && selectedMemberIds.size === 0);
 
     return (
         <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
@@ -1473,12 +1558,12 @@ export default function RoomPage() {
                     </button>
                     {showDetails && (
                         <div className="mt-2 text-left bg-muted p-3 rounded-lg animate-fadeIn">
-                            {Object.entries(detailedBalance).map(([username, bal]) => (
+                            {Object.entries(detailedBalance).length > 0 ? Object.entries(detailedBalance).map(([username, bal]) => (
                                 <div key={username} className="flex justify-between text-card-foreground py-1">
                                     <span>{username}:</span>
                                     <span className={bal >= 0 ? 'text-success' : 'text-danger'}>{bal.toFixed(2)}</span>
                                 </div>
-                            ))}
+                            )) : <p className="text-muted-foreground text-center text-sm">No other members in this room.</p>}
                         </div>
                     )}
                 </div>
@@ -1486,6 +1571,12 @@ export default function RoomPage() {
                 <div className="border-t border-card-border my-6"></div>
 
                 <div>
+                    {notification && (
+                        <div className="mb-4 p-3 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-sm border border-blue-200 dark:border-blue-800 flex items-center animate-fadeIn">
+                            <FiInfo className="me-2 shrink-0"/>
+                            <span>{notification}</span>
+                        </div>
+                    )}
                     <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">
                         {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
                     </h2>
@@ -1494,13 +1585,13 @@ export default function RoomPage() {
                             <div className="mb-6">
                                 <div className="relative flex w-full rounded-full bg-muted p-1">
                                     <span
-                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out border-2 border-black dark:border-white ${entryType === 'expense' ? 'bg-primary' : 'bg-success'}`}
-                                        style={{ left: entryType === 'loan' ? '50%' : '4px' }}
+                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
+                                        style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }}
                                     />
-                                    <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 ${entryType === 'expense' ? 'text-primary-foreground' : 'text-foreground'}`}>
+                                    <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
                                         {t('expense')}
                                     </button>
-                                    <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 ${entryType === 'loan' ? 'text-secondary-foreground' : 'text-foreground'}`}>
+                                    <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
                                         {t('loan')}
                                     </button>
                                 </div>
@@ -1841,13 +1932,14 @@ export default function LanguageSwitcher() {
 ---
 
 --- File: src/components/RoomsSidebar.tsx ---
+// src/components/RoomsSidebar.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff, FiLoader } from 'react-icons/fi';
 import Icon from '@mdi/react';
 import { mdiKettle } from '@mdi/js';
 import { useTheme } from '@/components/ThemeProvider';
@@ -1873,12 +1965,12 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const pathname = usePathname();
     const [rooms, setRooms] = useState<Room[]>([]);
     const [roomCode, setRoomCode] = useState('');
-    const [error, setError] = useState('');
+    const [notification, setNotification] = useState('');
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
     const { isSimplified, setIsSimplified } = useSimplifiedLayout();
-    const { isOnline } = useSync();
+    const { isOnline, isSyncing, pendingRequestCount } = useSync();
 
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
@@ -1905,8 +1997,8 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             } else if (res.status === 401) {
                 handleLogout();
             }
-        } catch (e) {
-            console.error("Could not fetch rooms, possibly offline.", e);
+        } catch {
+            console.error("Could not fetch rooms, possibly offline.");
         }
     }, [router, handleLogout]);
 
@@ -1914,22 +2006,20 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         fetchRooms();
         window.addEventListener('syncdone', fetchRooms);
         return () => window.removeEventListener('syncdone', fetchRooms);
-    }, [fetchRooms, pathname]);
+    }, [fetchRooms]);
 
     const handleCopyToClipboard = (code: string) => {
         navigator.clipboard.writeText(code).then(() => {
             setCopiedCode(code);
             setTimeout(() => setCopiedCode(null), 2000);
-        }).catch(() => setError(t('copyFailed')));
+        }).catch(() => setNotification(t('copyFailed')));
     };
 
     const handleJoinRoom = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
-
-        // Client-side validation to prevent empty submissions
+        setNotification('');
         if (!roomCode.trim()) {
-            setError(t('joinFailed')); // Use a generic "failed" message or create a new one
+            setNotification(t('joinFailed'));
             return;
         }
 
@@ -1941,44 +2031,45 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             });
 
             if (result?.optimistic) {
-                setError("Request queued while offline.");
+                setNotification("Join request queued offline.");
+                setRoomCode('');
                 return;
             }
             if (result.roomId) {
                 setRoomCode('');
+                fetchRooms(); // Refetch to show the new room
                 router.push(`/rooms/${result.roomId}`);
                 closeSidebar();
             } else {
-                setError(t('joinFailed'));
+                setNotification(t('joinFailed'));
             }
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
-            setError(message || t('joinFailed'));
+        } catch {
+            setNotification(t('joinFailed'));
         }
     };
 
     const handleCreateRoom = async () => {
-        setError('');
+        setNotification('');
         try {
             const result = await handleApi({
                 method: 'POST',
                 url: '/api/rooms',
-                body: {}, // Send an empty body to signify creation
+                body: {},
             });
 
             if (result?.optimistic) {
-                setError("Request queued while offline.");
+                setNotification("Create room request queued offline.");
                 return;
             }
             if (result.roomId) {
+                fetchRooms(); // Refetch to show the new room
                 router.push(`/rooms/${result.roomId}`);
                 closeSidebar();
             } else {
-                setError(t('createFailed'));
+                setNotification(t('createFailed'));
             }
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
-            setError(message || t('createFailed'));
+        } catch {
+            setNotification(t('createFailed'));
         }
     };
     
@@ -1989,8 +2080,9 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
 
     const handleLeaveRoom = async () => {
         if (!selectedRoomToLeave) return;
-        setError('');
+        setNotification('');
         
+        // Optimistic UI: Remove the room from the list immediately
         const originalRooms = rooms;
         setRooms(prev => prev.filter(r => r.id !== selectedRoomToLeave!.id));
         setIsLeaveDialogOpen(false);
@@ -1999,13 +2091,16 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         }
 
         try {
-            await handleApi({
+            const result = await handleApi({
                 method: 'DELETE',
                 url: `/api/rooms/${selectedRoomToLeave.id}/members`,
             });
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
-            setError(message || t('leaveRoomFailed'));
+            if (result?.optimistic) {
+                setNotification("Leave room request queued offline.");
+            }
+        } catch {
+            setNotification(t('leaveRoomFailed'));
+            // Revert UI change if API call fails for a reason other than being offline
             setRooms(originalRooms);
         } finally {
             setSelectedRoomToLeave(null);
@@ -2022,7 +2117,18 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                 <div className="flex items-center justify-between mb-6 px-2">
                     <div className="flex items-center space-x-2 rtl:space-x-reverse">
                         <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
-                        {!isOnline && <FiWifiOff className="text-danger" title="You are offline" />}
+                        {isSyncing ? (
+                            <FiLoader className="animate-spin text-primary" title="Syncing..." />
+                        ) : !isOnline && (
+                             <div className="flex items-center space-x-1 text-danger" title={`You are offline. ${pendingRequestCount} request(s) pending.`}>
+                                <FiWifiOff />
+                                {pendingRequestCount > 0 && (
+                                    <span className="text-xs font-bold bg-danger text-white rounded-full h-4 w-4 flex items-center justify-center">
+                                        {pendingRequestCount}
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <button onClick={closeSidebar} className="md:hidden p-1 rounded-md hover:bg-muted text-muted-foreground">
                         <FiX size={24} />
@@ -2036,7 +2142,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                             return (
                                 <li key={room.id} style={{ animationDelay: `${index * 50}ms`, opacity: 0 }} className="animate-fadeIn px-2">
                                     <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
-                                        <Link href={`/rooms/${room.id}`} className="flex-grow p-3 text-sm font-semibold truncate">
+                                        <Link href={`/rooms/${room.id}`} onClick={closeSidebar} className="flex-grow p-3 text-sm font-semibold truncate">
                                             Room #{room.code}
                                         </Link>
                                         <div className="flex items-center">
@@ -2055,10 +2161,10 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                 </nav>
 
                 <div className="mt-auto pt-4 border-t border-card-border">
-                    {error && <p className="text-danger text-sm text-center mb-2">{error}</p>}
+                    {notification && <p className="text-blue-600 dark:text-blue-400 text-sm text-center mb-2 animate-fadeIn">{notification}</p>}
                     
                     <form onSubmit={handleJoinRoom} className="mb-4">
-                        <input type="text" placeholder={t('roomCode')} value={roomCode} onChange={(e) => setRoomCode(e.target.value)} className="w-full px-3 py-2 rounded-lg mb-2 themed-input" />
+                        <input type="text" placeholder={t('roomCode')} value={roomCode} onChange={(e) => setRoomCode(e.target.value.toUpperCase())} className="w-full px-3 py-2 rounded-lg mb-2 themed-input" />
                         <button type="submit" className="w-full py-2 rounded-lg btn-primary">{t('joinRoom')}</button>
                     </form>
 
@@ -2153,12 +2259,13 @@ export function useSimplifiedLayout() {
 // src/components/SyncProvider.tsx
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { syncOutbox } from '@/lib/offline-sync';
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { syncOutbox, getOutboxCount } from '@/lib/offline-sync';
 
 interface SyncContextType {
   isOnline: boolean;
   isSyncing: boolean;
+  pendingRequestCount: number;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
@@ -2166,9 +2273,18 @@ const SyncContext = createContext<SyncContextType | undefined>(undefined);
 export default function SyncProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
+
+  const updatePendingCount = useCallback(async () => {
+    // Ensure this only runs in the browser where IndexedDB is available
+    if (typeof window !== 'undefined' && window.indexedDB) {
+        const count = await getOutboxCount();
+        setPendingRequestCount(count);
+    }
+  }, []);
 
   useEffect(() => {
-    // Set initial online status on component mount
+    // Can only run in the browser
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
         setIsOnline(navigator.onLine);
     }
@@ -2178,16 +2294,18 @@ export default function SyncProvider({ children }: { children: ReactNode }) {
       setIsOnline(true);
       setIsSyncing(true);
       try {
-        const success = await syncOutbox();
-        if (success) {
+        const didSync = await syncOutbox();
+        // If any requests were successfully synced, dispatch an event
+        // so that components can refetch their data.
+        if (didSync) {
             console.log("Sync complete. Refreshing data.");
-            // Dispatch a global event that components can listen to for refetching data.
             window.dispatchEvent(new Event('syncdone'));
         }
       } catch (error) {
         console.error('Error during sync:', error);
       } finally {
         setIsSyncing(false);
+        updatePendingCount(); // Refresh count after sync attempt
       }
     };
 
@@ -2196,22 +2314,29 @@ export default function SyncProvider({ children }: { children: ReactNode }) {
       setIsOnline(false);
     };
 
+    // This listener updates the pending count whenever a request is added to the outbox
+    const handleOutboxChange = () => updatePendingCount();
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('outboxchange', handleOutboxChange);
     
-    // Initial sync check on load if online
+    // Initial checks on component mount
+    updatePendingCount();
+    // If we are already online when the app loads, try to sync immediately
     if (navigator.onLine) {
         handleOnline();
     }
 
     return () => {
       window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('offline',handleOffline);
+      window.removeEventListener('outboxchange', handleOutboxChange);
     };
-  }, []);
+  }, [updatePendingCount]);
 
   return (
-    <SyncContext.Provider value={{ isOnline, isSyncing }}>
+    <SyncContext.Provider value={{ isOnline, isSyncing, pendingRequestCount }}>
       {children}
     </SyncContext.Provider>
   );
@@ -2316,7 +2441,7 @@ type HttpMethod = 'POST' | 'GET' | 'DELETE' | 'PUT';
 interface ApiRequestOptions {
     method: HttpMethod;
     url: string;
-    body?: Record<string, unknown>; // More specific than 'unknown'
+    body?: Record<string, unknown>; // More specific than 'any'
 }
 
 class ApiError extends Error {
@@ -2331,6 +2456,11 @@ export async function handleApi(options: ApiRequestOptions) {
     const { method, url, body } = options;
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
+    // We can't do anything if we are offline and don't have a token.
+    if (!navigator.onLine && !token) {
+        throw new Error('Offline and no token available. Please log in when online.');
+    }
+
     try {
         const response = await fetch(url, {
             method,
@@ -2342,6 +2472,7 @@ export async function handleApi(options: ApiRequestOptions) {
         });
 
         if (response.ok) {
+            // Handle responses with no content
             if (response.status === 204 || response.headers.get("content-length") === "0") {
                 return { success: true };
             }
@@ -2352,21 +2483,23 @@ export async function handleApi(options: ApiRequestOptions) {
         throw new ApiError(errorData.message, response.status);
 
     } catch (error: unknown) {
+        // Check if the error is a network error
         const isNetworkError = error instanceof TypeError && error.message === 'Failed to fetch';
         
-        if (!navigator.onLine || isNetworkError) {
-             if (method !== 'GET') {
-                console.log('Offline or network error. Adding request to outbox.');
-                await addToOutbox({ url, method, body, token });
-                
-                // This now works perfectly because TypeScript knows 'body' is a spreadable object or undefined.
-                return {
-                    ...(body || {}),
-                    optimistic: true,
-                };
-            }
+        // If we are offline (or a network error occurred) and it's a data-changing request
+        if ((!navigator.onLine || isNetworkError) && method !== 'GET') {
+            console.log('Offline or network error. Adding request to outbox.');
+            await addToOutbox({ url, method, body, token });
+            
+            // Return an optimistic response, including the original body data
+            // This now works perfectly because TypeScript knows 'body' is a spreadable object or undefined.
+            return {
+                ...(body || {}),
+                optimistic: true,
+            };
         }
         
+        // Re-throw other errors (e.g., JSON parsing errors, actual API errors)
         throw error;
     }
 }
@@ -2426,7 +2559,7 @@ interface OutboxRequest {
     id: string;
     url: string;
     method: HttpMethod;
-    body: unknown; // Changed from 'any' to 'unknown'
+    body: unknown;
     timestamp: number;
     token: string | null;
 }
@@ -2464,6 +2597,10 @@ export async function addToOutbox(request: Omit<OutboxRequest, 'id' | 'timestamp
     await tx.store.add(outboxRequest);
     await tx.done;
     console.log('Request added to outbox:', outboxRequest);
+    
+    // Dispatch a custom event so the UI can update its pending count
+    window.dispatchEvent(new Event('outboxchange'));
+    
     return outboxRequest;
 }
 
@@ -2471,11 +2608,12 @@ export async function syncOutbox(): Promise<boolean> {
     const db = await getDb();
     const requests = await db.getAll(OUTBOX_STORE);
     if (requests.length === 0) {
-        return true;
+        return false; // No requests were synced
     }
 
     console.log(`Syncing ${requests.length} requests from outbox...`);
     
+    // Process requests in the order they were created
     requests.sort((a, b) => a.timestamp - b.timestamp);
 
     let allSucceeded = true;
@@ -2491,9 +2629,13 @@ export async function syncOutbox(): Promise<boolean> {
                 body: JSON.stringify(req.body),
             });
 
+            // If request succeeded or was a client error (like 404, 409), remove it.
+            // Server errors (5xx) will be retried later.
             if (response.ok || (response.status >= 400 && response.status < 500)) {
                 await db.delete(OUTBOX_STORE, req.id);
                 console.log(`Request ${req.id} synced and removed from outbox.`);
+                // Notify UI that the outbox has changed
+                window.dispatchEvent(new Event('outboxchange'));
             } else {
                  console.warn(`Request ${req.id} failed with status ${response.status}. Will retry later.`);
                  allSucceeded = false;
@@ -2501,11 +2643,16 @@ export async function syncOutbox(): Promise<boolean> {
         } catch (error) {
             console.error(`Network error syncing request ${req.id}. Will retry later.`, error);
             allSucceeded = false;
-            break;
+            break; // Stop syncing if a network error occurs, to preserve order
         }
     }
 
     return allSucceeded;
+}
+
+export async function getOutboxCount(): Promise<number> {
+    const db = await getDb();
+    return db.count(OUTBOX_STORE);
 }
 
 ---

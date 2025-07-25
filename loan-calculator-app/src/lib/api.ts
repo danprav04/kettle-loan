@@ -50,11 +50,12 @@ export async function handleApi(options: ApiRequestOptions) {
         throw new ApiError(errorData.message, response.status);
 
     } catch (error: unknown) {
-        // Check if the error is a network error
-        const isNetworkError = error instanceof TypeError && error.message === 'Failed to fetch';
+        // This check is more robust. It catches both direct network failures 
+        // and cases where the browser navigator reports being offline.
+        const isOffline = !navigator.onLine || (error instanceof TypeError && error.message === 'Failed to fetch');
         
         // If we are offline (or a network error occurred) and it's a data-changing request
-        if ((!navigator.onLine || isNetworkError) && method !== 'GET') {
+        if (isOffline && method !== 'GET') {
             console.log('Offline or network error. Adding request to outbox.');
             await addToOutbox({ url, method, body, token });
             
