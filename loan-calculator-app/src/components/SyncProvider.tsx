@@ -2,12 +2,13 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { syncOutbox, getOutboxCount } from '@/lib/offline-sync';
+import { syncOutbox, getOutboxCount, getRoomsList } from '@/lib/offline-sync';
 
 interface SyncContextType {
   isOnline: boolean;
   isSyncing: boolean;
   pendingRequestCount: number;
+  isReadyForOffline: boolean;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
@@ -16,56 +17,69 @@ export default function SyncProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const [isReadyForOffline, setIsReadyForOffline] = useState(false);
 
   const updatePendingCount = useCallback(async () => {
-    // Ensure this only runs in the browser where IndexedDB is available
     if (typeof window !== 'undefined' && window.indexedDB) {
         const count = await getOutboxCount();
         setPendingRequestCount(count);
     }
   }, []);
 
+  const checkOfflineReadiness = useCallback(async () => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && window.indexedDB) {
+        const hasControllingSW = navigator.serviceWorker.controller !== null;
+        const hasCachedRooms = (await getRoomsList()).length > 0;
+        
+        if (hasControllingSW && hasCachedRooms) {
+            setIsReadyForOffline(true);
+        }
+    }
+  }, []);
+
   useEffect(() => {
-    // Can only run in the browser
+    // Initial check on mount, and re-check after a sync in case rooms were just loaded.
+    checkOfflineReadiness();
+    window.addEventListener('syncdone', checkOfflineReadiness);
+    
+    return () => {
+        window.removeEventListener('syncdone', checkOfflineReadiness);
+    };
+  }, [checkOfflineReadiness]);
+
+
+  useEffect(() => {
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
         setIsOnline(navigator.onLine);
     }
 
     const handleOnline = async () => {
-      console.log('Application is online.');
       setIsOnline(true);
       setIsSyncing(true);
       try {
         const didSync = await syncOutbox();
-        // If any requests were successfully synced, dispatch an event
-        // so that components can refetch their data.
         if (didSync) {
-            console.log("Sync complete. Refreshing data.");
             window.dispatchEvent(new Event('syncdone'));
         }
       } catch (error) {
         console.error('Error during sync:', error);
       } finally {
         setIsSyncing(false);
-        updatePendingCount(); // Refresh count after sync attempt
+        updatePendingCount();
       }
     };
 
     const handleOffline = () => {
-      console.log('Application is offline.');
       setIsOnline(false);
     };
 
-    // This listener updates the pending count whenever a request is added to the outbox
     const handleOutboxChange = () => updatePendingCount();
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('outboxchange', handleOutboxChange);
     
-    // Initial checks on component mount
     updatePendingCount();
-    // If we are already online when the app loads, try to sync immediately
     if (navigator.onLine) {
         handleOnline();
     }
@@ -78,7 +92,7 @@ export default function SyncProvider({ children }: { children: ReactNode }) {
   }, [updatePendingCount]);
 
   return (
-    <SyncContext.Provider value={{ isOnline, isSyncing, pendingRequestCount }}>
+    <SyncContext.Provider value={{ isOnline, isSyncing, pendingRequestCount, isReadyForOffline }}>
       {children}
     </SyncContext.Provider>
   );

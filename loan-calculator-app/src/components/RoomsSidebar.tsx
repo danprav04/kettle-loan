@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff, FiLoader } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff, FiLoader, FiCheckCircle } from 'react-icons/fi';
 import Icon from '@mdi/react';
 import { mdiKettle } from '@mdi/js';
 import { useTheme } from '@/components/ThemeProvider';
@@ -38,7 +38,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
     const { isSimplified, setIsSimplified } = useSimplifiedLayout();
-    const { isOnline, isSyncing, pendingRequestCount } = useSync();
+    const { isOnline, isSyncing, pendingRequestCount, isReadyForOffline } = useSync();
 
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
@@ -56,7 +56,6 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             return;
         }
 
-        // Offline-first approach: Load from local DB immediately
         const localRooms = await getRoomsList();
         if (localRooms.length > 0) {
             setRooms(localRooms);
@@ -67,7 +66,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                 const fetchedRooms = await handleApi({ method: 'GET', url: '/api/user/rooms' });
                 if (fetchedRooms && Array.isArray(fetchedRooms)) {
                     setRooms(fetchedRooms);
-                    await saveRoomsList(fetchedRooms); // Sync local DB with fresh data
+                    await saveRoomsList(fetchedRooms);
                 }
             } catch (error) {
                 console.warn("Failed to fetch rooms from network, using local data.", error);
@@ -103,7 +102,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             }
             if (result.roomId) {
                 setRoomCode('');
-                await fetchRooms(); // Await refetch to ensure list is updated
+                await fetchRooms();
                 router.push(`/rooms/${result.roomId}`);
                 closeSidebar();
             } else {
@@ -137,15 +136,15 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
         }
 
         try {
-            await saveRoomsList(rooms.filter(r => r.id !== selectedRoomToLeave!.id)); // Update local DB optimistically
+            await saveRoomsList(rooms.filter(r => r.id !== selectedRoomToLeave!.id));
             const result = await handleApi({ method: 'DELETE', url: `/api/rooms/${selectedRoomToLeave.id}/members` });
             if (result?.optimistic) {
                 setNotification("Leave room request queued offline.");
             }
         } catch {
             setNotification(t('leaveRoomFailed'));
-            setRooms(originalRooms); // Revert UI
-            await saveRoomsList(originalRooms); // Revert local DB
+            setRooms(originalRooms);
+            await saveRoomsList(originalRooms);
         } finally {
             setSelectedRoomToLeave(null);
         }
@@ -161,9 +160,13 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                 <div className="flex items-center justify-between mb-6 px-2">
                      <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
                     <div className="flex items-center space-x-2">
-                        {isSyncing ? (
+                        {isOnline && !isSyncing && isReadyForOffline && (
+                            <FiCheckCircle className="text-success" title="App is ready for offline use" />
+                        )}
+                        {isSyncing && (
                             <FiLoader className="animate-spin text-primary" title="Syncing..." />
-                        ) : !isOnline && (
+                        )}
+                        {!isOnline && (
                              <div className="flex items-center space-x-1 text-muted-foreground" title={`You are offline. ${pendingRequestCount > 0 ? `${pendingRequestCount} item(s) pending sync.` : ''}`}>
                                 <FiWifiOff />
                                 {pendingRequestCount > 0 && (

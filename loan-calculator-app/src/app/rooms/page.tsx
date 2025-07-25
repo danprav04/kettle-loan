@@ -23,7 +23,7 @@ export default function RoomsPage() {
                 return;
             }
 
-            let rooms = await getRoomsList(); // Get local rooms first
+            let rooms = await getRoomsList();
 
             if (isOnline) {
                 try {
@@ -41,7 +41,10 @@ export default function RoomsPage() {
             if (rooms.length > 0) {
                 router.replace(`/rooms/${rooms[0].id}`);
             } else {
-                setIsLoading(false); // No rooms local or remote, show welcome
+                if (!isOnline) {
+                    setStatusMessage("Connect to the internet once to download your rooms for offline use.");
+                }
+                setIsLoading(false);
             }
         };
 
