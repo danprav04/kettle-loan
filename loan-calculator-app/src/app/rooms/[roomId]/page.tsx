@@ -4,11 +4,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import Link from 'next/link'; // Import the Link component
+import Link from 'next/link';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
-import { FiArrowDown, FiInfo } from 'react-icons/fi';
+import { FiArrowDown, FiInfo, FiEdit, FiSave, FiX, FiLoader } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
-import { saveRoomData, getRoomData, addLocalEntry, LocalRoomData, Entry } from '@/lib/offline-sync';
+import { saveRoomData, getRoomData, addLocalEntry, updateLocalRoomName, LocalRoomData, Entry } from '@/lib/offline-sync';
 import { useSync } from '@/components/SyncProvider';
 
 interface Member {
@@ -27,6 +27,10 @@ export default function RoomPage() {
     const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
     const [showDetails, setShowDetails] = useState(false);
     const [roomCode, setRoomCode] = useState('');
+    const [roomName, setRoomName] = useState<string | null>(null);
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [newName, setNewName] = useState('');
+    const [isSavingName, setIsSavingName] = useState(false);
     const [members, setMembers] = useState<Member[]>([]);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [notification, setNotification] = useState<string | null>(null);
@@ -45,6 +49,8 @@ export default function RoomPage() {
         setBalance(data.currentUserBalance || 0);
         setDetailedBalance(data.balances || {});
         setRoomCode(data.code || '');
+        setRoomName(data.name || null);
+        setNewName(data.name || '');
         setMembers(data.members || []);
         setCurrentUserId(data.currentUserId || null);
         
@@ -120,6 +126,48 @@ export default function RoomPage() {
         localStorage.setItem('entryType', type);
     };
 
+    const handleSaveName = async () => {
+        if (!newName.trim() || newName.trim() === roomName) {
+            setIsEditingName(false);
+            return;
+        }
+        setIsSavingName(true);
+        setNotification(null);
+        
+        const oldName = roomName;
+        const trimmedNewName = newName.trim();
+
+        setRoomName(trimmedNewName);
+        await updateLocalRoomName(roomId, trimmedNewName);
+        setIsEditingName(false);
+        
+        try {
+            const result = await handleApi({
+                method: 'PUT',
+                url: `/api/rooms/${roomId}`,
+                body: { name: trimmedNewName }
+            });
+            
+            if (result?.optimistic) {
+                setNotification(t('requestQueued'));
+            } else if (isOnline) {
+                fetchData();
+            }
+        } catch (error) {
+            console.error("Failed to save room name:", error);
+            setNotification('Failed to save name.');
+            setRoomName(oldName);
+            if (oldName) await updateLocalRoomName(roomId, oldName);
+        } finally {
+            setIsSavingName(false);
+        }
+    };
+
+    const handleStartEditingName = () => {
+        setNewName(roomName || '');
+        setIsEditingName(true);
+    };
+
     const handleAddEntry = async (e: React.FormEvent) => {
         e.preventDefault();
         setNotification(null);
@@ -174,7 +222,7 @@ export default function RoomPage() {
                     amount: finalAmount, 
                     description, 
                     splitWithUserIds: finalSplitWithIds,
-                    createdAt: optimisticEntry.created_at // Send original timestamp
+                    createdAt: optimisticEntry.created_at
                 },
             });
 
@@ -210,10 +258,36 @@ export default function RoomPage() {
         <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
             <div className="p-8">
                 <div className="text-center mb-6">
-                    <h1 className="text-xl font-bold text-card-foreground">
-                        {t('roomTitle', { code: roomCode })}
-                    </h1>
+                    {isEditingName ? (
+                        <div className="flex items-center space-x-2 rtl:space-x-reverse animate-fadeIn">
+                            <input
+                                type="text"
+                                value={newName}
+                                onChange={(e) => setNewName(e.target.value)}
+                                className="w-full px-3 py-1 text-xl font-bold text-center rounded-lg themed-input"
+                                autoFocus
+                                onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                            />
+                            <button onClick={handleSaveName} className="p-2 btn-primary rounded-lg" disabled={isSavingName} aria-label="Save name">
+                                {isSavingName ? <FiLoader className="animate-spin" /> : <FiSave />}
+                            </button>
+                            <button onClick={() => setIsEditingName(false)} className="p-2 btn-muted rounded-lg" aria-label="Cancel editing name">
+                                <FiX />
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-center space-x-2 rtl:space-x-reverse group">
+                            <h1 className="text-xl font-bold text-card-foreground">
+                                {roomName || t('roomTitle', { code: roomCode })}
+                            </h1>
+                            <button onClick={handleStartEditingName} className="p-1 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Edit room name">
+                                <FiEdit />
+                            </button>
+                        </div>
+                    )}
+                    <p className="text-sm text-muted-foreground mt-1">Room Code: {roomCode}</p>
                 </div>
+
 
                 <div className="text-center mb-6">
                     <div className="text-lg font-medium text-muted-foreground">{t('balanceTitle')}</div>

@@ -31,11 +31,12 @@ export interface Entry {
     created_at: string;
     username: string;
     split_with_user_ids: number[] | null;
-    offline_timestamp?: number; // Added field for offline creation time
+    offline_timestamp?: number;
 }
 
 export interface LocalRoomData {
     id: string;
+    name: string | null;
     code: string;
     entries: Entry[];
     balances: { [key: string]: number };
@@ -47,6 +48,7 @@ export interface LocalRoomData {
 
 export interface LocalRoomListItem {
     id: number;
+    name: string | null;
     code: string;
 }
 
@@ -171,6 +173,30 @@ export async function saveRoomData(roomId: string, data: Omit<LocalRoomData, 'id
 export async function getRoomData(roomId: string): Promise<LocalRoomData | undefined> {
     const db = await getDb();
     return db.get(ROOM_DATA_STORE, roomId);
+}
+
+export async function updateLocalRoomName(roomId: string, newName: string) {
+    const db = await getDb();
+    const tx = db.transaction([ROOM_DATA_STORE, ROOMS_LIST_STORE], 'readwrite');
+    const roomDataStore = tx.objectStore(ROOM_DATA_STORE);
+    const roomsListStore = tx.objectStore(ROOMS_LIST_STORE);
+
+    const roomData = await roomDataStore.get(roomId);
+    if (roomData) {
+        roomData.name = newName;
+        await roomDataStore.put(roomData);
+    }
+
+    const roomsList = await roomsListStore.get('user-rooms');
+    if (roomsList) {
+        const roomIndex = roomsList.rooms.findIndex(r => r.id === parseInt(roomId, 10));
+        if (roomIndex > -1) {
+            roomsList.rooms[roomIndex].name = newName;
+            await roomsListStore.put(roomsList, 'user-rooms');
+        }
+    }
+    
+    await tx.done;
 }
 
 export async function addLocalEntry(roomId: string, newEntry: Entry, newBalances: { currentUserBalance: number, otherBalances: { [key: string]: number } }) {

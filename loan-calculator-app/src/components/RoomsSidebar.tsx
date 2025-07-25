@@ -19,6 +19,7 @@ import { saveRoomsList, getRoomsList } from '@/lib/offline-sync';
 interface Room {
     id: number;
     code: string;
+    name: string | null;
 }
 
 interface RoomsSidebarProps {
@@ -197,7 +198,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                                     <li key={room.id}>
                                         <div className={`group flex items-center justify-between rounded-lg transition-colors mb-2 ${isActive ? 'bg-primary text-primary-foreground' : 'text-card-foreground hover:bg-muted'}`}>
                                             <Link href={`/rooms/${room.id}`} onClick={closeSidebar} className="flex-grow p-3 text-sm font-semibold truncate">
-                                                Room #{room.code}
+                                                {room.name || `Room #${room.code}`}
                                             </Link>
                                             <div className="flex items-center">
                                                 <button onClick={() => handleCopyToClipboard(room.code)} className={`p-3 rounded-lg transition-all duration-200 ${isActive ? 'hover:bg-primary-hover' : 'hover:bg-card-border'} opacity-50 group-hover:opacity-100`} title={t('copyRoomCode')} >

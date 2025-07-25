@@ -11,7 +11,7 @@ export async function GET(req: Request) {
         }
 
         const roomsResult = await db.query(
-            `SELECT r.id, r.code 
+            `SELECT r.id, r.code, r.name 
              FROM rooms r 
              JOIN room_members rm ON r.id = rm.room_id 
              WHERE rm.user_id = $1 
