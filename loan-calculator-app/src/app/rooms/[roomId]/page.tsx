@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
-import { FiArrowDown, FiInfo, FiEdit, FiSave, FiX, FiLoader } from 'react-icons/fi';
+import { FiArrowDown, FiInfo, FiEdit, FiSave, FiX, FiLoader, FiChevronDown } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
 import { saveRoomData, getRoomData, addLocalEntry, updateLocalRoomName, LocalRoomData, Entry } from '@/lib/offline-sync';
 import { useSync } from '@/components/SyncProvider';
@@ -15,6 +15,9 @@ interface Member {
     id: number;
     username: string;
 }
+
+// A new type for the expanded P2P transaction data
+type PeerToPeerTransaction = Entry & { contribution: number };
 
 export default function RoomPage() {
     const params = useParams<{ roomId: string }>();
@@ -32,9 +35,11 @@ export default function RoomPage() {
     const [newName, setNewName] = useState('');
     const [isSavingName, setIsSavingName] = useState(false);
     const [members, setMembers] = useState<Member[]>([]);
+    const [entries, setEntries] = useState<Entry[]>([]);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [notification, setNotification] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [expandedMemberId, setExpandedMemberId] = useState<number | null>(null);
     const router = useRouter();
 
     const [amount, setAmount] = useState('');
@@ -52,6 +57,7 @@ export default function RoomPage() {
         setRoomName(data.name || null);
         setNewName(data.name || '');
         setMembers(data.members || []);
+        setEntries(data.entries || []);
         setCurrentUserId(data.currentUserId || null);
         
         if (members.length === 0 && data.members.length > 0) {
@@ -94,9 +100,81 @@ export default function RoomPage() {
         setIsLoading(false);
     }, [roomId, router, isOnline, t, updateStateFromData]);
 
-    const handleSyncDone = useCallback(() => {
-        fetchData();
-    }, [fetchData]);
+    const peerToPeerBalances = useMemo(() => {
+        if (!currentUserId || !members.length || !entries.length) {
+            return new Map<number, { netBalance: number; transactions: PeerToPeerTransaction[] }>();
+        }
+
+        const breakdown = new Map<number, { netBalance: number; transactions: PeerToPeerTransaction[] }>();
+
+        otherMembers.forEach(member => {
+            breakdown.set(member.id, { netBalance: 0, transactions: [] });
+        });
+
+        for (const entry of entries) {
+            const payerId = entry.user_id;
+            const amount = parseFloat(entry.amount);
+
+            if (amount > 0) { // Expense
+                const participants = entry.split_with_user_ids ?? members.map(m => m.id);
+                if (participants.length === 0) continue;
+                const share = amount / participants.length;
+
+                if (payerId === currentUserId) {
+                    participants.forEach(pId => {
+                        if (pId !== currentUserId && breakdown.has(pId)) {
+                            const data = breakdown.get(pId)!;
+                            data.netBalance += share; // They owe me
+                            data.transactions.push({ ...entry, contribution: share });
+                        }
+                    });
+                } else if (participants.includes(currentUserId) && breakdown.has(payerId)) {
+                    const data = breakdown.get(payerId)!;
+                    data.netBalance -= share; // I owe them
+                    data.transactions.push({ ...entry, contribution: -share });
+                }
+            } else if (amount < 0) { // Loan
+                const loanAmount = Math.abs(amount);
+                const borrowerId = payerId;
+                const lenders = members.filter(m => m.id !== borrowerId);
+                if (lenders.length === 0) continue;
+                const share = loanAmount / lenders.length;
+
+                if (borrowerId === currentUserId) {
+                    lenders.forEach(lender => {
+                        if (breakdown.has(lender.id)) {
+                             const data = breakdown.get(lender.id)!;
+                             data.netBalance -= share; // I owe them
+                             data.transactions.push({ ...entry, contribution: -share });
+                        }
+                    });
+                } else if (lenders.some(l => l.id === currentUserId) && breakdown.has(borrowerId)) {
+                     const data = breakdown.get(borrowerId)!;
+                     data.netBalance += share; // They owe me
+                     data.transactions.push({ ...entry, contribution: share });
+                }
+            }
+        }
+        
+        return breakdown;
+    }, [entries, members, currentUserId, otherMembers]);
+
+    const handleToggleMemberDetails = (memberId: number) => {
+        setExpandedMemberId(prev => (prev === memberId ? null : memberId));
+    };
+
+    const getBalanceText = (balance: number) => {
+        const absBalance = Math.abs(balance);
+        if (balance > 0.005) {
+            return { text: `Owes you ${absBalance.toFixed(2)}`, color: 'text-success' };
+        }
+        if (balance < -0.005) {
+            return { text: `You owe ${absBalance.toFixed(2)}`, color: 'text-danger' };
+        }
+        return { text: `Settled up`, color: 'text-muted-foreground' };
+    };
+    
+    const handleSyncDone = useCallback(() => { fetchData(); }, [fetchData]);
 
     useEffect(() => {
         fetchData();
@@ -142,17 +220,9 @@ export default function RoomPage() {
         setIsEditingName(false);
         
         try {
-            const result = await handleApi({
-                method: 'PUT',
-                url: `/api/rooms/${roomId}`,
-                body: { name: trimmedNewName }
-            });
-            
-            if (result?.optimistic) {
-                setNotification(t('requestQueued'));
-            } else if (isOnline) {
-                fetchData();
-            }
+            const result = await handleApi({ method: 'PUT', url: `/api/rooms/${roomId}`, body: { name: trimmedNewName } });
+            if (result?.optimistic) setNotification(t('requestQueued'));
+            else if (isOnline) fetchData();
         } catch (error) {
             console.error("Failed to save room name:", error);
             setNotification('Failed to save name.');
@@ -181,19 +251,9 @@ export default function RoomPage() {
             if (includeSelfInSplit) participants.add(currentUserId);
             finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.map(m => m.id);
         }
-
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
 
-        const optimisticEntry: Entry = {
-            id: `temp-${Date.now()}`,
-            amount: finalAmount.toFixed(2),
-            description,
-            created_at: new Date().toISOString(),
-            username: currentUser.username,
-            user_id: currentUserId,
-            split_with_user_ids: finalSplitWithIds,
-            offline_timestamp: Date.now()
-        };
+        const optimisticEntry: Entry = { id: `temp-${Date.now()}`, amount: finalAmount.toFixed(2), description, created_at: new Date().toISOString(), username: currentUser.username, user_id: currentUserId, split_with_user_ids: finalSplitWithIds, offline_timestamp: Date.now() };
         
         let newBalance = balance;
         const numParticipants = finalSplitWithIds?.length || members.length;
@@ -201,12 +261,8 @@ export default function RoomPage() {
 
         if (entryType === 'expense') {
             newBalance += parsedAmount;
-            if (finalSplitWithIds?.includes(currentUserId)) {
-                newBalance -= share;
-            }
-        } else {
-            newBalance -= parsedAmount;
-        }
+            if (finalSplitWithIds?.includes(currentUserId)) newBalance -= share;
+        } else { newBalance -= parsedAmount; }
         
         await addLocalEntry(roomId, optimisticEntry, { currentUserBalance: newBalance, otherBalances: detailedBalance });
         await fetchData({ forceLocal: true });
@@ -215,23 +271,9 @@ export default function RoomPage() {
         setDescription('');
 
         try {
-            const result = await handleApi({
-                method: 'POST',
-                url: '/api/entries',
-                body: { 
-                    roomId, 
-                    amount: finalAmount, 
-                    description, 
-                    splitWithUserIds: finalSplitWithIds,
-                    createdAt: optimisticEntry.created_at
-                },
-            });
-
-            if (result?.optimistic) {
-                setNotification(t('requestQueued'));
-            } else if (isOnline) {
-                fetchData();
-            }
+            const result = await handleApi({ method: 'POST', url: '/api/entries', body: { roomId, amount: finalAmount, description, splitWithUserIds: finalSplitWithIds, createdAt: optimisticEntry.created_at } });
+            if (result?.optimistic) setNotification(t('requestQueued'));
+            else if (isOnline) fetchData();
         } catch (error) {
             console.error("Failed to add entry:", error);
             setNotification('Failed to add entry. Please try again.');
@@ -241,11 +283,8 @@ export default function RoomPage() {
 
     const handleMemberSelection = (memberId: number) => {
         const newSelection = new Set(selectedMemberIds);
-        if (newSelection.has(memberId)) {
-            newSelection.delete(memberId);
-        } else {
-            newSelection.add(memberId);
-        }
+        if (newSelection.has(memberId)) newSelection.delete(memberId);
+        else newSelection.add(memberId);
         setSelectedMemberIds(newSelection);
     };
     
@@ -261,51 +300,60 @@ export default function RoomPage() {
                         <div className="text-center mb-6">
                             {isEditingName ? (
                                 <div className="flex items-center space-x-2 rtl:space-x-reverse animate-fadeIn">
-                                    <input
-                                        type="text"
-                                        value={newName}
-                                        onChange={(e) => setNewName(e.target.value)}
-                                        className="w-full px-3 py-1 text-xl font-bold text-center rounded-lg themed-input"
-                                        autoFocus
-                                        onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
-                                    />
-                                    <button onClick={handleSaveName} className="p-2 btn-primary rounded-lg" disabled={isSavingName} aria-label="Save name">
-                                        {isSavingName ? <FiLoader className="animate-spin" /> : <FiSave />}
-                                    </button>
-                                    <button onClick={() => setIsEditingName(false)} className="p-2 btn-muted rounded-lg" aria-label="Cancel editing name">
-                                        <FiX />
-                                    </button>
+                                    <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full px-3 py-1 text-xl font-bold text-center rounded-lg themed-input" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSaveName()} />
+                                    <button onClick={handleSaveName} className="p-2 btn-primary rounded-lg" disabled={isSavingName} aria-label="Save name"> {isSavingName ? <FiLoader className="animate-spin" /> : <FiSave />} </button>
+                                    <button onClick={() => setIsEditingName(false)} className="p-2 btn-muted rounded-lg" aria-label="Cancel editing name"> <FiX /> </button>
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-center space-x-2 rtl:space-x-reverse group">
-                                    <h1 className="text-xl font-bold text-card-foreground">
-                                        {roomName || t('roomTitle', { code: roomCode })}
-                                    </h1>
-                                    <button onClick={handleStartEditingName} className="p-1 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Edit room name">
-                                        <FiEdit />
-                                    </button>
+                                    <h1 className="text-xl font-bold text-card-foreground"> {roomName || t('roomTitle', { code: roomCode })} </h1>
+                                    <button onClick={handleStartEditingName} className="p-1 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Edit room name"> <FiEdit /> </button>
                                 </div>
                             )}
                             <p className="text-sm text-muted-foreground mt-1">Room Code: {roomCode}</p>
                         </div>
 
-
                         <div className="text-center mb-6">
                             <div className="text-lg font-medium text-muted-foreground">{t('balanceTitle')}</div>
-                            <div className={`text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
-                                {balance.toFixed(2)} ILS
-                            </div>
+                            <div className={`text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}> {balance.toFixed(2)} ILS </div>
                             <button onClick={() => setShowDetails(!showDetails)} className="text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
                                 {t('detailed')} <FiArrowDown className={`ms-1 transition-transform rtl:me-1 ${showDetails ? 'rotate-180' : ''}`} />
                             </button>
                             {showDetails && (
-                                <div className="mt-2 text-left bg-muted p-3 rounded-lg animate-fadeIn">
-                                    {Object.entries(detailedBalance).length > 0 ? Object.entries(detailedBalance).map(([username, bal]) => (
-                                        <div key={username} className="flex justify-between text-card-foreground py-1">
-                                            <span>{username}:</span>
-                                            <span className={bal >= 0 ? 'text-success' : 'text-danger'}>{bal.toFixed(2)}</span>
-                                        </div>
-                                    )) : <p className="text-muted-foreground text-center text-sm">No other members in this room.</p>}
+                                <div className="mt-4 text-left bg-muted p-3 rounded-lg animate-fadeIn space-y-1">
+                                    {otherMembers.length > 0 ? otherMembers.map(member => {
+                                        const p2pData = peerToPeerBalances.get(member.id);
+                                        const netBalance = p2pData?.netBalance ?? 0;
+                                        const isExpanded = expandedMemberId === member.id;
+                                        const balanceInfo = getBalanceText(netBalance);
+
+                                        return (
+                                            <div key={member.id}>
+                                                <button onClick={() => handleToggleMemberDetails(member.id)} className="flex justify-between items-center w-full text-left rounded-md p-2 hover:bg-card-border/50 transition-colors">
+                                                    <span className="font-medium text-card-foreground">{member.username}</span>
+                                                    <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                                                        <span className={`font-semibold ${balanceInfo.color}`}>{balanceInfo.text}</span>
+                                                        <FiChevronDown className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                                    </div>
+                                                </button>
+                                                {isExpanded && (
+                                                    <div className="mt-2 ml-4 pl-4 border-l-2 border-primary/50 space-y-3 py-2 animate-fadeIn">
+                                                        {p2pData?.transactions && p2pData.transactions.length > 0 ? p2pData.transactions.map((tx, index) => (
+                                                            <div key={`${tx.id}-${index}`} className="text-sm">
+                                                                <p className="font-medium text-foreground">{tx.description}</p>
+                                                                <p className="text-muted-foreground flex justify-between items-center">
+                                                                    <span>Paid by {tx.username}</span>
+                                                                    <span className={`font-bold ${tx.contribution >= 0 ? 'text-success' : 'text-danger'}`}>
+                                                                        {tx.contribution.toFixed(2)}
+                                                                    </span>
+                                                                </p>
+                                                            </div>
+                                                        )) : <p className="text-sm text-muted-foreground italic px-2">No direct transactions settling debt.</p> }
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    }) : <p className="text-muted-foreground text-center text-sm">No other members in this room.</p>}
                                 </div>
                             )}
                         </div>
@@ -315,27 +363,17 @@ export default function RoomPage() {
                         <div>
                             {notification && (
                                 <div className="mb-4 p-3 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-sm border border-blue-200 dark:border-blue-800 flex items-center animate-fadeIn">
-                                    <FiInfo className="me-2 shrink-0"/>
-                                    <span>{notification}</span>
+                                    <FiInfo className="me-2 shrink-0"/> <span>{notification}</span>
                                 </div>
                             )}
-                            <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">
-                                {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
-                            </h2>
+                            <h2 className="text-xl font-semibold text-center text-card-foreground mb-4"> {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')} </h2>
                             <form onSubmit={handleAddEntry}>
                                 {!isSimplified && (
                                     <div className="mb-6">
                                         <div className="relative flex w-full rounded-full bg-muted p-1">
-                                            <span
-                                                className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
-                                                style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }}
-                                            />
-                                            <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
-                                                {t('expense')}
-                                            </button>
-                                            <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
-                                                {t('loan')}
-                                            </button>
+                                            <span className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`} style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }} />
+                                            <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}> {t('expense')} </button>
+                                            <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}> {t('loan')} </button>
                                         </div>
                                     </div>
                                 )}
@@ -347,7 +385,6 @@ export default function RoomPage() {
                                     <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
                                     <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required />
                                 </div>
-
                                 {entryType === 'expense' && !isSimplified && otherMembers.length > 0 && (
                                     <div className="mb-6 bg-muted/50 p-3 rounded-lg animate-fadeIn">
                                         <div className="flex justify-between items-center pb-2 border-b border-card-border mb-2">
@@ -367,14 +404,9 @@ export default function RoomPage() {
                                         </div>
                                     </div>
                                 )}
-
                                 <div className="flex items-center justify-between mt-6">
-                                    <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}>
-                                        {t('addEntry')}
-                                    </button>
-                                    <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center">
-                                        {t('allEntries')}
-                                    </Link>
+                                    <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}> {t('addEntry')} </button>
+                                    <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center"> {t('allEntries')} </Link>
                                 </div>
                             </form>
                         </div>

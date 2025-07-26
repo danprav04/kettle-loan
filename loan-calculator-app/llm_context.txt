@@ -314,7 +314,11 @@ export default config
     "everyone": "Everyone",
     "shareWithMe": "Share with me",
     "offlineRoomDataError": "This room's data isn't saved for offline use.",
-    "requestQueued": "Request queued. It will sync when you're back online."
+    "requestQueued": "Request queued. It will sync when you're back online.",
+    "deleteEntry": "Delete Entry",
+    "deleteEntryConfirmation": "Are you sure you want to delete this entry? This action will permanently remove the record and cannot be undone.",
+    "deleteEntryFailed": "Failed to delete the entry. Please try again.",
+    "deleteEntrySyncing": "Cannot delete an entry that is still syncing."
   },
   "Dialog": {
     "cancel": "Cancel",
@@ -396,7 +400,11 @@ export default config
     "everyone": "כולם",
     "shareWithMe": "שתף איתי",
     "offlineRoomDataError": "נתוני החדר הזה לא נשמרו לשימוש לא מקוון.",
-    "requestQueued": "הבקשה נרשמה בתור. היא תסונכרן כשתהיה מחובר."
+    "requestQueued": "הבקשה נרשמה בתור. היא תסונכרן כשתהיה מחובר.",
+    "deleteEntry": "מחיקת רשומה",
+    "deleteEntryConfirmation": "האם אתה בטוח שברצונך למחוק רשומה זו? לא ניתן לבטל פעולה זו.",
+    "deleteEntryFailed": "מחיקת הרשומה נכשלה. אנא נסה שוב.",
+    "deleteEntrySyncing": "לא ניתן למחוק רשומה שעדיין מסתנכרנת."
   },
   "Dialog": {
     "cancel": "ביטול",
@@ -478,7 +486,11 @@ export default config
     "everyone": "Все",
     "shareWithMe": "Поделиться со мной",
     "offlineRoomDataError": "Данные этой комнаты не сохранены для использования в автономном режиме.",
-    "requestQueued": "Запрос поставлен в очередь. Он будет синхронизирован, когда вы будете онлайн."
+    "requestQueued": "Запрос поставлен в очередь. Он будет синхронизирован, когда вы будете онлайн.",
+    "deleteEntry": "Удалить запись",
+    "deleteEntryConfirmation": "Вы уверены, что хотите удалить эту запись? Это действие необратимо.",
+    "deleteEntryFailed": "Не удалось удалить запись. Пожалуйста, попробуйте еще раз.",
+    "deleteEntrySyncing": "Невозможно удалить запись, которая еще синхронизируется."
   },
   "Dialog": {
     "cancel": "Отмена",
@@ -990,6 +1002,55 @@ export async function POST(req: Request) {
 
 ---
 
+--- File: src/app/api/entries/[entryId]/route.ts ---
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { verifyToken } from '@/lib/auth';
+
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: Promise<{ entryId: string }> }
+) {
+    try {
+        const { entryId } = await params;
+        const numericEntryId = parseInt(entryId, 10);
+
+        if (isNaN(numericEntryId)) {
+            return NextResponse.json({ message: 'Invalid Entry ID' }, { status: 400 });
+        }
+
+        const token = req.headers.get('authorization')?.split(' ')[1];
+        const user = verifyToken(token);
+        if (!user) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
+        const entryQuery = await db.query('SELECT user_id FROM entries WHERE id = $1', [numericEntryId]);
+
+        if (entryQuery.rows.length === 0) {
+            return new NextResponse(null, { status: 204 });
+        }
+        
+        const entry = entryQuery.rows[0];
+
+        if (entry.user_id !== user.userId) {
+            return NextResponse.json({ message: 'Forbidden: You can only delete your own entries.' }, { status: 403 });
+        }
+
+        await db.query(
+            'DELETE FROM entries WHERE id = $1',
+            [numericEntryId]
+        );
+
+        return new NextResponse(null, { status: 204 });
+    } catch (error) {
+        console.error('Failed to delete entry:', error);
+        return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
+    }
+}
+
+---
+
 --- File: src/app/api/rooms/route.ts ---
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
@@ -1075,7 +1136,7 @@ export async function POST(req: Request) {
 ---
 
 --- File: src/app/api/rooms/[roomId]/route.ts ---
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
@@ -1090,11 +1151,12 @@ interface DbEntry {
     split_with_user_ids: number[] | null;
 }
 
-export async function GET(req: Request) {
+export async function GET(
+    req: NextRequest,
+    { params }: { params: Promise<{ roomId: string }> }
+) {
     try {
-        const url = new URL(req.url);
-        const pathnameParts = url.pathname.split('/');
-        const roomId = pathnameParts[pathnameParts.length - 1];
+        const { roomId } = await params;
 
         const token = req.headers.get('authorization')?.split(' ')[1];
         const user = verifyToken(token);
@@ -1208,11 +1270,12 @@ export async function GET(req: Request) {
     }
 }
 
-export async function PUT(req: Request) {
+export async function PUT(
+    req: NextRequest,
+    { params }: { params: Promise<{ roomId: string }> }
+) {
     try {
-        const url = new URL(req.url);
-        const pathnameParts = url.pathname.split('/');
-        const roomId = pathnameParts[pathnameParts.length - 1];
+        const { roomId } = await params;
 
         const token = req.headers.get('authorization')?.split(' ')[1];
         const user = verifyToken(token);
@@ -1250,12 +1313,14 @@ export async function PUT(req: Request) {
 ---
 
 --- File: src/app/api/rooms/[roomId]/members/route.ts ---
-// src/app/api/rooms/[roomId]/members/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
-export async function DELETE(req: Request) {
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: Promise<{ roomId: string }> }
+) {
     const client = await db.connect();
     try {
         const token = req.headers.get('authorization')?.split(' ')[1];
@@ -1264,11 +1329,7 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Manually parse the roomId from the request URL.
-        const url = new URL(req.url);
-        const pathnameParts = url.pathname.split('/');
-        // The path is /api/rooms/[roomId]/members, so roomId is the 3rd to last part
-        const roomId = pathnameParts[pathnameParts.length - 2];
+        const { roomId } = await params;
 
         if (!roomId || isNaN(parseInt(roomId, 10))) {
             return NextResponse.json({ message: 'Invalid Room ID' }, { status: 400 });
@@ -1277,34 +1338,27 @@ export async function DELETE(req: Request) {
         
         await client.query('BEGIN');
 
-        // Remove the user from the room
         const deleteResult = await client.query(
             'DELETE FROM room_members WHERE user_id = $1 AND room_id = $2',
             [user.userId, numericRoomId]
         );
 
         if (deleteResult.rowCount === 0) {
-            // The user wasn't a member of the room, so there's nothing to do.
-            // We can consider this a successful state.
             await client.query('COMMIT');
             return NextResponse.json({ message: 'User already not in room' });
         }
 
-        // Check if the user was the creator of the room. If so, nullify the creator_id.
         await client.query(
             'UPDATE rooms SET creator_id = NULL WHERE id = $1 AND creator_id = $2',
             [numericRoomId, user.userId]
         );
 
-        // Check if there are any members left in the room
         const membersResult = await client.query(
             'SELECT 1 FROM room_members WHERE room_id = $1 LIMIT 1',
             [numericRoomId]
         );
 
         if (membersResult.rows.length === 0) {
-            // If no members are left, delete the entire room.
-            // Entries will be deleted automatically due to `ON DELETE CASCADE`.
             await client.query('DELETE FROM rooms WHERE id = $1', [numericRoomId]);
         }
         
@@ -1407,8 +1461,8 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
                     </button>
                 </header>
                 
-                {/* Main content area */}
-                <main className="flex-1 bg-muted p-4 sm:p-6 md:p-8 overflow-y-auto">
+                {/* Main content area - removed overflow-y-auto to allow children to control scrolling */}
+                <main className="flex-1 bg-muted p-4 sm:p-6 md:p-8">
                     {children}
                 </main>
             </div>
@@ -1691,6 +1745,7 @@ export default function RoomPage() {
             description,
             created_at: new Date().toISOString(),
             username: currentUser.username,
+            user_id: currentUserId,
             split_with_user_ids: finalSplitWithIds,
             offline_timestamp: Date.now()
         };
@@ -1751,134 +1806,136 @@ export default function RoomPage() {
     
     const isSubmitDisabled = amount === '' || description === '';
 
-    if (isLoading) {
-        return <div className="max-w-md mx-auto p-8 text-center text-muted-foreground animate-fadeIn">Loading room...</div>;
-    }
-
     return (
-        <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
-            <div className="p-8">
-                <div className="text-center mb-6">
-                    {isEditingName ? (
-                        <div className="flex items-center space-x-2 rtl:space-x-reverse animate-fadeIn">
-                            <input
-                                type="text"
-                                value={newName}
-                                onChange={(e) => setNewName(e.target.value)}
-                                className="w-full px-3 py-1 text-xl font-bold text-center rounded-lg themed-input"
-                                autoFocus
-                                onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
-                            />
-                            <button onClick={handleSaveName} className="p-2 btn-primary rounded-lg" disabled={isSavingName} aria-label="Save name">
-                                {isSavingName ? <FiLoader className="animate-spin" /> : <FiSave />}
-                            </button>
-                            <button onClick={() => setIsEditingName(false)} className="p-2 btn-muted rounded-lg" aria-label="Cancel editing name">
-                                <FiX />
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="flex items-center justify-center space-x-2 rtl:space-x-reverse group">
-                            <h1 className="text-xl font-bold text-card-foreground">
-                                {roomName || t('roomTitle', { code: roomCode })}
-                            </h1>
-                            <button onClick={handleStartEditingName} className="p-1 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Edit room name">
-                                <FiEdit />
-                            </button>
-                        </div>
-                    )}
-                    <p className="text-sm text-muted-foreground mt-1">Room Code: {roomCode}</p>
-                </div>
-
-
-                <div className="text-center mb-6">
-                    <div className="text-lg font-medium text-muted-foreground">{t('balanceTitle')}</div>
-                    <div className={`text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
-                        {balance.toFixed(2)} ILS
-                    </div>
-                     <button onClick={() => setShowDetails(!showDetails)} className="text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
-                        {t('detailed')} <FiArrowDown className={`ms-1 transition-transform rtl:me-1 ${showDetails ? 'rotate-180' : ''}`} />
-                    </button>
-                    {showDetails && (
-                        <div className="mt-2 text-left bg-muted p-3 rounded-lg animate-fadeIn">
-                            {Object.entries(detailedBalance).length > 0 ? Object.entries(detailedBalance).map(([username, bal]) => (
-                                <div key={username} className="flex justify-between text-card-foreground py-1">
-                                    <span>{username}:</span>
-                                    <span className={bal >= 0 ? 'text-success' : 'text-danger'}>{bal.toFixed(2)}</span>
-                                </div>
-                            )) : <p className="text-muted-foreground text-center text-sm">No other members in this room.</p>}
-                        </div>
-                    )}
-                </div>
-
-                <div className="border-t border-card-border my-6"></div>
-
-                <div>
-                    {notification && (
-                        <div className="mb-4 p-3 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-sm border border-blue-200 dark:border-blue-800 flex items-center animate-fadeIn">
-                            <FiInfo className="me-2 shrink-0"/>
-                            <span>{notification}</span>
-                        </div>
-                    )}
-                    <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">
-                        {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
-                    </h2>
-                    <form onSubmit={handleAddEntry}>
-                        {!isSimplified && (
-                            <div className="mb-6">
-                                <div className="relative flex w-full rounded-full bg-muted p-1">
-                                    <span
-                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
-                                        style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }}
+        <div className="h-full overflow-y-auto">
+            {isLoading ? (
+                <div className="max-w-md mx-auto p-8 text-center text-muted-foreground animate-fadeIn">Loading room...</div>
+            ) : (
+                <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
+                    <div className="p-8">
+                        <div className="text-center mb-6">
+                            {isEditingName ? (
+                                <div className="flex items-center space-x-2 rtl:space-x-reverse animate-fadeIn">
+                                    <input
+                                        type="text"
+                                        value={newName}
+                                        onChange={(e) => setNewName(e.target.value)}
+                                        className="w-full px-3 py-1 text-xl font-bold text-center rounded-lg themed-input"
+                                        autoFocus
+                                        onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
                                     />
-                                    <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
-                                        {t('expense')}
+                                    <button onClick={handleSaveName} className="p-2 btn-primary rounded-lg" disabled={isSavingName} aria-label="Save name">
+                                        {isSavingName ? <FiLoader className="animate-spin" /> : <FiSave />}
                                     </button>
-                                    <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
-                                        {t('loan')}
+                                    <button onClick={() => setIsEditingName(false)} className="p-2 btn-muted rounded-lg" aria-label="Cancel editing name">
+                                        <FiX />
                                     </button>
                                 </div>
-                            </div>
-                        )}
-                        <div className="mb-4">
-                            <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
-                            <input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required min="0" step="any" />
-                        </div>
-                        <div className="mb-4">
-                            <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
-                            <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required />
+                            ) : (
+                                <div className="flex items-center justify-center space-x-2 rtl:space-x-reverse group">
+                                    <h1 className="text-xl font-bold text-card-foreground">
+                                        {roomName || t('roomTitle', { code: roomCode })}
+                                    </h1>
+                                    <button onClick={handleStartEditingName} className="p-1 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Edit room name">
+                                        <FiEdit />
+                                    </button>
+                                </div>
+                            )}
+                            <p className="text-sm text-muted-foreground mt-1">Room Code: {roomCode}</p>
                         </div>
 
-                        {entryType === 'expense' && !isSimplified && otherMembers.length > 0 && (
-                            <div className="mb-6 bg-muted/50 p-3 rounded-lg animate-fadeIn">
-                                <div className="flex justify-between items-center pb-2 border-b border-card-border mb-2">
-                                     <label className="block text-muted-foreground text-sm font-bold">{t('splitWith')}</label>
-                                     <div className="flex items-center">
-                                         <input id="share-with-me" type="checkbox" checked={includeSelfInSplit} onChange={(e) => setIncludeSelfInSplit(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
-                                         <label htmlFor="share-with-me" className="ms-2 block text-sm font-medium text-foreground">{t('shareWithMe')}</label>
-                                     </div>
-                                </div>
-                                <div className="space-y-2 max-h-32 overflow-y-auto px-1">
-                                    {otherMembers.map(member => (
-                                        <div key={member.id} className="flex items-center">
-                                            <input id={`member-${member.id}`} name="members" type="checkbox" checked={selectedMemberIds.has(member.id)} onChange={() => handleMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
-                                            <label htmlFor={`member-${member.id}`} className="ms-2 block text-sm text-foreground">{member.username}</label>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
 
-                        <div className="flex items-center justify-between mt-6">
-                            <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}>
-                                {t('addEntry')}
+                        <div className="text-center mb-6">
+                            <div className="text-lg font-medium text-muted-foreground">{t('balanceTitle')}</div>
+                            <div className={`text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
+                                {balance.toFixed(2)} ILS
+                            </div>
+                            <button onClick={() => setShowDetails(!showDetails)} className="text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
+                                {t('detailed')} <FiArrowDown className={`ms-1 transition-transform rtl:me-1 ${showDetails ? 'rotate-180' : ''}`} />
                             </button>
-                            <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center">
-                                {t('allEntries')}
-                            </Link>
+                            {showDetails && (
+                                <div className="mt-2 text-left bg-muted p-3 rounded-lg animate-fadeIn">
+                                    {Object.entries(detailedBalance).length > 0 ? Object.entries(detailedBalance).map(([username, bal]) => (
+                                        <div key={username} className="flex justify-between text-card-foreground py-1">
+                                            <span>{username}:</span>
+                                            <span className={bal >= 0 ? 'text-success' : 'text-danger'}>{bal.toFixed(2)}</span>
+                                        </div>
+                                    )) : <p className="text-muted-foreground text-center text-sm">No other members in this room.</p>}
+                                </div>
+                            )}
                         </div>
-                    </form>
+
+                        <div className="border-t border-card-border my-6"></div>
+
+                        <div>
+                            {notification && (
+                                <div className="mb-4 p-3 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-sm border border-blue-200 dark:border-blue-800 flex items-center animate-fadeIn">
+                                    <FiInfo className="me-2 shrink-0"/>
+                                    <span>{notification}</span>
+                                </div>
+                            )}
+                            <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">
+                                {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
+                            </h2>
+                            <form onSubmit={handleAddEntry}>
+                                {!isSimplified && (
+                                    <div className="mb-6">
+                                        <div className="relative flex w-full rounded-full bg-muted p-1">
+                                            <span
+                                                className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
+                                                style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }}
+                                            />
+                                            <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
+                                                {t('expense')}
+                                            </button>
+                                            <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
+                                                {t('loan')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="mb-4">
+                                    <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
+                                    <input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required min="0" step="any" />
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
+                                    <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required />
+                                </div>
+
+                                {entryType === 'expense' && !isSimplified && otherMembers.length > 0 && (
+                                    <div className="mb-6 bg-muted/50 p-3 rounded-lg animate-fadeIn">
+                                        <div className="flex justify-between items-center pb-2 border-b border-card-border mb-2">
+                                            <label className="block text-muted-foreground text-sm font-bold">{t('splitWith')}</label>
+                                            <div className="flex items-center">
+                                                <input id="share-with-me" type="checkbox" checked={includeSelfInSplit} onChange={(e) => setIncludeSelfInSplit(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                                                <label htmlFor="share-with-me" className="ms-2 block text-sm font-medium text-foreground">{t('shareWithMe')}</label>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2 max-h-32 overflow-y-auto px-1">
+                                            {otherMembers.map(member => (
+                                                <div key={member.id} className="flex items-center">
+                                                    <input id={`member-${member.id}`} name="members" type="checkbox" checked={selectedMemberIds.has(member.id)} onChange={() => handleMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                                                    <label htmlFor={`member-${member.id}`} className="ms-2 block text-sm text-foreground">{member.username}</label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center justify-between mt-6">
+                                    <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}>
+                                        {t('addEntry')}
+                                    </button>
+                                    <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center">
+                                        {t('allEntries')}
+                                    </Link>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }
@@ -1893,16 +1950,26 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
-import { getRoomData, Entry } from '@/lib/offline-sync';
-import { FiClock } from 'react-icons/fi'; // Import a clock icon
+import { getRoomData, Entry, deleteLocalEntry } from '@/lib/offline-sync';
+import { handleApi } from '@/lib/api';
+import { useUser } from '@/components/UserProvider';
+import ConfirmationDialog from '@/components/ConfirmationDialog';
+import { FiClock, FiTrash2, FiInfo } from 'react-icons/fi';
 
 export default function EntriesPage() {
     const params = useParams<{ roomId: string }>();
     const { roomId } = params;
     const t = useTranslations('Room');
+    const tNotif = useTranslations('Notifications');
     const { isOnline } = useSync();
+    const { user } = useUser();
+    
     const [entries, setEntries] = useState<Entry[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [notification, setNotification] = useState<string | null>(null);
+    const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    
     const router = useRouter();
 
     const fetchEntries = useCallback(async () => {
@@ -1924,8 +1991,8 @@ export default function EntriesPage() {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
-                    const { entries: fetchedEntries } = await res.json();
-                    setEntries(fetchedEntries);
+                    const data = await res.json();
+                    setEntries(data.entries);
                 } else if (res.status === 401) {
                     router.push('/');
                 }
@@ -1944,41 +2011,124 @@ export default function EntriesPage() {
         };
     }, [fetchEntries]);
 
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
+    
+    const openConfirmDialog = (entry: Entry) => {
+        if (typeof entry.id !== 'number') {
+            setNotification(t('deleteEntrySyncing'));
+            return;
+        }
+        if (user && user.userId === entry.user_id) {
+            setEntryToDelete(entry);
+            setIsConfirmOpen(true);
+        }
+    };
+
+    const handleDeleteEntry = async () => {
+        if (!entryToDelete || typeof entryToDelete.id !== 'number') return;
+        
+        const originalEntries = [...entries];
+        setEntries(prev => prev.filter(e => e.id !== entryToDelete.id));
+        setIsConfirmOpen(false);
+        
+        try {
+            await deleteLocalEntry(roomId, entryToDelete.id);
+            
+            const result = await handleApi({
+                method: 'DELETE',
+                url: `/api/entries/${entryToDelete.id}`,
+            });
+
+            if (result?.optimistic) {
+                setNotification(tNotif('requestQueued'));
+            }
+            
+            setEntryToDelete(null);
+
+        } catch (error) {
+            console.error("Failed to delete entry:", error);
+            setNotification(t('deleteEntryFailed'));
+            setEntries(originalEntries);
+        }
+    };
+
     return (
-        <div className="max-w-4xl mx-auto animate-scaleIn">
-            <button onClick={() => router.back()} className="mb-4 font-bold py-2 px-4 rounded-lg btn-primary">
-                {t('backToRoom')}
-            </button>
-            <div className="bg-card shadow-md rounded-lg border border-card-border">
-                <div className="p-4 border-b border-card-border">
-                    <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
-                </div>
-                {isLoading ? (
-                    <p className="p-4 text-center text-muted-foreground">Loading entries...</p>
-                ) : entries.length === 0 ? (
-                    <p className="p-4 text-center text-muted-foreground">No entries have been added to this room yet.</p>
-                ) : (
-                    <ul>
-                        {entries.map((entry, index) => (
-                            <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
-                                <div>
-                                    <p className="font-semibold text-card-foreground">{entry.description}</p>
-                                    <p className="text-sm text-muted-foreground flex items-center">
-                                        {/* Display clock icon if entry was made offline */}
-                                        {entry.offline_timestamp && (
-                                            <FiClock className="me-1.5 text-amber-500" title={`Created offline at ${new Date(entry.offline_timestamp).toLocaleTimeString()}`} />
-                                        )}
-                                        {entry.username} - {new Date(entry.created_at).toLocaleString()}
-                                    </p>
-                                </div>
-                                <div className={`text-lg font-bold ${parseFloat(entry.amount) < 0 ? 'text-danger' : 'text-success'}`}>
-                                    {parseFloat(entry.amount).toFixed(2)} ILS
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
+        <div className="max-w-4xl mx-auto animate-scaleIn flex flex-col h-full">
+            <div className="shrink-0">
+                <button onClick={() => router.back()} className="mb-4 font-bold py-2 px-4 rounded-lg btn-primary">
+                    {t('backToRoom')}
+                </button>
+                
+                {notification && (
+                    <div className="mb-4 p-3 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-sm border border-blue-200 dark:border-blue-800 flex items-center animate-fadeIn">
+                        <FiInfo className="me-2 shrink-0"/>
+                        <span>{notification}</span>
+                    </div>
                 )}
             </div>
+            
+            <div className="bg-card shadow-md max-h-[80vh] rounded-lg border border-card-border flex flex-col flex-grow overflow-hidden">
+                <div className="p-4 border-b border-card-border shrink-0">
+                    <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
+                </div>
+                <div className="overflow-y-auto flex-grow">
+                    {isLoading ? (
+                        <p className="p-4 text-center text-muted-foreground">Loading entries...</p>
+                    ) : entries.length === 0 ? (
+                        <p className="p-4 text-center text-muted-foreground">No entries have been added to this room yet.</p>
+                    ) : (
+                        <ul>
+                            {entries.map((entry, index) => (
+                                <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn group" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
+                                    <div>
+                                        <p className="font-semibold text-card-foreground">{entry.description}</p>
+                                        <p className="text-sm text-muted-foreground flex items-center">
+                                            {entry.offline_timestamp && (
+                                                <FiClock className="me-1.5 text-amber-500" title={`Created offline at ${new Date(entry.offline_timestamp).toLocaleTimeString()}`} />
+                                            )}
+                                            {entry.username} - {new Date(entry.created_at).toLocaleString()}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center space-x-2 md:space-x-4">
+                                        <div className={`text-lg font-bold ${parseFloat(entry.amount) < 0 ? 'text-danger' : 'text-success'}`}>
+                                            {parseFloat(entry.amount).toFixed(2)} ILS
+                                        </div>
+                                        {user && user.userId === entry.user_id && typeof entry.id === 'number' && (
+                                            <button
+                                                onClick={() => openConfirmDialog(entry)}
+                                                className="text-muted-foreground hover:text-danger p-2 rounded-full hover:bg-danger/10 transition-all opacity-0 group-hover:opacity-100"
+                                                title={t('deleteEntry')}
+                                            >
+                                                <FiTrash2 size={18} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </div>
+            
+            <ConfirmationDialog
+                isOpen={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                onConfirm={handleDeleteEntry}
+                title={t('deleteEntry')}
+            >
+                <p>{t('deleteEntryConfirmation')}</p>
+                {entryToDelete && (
+                    <div className="mt-4 p-3 bg-muted rounded-lg border border-card-border">
+                        <p className="font-semibold text-card-foreground">{entryToDelete.description}</p>
+                        <p className="text-sm text-muted-foreground">{new Date(entryToDelete.created_at).toLocaleString()}</p>
+                    </div>
+                )}
+            </ConfirmationDialog>
         </div>
     );
 }
@@ -3002,6 +3152,7 @@ export interface Entry {
     description: string;
     created_at: string;
     username: string;
+    user_id: number;
     split_with_user_ids: number[] | null;
     offline_timestamp?: number;
 }
@@ -3090,7 +3241,7 @@ export async function syncOutbox(): Promise<boolean> {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${req.token}`,
                 },
-                body: JSON.stringify(req.body),
+                body: req.method !== 'DELETE' ? JSON.stringify(req.body) : undefined,
             });
             if (response.ok || (response.status >= 400 && response.status < 500)) {
                 await db.delete(OUTBOX_STORE, req.id);
@@ -3180,6 +3331,83 @@ export async function addLocalEntry(roomId: string, newEntry: Entry, newBalances
         roomData.entries.unshift(newEntry);
         roomData.currentUserBalance = newBalances.currentUserBalance;
         roomData.balances = newBalances.otherBalances;
+        roomData.lastUpdated = Date.now();
+        await tx.store.put(roomData);
+    }
+    await tx.done;
+}
+
+export async function deleteLocalEntry(roomId: string, entryId: number | string) {
+    const db = await getDb();
+    const tx = db.transaction(ROOM_DATA_STORE, 'readwrite');
+    const roomData = await tx.store.get(roomId);
+
+    if (roomData) {
+        const entryExists = roomData.entries.some(e => e.id === entryId);
+        if (!entryExists) return;
+
+        roomData.entries = roomData.entries.filter(e => e.id !== entryId);
+
+        // Recalculate balances from scratch for accuracy
+        const { members, entries, currentUserId } = roomData;
+
+        if (!members || !currentUserId || members.length === 0) {
+            roomData.currentUserBalance = 0;
+            roomData.balances = {};
+        } else {
+            const finalBalances: { [key: string]: number } = {};
+            members.forEach(member => { finalBalances[member.id] = 0; });
+
+            entries.forEach(entry => {
+                const amount = parseFloat(entry.amount);
+                const payerId = entry.user_id;
+
+                if (amount > 0) { // Expense
+                    const participants = entry.split_with_user_ids;
+                    if (!participants || participants.length === 0) {
+                        const share = amount / members.length;
+                        members.forEach(member => {
+                            if (member.id === payerId) {
+                                finalBalances[member.id] += (amount - share);
+                            } else {
+                                finalBalances[member.id] -= share;
+                            }
+                        });
+                    } else {
+                        if (participants.length === 0) return;
+                        const share = amount / participants.length;
+                        finalBalances[payerId] += amount;
+                        participants.forEach(pId => {
+                            if (finalBalances[pId] !== undefined) {
+                                finalBalances[pId] -= share;
+                            }
+                        });
+                    }
+                } else if (amount < 0) { // Loan
+                    const loanAmount = Math.abs(amount);
+                    const borrowerId = payerId;
+                    finalBalances[borrowerId] -= loanAmount;
+
+                    const lenders = members.filter(m => m.id !== borrowerId);
+                    if (lenders.length > 0) {
+                        const creditPerLender = loanAmount / lenders.length;
+                        lenders.forEach(lender => {
+                            finalBalances[lender.id] += creditPerLender;
+                        });
+                    }
+                }
+            });
+
+            roomData.currentUserBalance = finalBalances[currentUserId] || 0;
+            const otherUserBalances: { [key: string]: number } = {};
+            members.forEach(member => {
+                if (member.id !== currentUserId) {
+                    otherUserBalances[member.username] = finalBalances[member.id] || 0;
+                }
+            });
+            roomData.balances = otherUserBalances;
+        }
+
         roomData.lastUpdated = Date.now();
         await tx.store.put(roomData);
     }
