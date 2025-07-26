@@ -3,7 +3,10 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
-export async function DELETE(req: Request) {
+export async function DELETE(
+    req: Request,
+    { params }: { params: { roomId: string } }
+) {
     const client = await db.connect();
     try {
         const token = req.headers.get('authorization')?.split(' ')[1];
@@ -12,11 +15,7 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Manually parse the roomId from the request URL.
-        const url = new URL(req.url);
-        const pathnameParts = url.pathname.split('/');
-        // The path is /api/rooms/[roomId]/members, so roomId is the 3rd to last part
-        const roomId = pathnameParts[pathnameParts.length - 2];
+        const { roomId } = params;
 
         if (!roomId || isNaN(parseInt(roomId, 10))) {
             return NextResponse.json({ message: 'Invalid Room ID' }, { status: 400 });
