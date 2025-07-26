@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
-import { FiArrowDown, FiInfo, FiEdit, FiSave, FiX, FiLoader } from 'react-icons/fi';
+import { FiInfo, FiEdit, FiSave, FiX, FiLoader } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
 import { saveRoomData, getRoomData, addLocalEntry, updateLocalRoomName, LocalRoomData, Entry } from '@/lib/offline-sync';
 import { useSync } from '@/components/SyncProvider';
@@ -24,8 +24,6 @@ export default function RoomPage() {
     const { isOnline } = useSync();
 
     const [balance, setBalance] = useState(0);
-    const [detailedBalance, setDetailedBalance] = useState<{ [key: string]: number }>({});
-    const [showDetails, setShowDetails] = useState(false);
     const [roomCode, setRoomCode] = useState('');
     const [roomName, setRoomName] = useState<string | null>(null);
     const [isEditingName, setIsEditingName] = useState(false);
@@ -47,7 +45,6 @@ export default function RoomPage() {
 
     const updateStateFromData = useCallback((data: LocalRoomData) => {
         setBalance(data.currentUserBalance || 0);
-        setDetailedBalance(data.balances || {});
         setRoomCode(data.code || '');
         setRoomName(data.name || null);
         setNewName(data.name || '');
@@ -195,20 +192,9 @@ export default function RoomPage() {
             offline_timestamp: Date.now()
         };
         
-        let newBalance = balance;
-        const numParticipants = finalSplitWithIds?.length || members.length;
-        const share = parsedAmount / (numParticipants > 0 ? numParticipants : 1);
-
-        if (entryType === 'expense') {
-            newBalance += parsedAmount;
-            if (finalSplitWithIds?.includes(currentUserId)) {
-                newBalance -= share;
-            }
-        } else {
-            newBalance -= parsedAmount;
-        }
-        
-        await addLocalEntry(roomId, optimisticEntry, { currentUserBalance: newBalance, otherBalances: detailedBalance });
+        // Optimistic update of balances is complex, so we'll just add the entry
+        // and refetch from local data, which handles balance recalculation.
+        await addLocalEntry(roomId, optimisticEntry);
         await fetchData({ forceLocal: true });
         
         setAmount('');
@@ -295,19 +281,9 @@ export default function RoomPage() {
                             <div className={`text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
                                 {balance.toFixed(2)} ILS
                             </div>
-                            <button onClick={() => setShowDetails(!showDetails)} className="text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
-                                {t('detailed')} <FiArrowDown className={`ms-1 transition-transform rtl:me-1 ${showDetails ? 'rotate-180' : ''}`} />
-                            </button>
-                            {showDetails && (
-                                <div className="mt-2 text-left bg-muted p-3 rounded-lg animate-fadeIn">
-                                    {Object.entries(detailedBalance).length > 0 ? Object.entries(detailedBalance).map(([username, bal]) => (
-                                        <div key={username} className="flex justify-between text-card-foreground py-1">
-                                            <span>{username}:</span>
-                                            <span className={bal >= 0 ? 'text-success' : 'text-danger'}>{bal.toFixed(2)}</span>
-                                        </div>
-                                    )) : <p className="text-muted-foreground text-center text-sm">No other members in this room.</p>}
-                                </div>
-                            )}
+                            <Link href={`/rooms/${roomId}/balance`} className="text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
+                                {t('detailed')}
+                            </Link>
                         </div>
 
                         <div className="border-t border-card-border my-6"></div>

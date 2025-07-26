@@ -144,6 +144,64 @@ export async function getOutboxCount(): Promise<number> {
 
 // --- Local Data Management ---
 
+const recalculateBalances = (entries: Entry[], members: Member[], currentUserId: number) => {
+    const finalBalances: { [key: string]: number } = {};
+    members.forEach(member => { finalBalances[member.id] = 0; });
+
+    entries.forEach(entry => {
+        const amount = parseFloat(entry.amount);
+        const payerId = entry.user_id;
+
+        if (amount > 0) { // Expense
+            const participants = entry.split_with_user_ids;
+            if (!participants || participants.length === 0) {
+                const share = amount / members.length;
+                members.forEach(member => {
+                    if (member.id === payerId) {
+                        finalBalances[member.id] += (amount - share);
+                    } else {
+                        finalBalances[member.id] -= share;
+                    }
+                });
+            } else {
+                if (participants.length === 0) return;
+                const share = amount / participants.length;
+                finalBalances[payerId] += amount;
+                participants.forEach(pId => {
+                    if (finalBalances[pId] !== undefined) {
+                        finalBalances[pId] -= share;
+                    }
+                });
+            }
+        } else if (amount < 0) { // Loan
+            const loanAmount = Math.abs(amount);
+            const borrowerId = payerId;
+            finalBalances[borrowerId] -= loanAmount;
+
+            const lenders = members.filter(m => m.id !== borrowerId);
+            if (lenders.length > 0) {
+                const creditPerLender = loanAmount / lenders.length;
+                lenders.forEach(lender => {
+                    if(finalBalances[lender.id] !== undefined) {
+                        finalBalances[lender.id] += creditPerLender;
+                    }
+                });
+            }
+        }
+    });
+
+    const currentUserBalance = finalBalances[currentUserId] || 0;
+    const otherUserBalances: { [key: string]: number } = {};
+    members.forEach(member => {
+        if (member.id !== currentUserId) {
+            otherUserBalances[member.username] = finalBalances[member.id] || 0;
+        }
+    });
+
+    return { currentUserBalance, balances: otherUserBalances };
+};
+
+
 export async function saveRoomsList(rooms: LocalRoomListItem[]) {
     const db = await getDb();
     await db.put(ROOMS_LIST_STORE, { rooms }, 'user-rooms');
@@ -200,15 +258,20 @@ export async function updateLocalRoomName(roomId: string, newName: string) {
     await tx.done;
 }
 
-export async function addLocalEntry(roomId: string, newEntry: Entry, newBalances: { currentUserBalance: number, otherBalances: { [key: string]: number } }) {
+export async function addLocalEntry(roomId: string, newEntry: Entry) {
     const db = await getDb();
     const tx = db.transaction(ROOM_DATA_STORE, 'readwrite');
     const roomData = await tx.store.get(roomId);
 
     if (roomData) {
         roomData.entries.unshift(newEntry);
-        roomData.currentUserBalance = newBalances.currentUserBalance;
-        roomData.balances = newBalances.otherBalances;
+        
+        if (roomData.members && roomData.currentUserId) {
+            const { currentUserBalance, balances } = recalculateBalances(roomData.entries, roomData.members, roomData.currentUserId);
+            roomData.currentUserBalance = currentUserBalance;
+            roomData.balances = balances;
+        }
+
         roomData.lastUpdated = Date.now();
         await tx.store.put(roomData);
     }
@@ -226,64 +289,10 @@ export async function deleteLocalEntry(roomId: string, entryId: number | string)
 
         roomData.entries = roomData.entries.filter(e => e.id !== entryId);
 
-        // Recalculate balances from scratch for accuracy
-        const { members, entries, currentUserId } = roomData;
-
-        if (!members || !currentUserId || members.length === 0) {
-            roomData.currentUserBalance = 0;
-            roomData.balances = {};
-        } else {
-            const finalBalances: { [key: string]: number } = {};
-            members.forEach(member => { finalBalances[member.id] = 0; });
-
-            entries.forEach(entry => {
-                const amount = parseFloat(entry.amount);
-                const payerId = entry.user_id;
-
-                if (amount > 0) { // Expense
-                    const participants = entry.split_with_user_ids;
-                    if (!participants || participants.length === 0) {
-                        const share = amount / members.length;
-                        members.forEach(member => {
-                            if (member.id === payerId) {
-                                finalBalances[member.id] += (amount - share);
-                            } else {
-                                finalBalances[member.id] -= share;
-                            }
-                        });
-                    } else {
-                        if (participants.length === 0) return;
-                        const share = amount / participants.length;
-                        finalBalances[payerId] += amount;
-                        participants.forEach(pId => {
-                            if (finalBalances[pId] !== undefined) {
-                                finalBalances[pId] -= share;
-                            }
-                        });
-                    }
-                } else if (amount < 0) { // Loan
-                    const loanAmount = Math.abs(amount);
-                    const borrowerId = payerId;
-                    finalBalances[borrowerId] -= loanAmount;
-
-                    const lenders = members.filter(m => m.id !== borrowerId);
-                    if (lenders.length > 0) {
-                        const creditPerLender = loanAmount / lenders.length;
-                        lenders.forEach(lender => {
-                            finalBalances[lender.id] += creditPerLender;
-                        });
-                    }
-                }
-            });
-
-            roomData.currentUserBalance = finalBalances[currentUserId] || 0;
-            const otherUserBalances: { [key: string]: number } = {};
-            members.forEach(member => {
-                if (member.id !== currentUserId) {
-                    otherUserBalances[member.username] = finalBalances[member.id] || 0;
-                }
-            });
-            roomData.balances = otherUserBalances;
+        if (roomData.members && roomData.currentUserId) {
+            const { currentUserBalance, balances } = recalculateBalances(roomData.entries, roomData.members, roomData.currentUserId);
+            roomData.currentUserBalance = currentUserBalance;
+            roomData.balances = balances;
         }
 
         roomData.lastUpdated = Date.now();
