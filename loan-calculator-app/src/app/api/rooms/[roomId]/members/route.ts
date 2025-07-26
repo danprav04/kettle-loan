@@ -4,7 +4,7 @@ import { verifyToken } from '@/lib/auth';
 
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { roomId: string } }
+    { params }: { params: Promise<{ roomId: string }> }
 ) {
     const client = await db.connect();
     try {
@@ -14,7 +14,7 @@ export async function DELETE(
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const { roomId } = params;
+        const { roomId } = await params;
 
         if (!roomId || isNaN(parseInt(roomId, 10))) {
             return NextResponse.json({ message: 'Invalid Room ID' }, { status: 400 });

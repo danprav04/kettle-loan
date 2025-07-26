@@ -15,10 +15,10 @@ interface DbEntry {
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: { roomId: string } }
+    { params }: { params: Promise<{ roomId: string }> }
 ) {
     try {
-        const { roomId } = params;
+        const { roomId } = await params;
 
         const token = req.headers.get('authorization')?.split(' ')[1];
         const user = verifyToken(token);
@@ -134,10 +134,10 @@ export async function GET(
 
 export async function PUT(
     req: NextRequest,
-    { params }: { params: { roomId: string } }
+    { params }: { params: Promise<{ roomId: string }> }
 ) {
     try {
-        const { roomId } = params;
+        const { roomId } = await params;
 
         const token = req.headers.get('authorization')?.split(' ')[1];
         const user = verifyToken(token);

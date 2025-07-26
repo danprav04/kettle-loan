@@ -4,10 +4,10 @@ import { verifyToken } from '@/lib/auth';
 
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { entryId: string } }
+    { params }: { params: Promise<{ entryId: string }> }
 ) {
     try {
-        const { entryId } = params;
+        const { entryId } = await params;
         const numericEntryId = parseInt(entryId, 10);
 
         if (isNaN(numericEntryId)) {
