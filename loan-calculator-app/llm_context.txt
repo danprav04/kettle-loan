@@ -274,6 +274,7 @@ export default config
     "signupUsernameError": "Username already exists."
   },
   "Rooms": {
+    "welcomeBack": "Welcome back,",
     "joinOrCreateRoom": "Join or Create a Room",
     "roomCode": "Room Code",
     "joinRoom": "Join Room",
@@ -355,6 +356,7 @@ export default config
     "signupUsernameError": "שם המשתמש כבר קיים."
   },
   "Rooms": {
+    "welcomeBack": "ברוך שובך,",
     "joinOrCreateRoom": "הצטרף או צור חדר",
     "roomCode": "קוד חדר",
     "joinRoom": "הצטרף לחדר",
@@ -436,6 +438,7 @@ export default config
     "signupUsernameError": "Имя пользователя уже существует."
   },
   "Rooms": {
+    "welcomeBack": "С возвращением,",
     "joinOrCreateRoom": "Присоединиться или создать комнату",
     "roomCode": "Код комнаты",
     "joinRoom": "Присоединиться",
@@ -713,6 +716,7 @@ import IntlProvider from "@/components/IntlProvider";
 import ThemeProvider from "@/components/ThemeProvider";
 import SimplifiedLayoutProvider from "@/components/SimplifiedLayoutProvider";
 import SyncProvider from "@/components/SyncProvider";
+import UserProvider from "@/components/UserProvider"; // Import UserProvider
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -762,11 +766,13 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <IntlProvider>
-            <SimplifiedLayoutProvider>
-              <SyncProvider>
-                <main>{children}</main>
-              </SyncProvider>
-            </SimplifiedLayoutProvider>
+            <UserProvider>
+              <SimplifiedLayoutProvider>
+                <SyncProvider>
+                  <main>{children}</main>
+                </SyncProvider>
+              </SimplifiedLayoutProvider>
+            </UserProvider>
           </IntlProvider>
         </ThemeProvider>
       </body>
@@ -1540,7 +1546,7 @@ export default function RoomPage() {
 
     const otherMembers = useMemo(() => members.filter(m => m.id !== currentUserId), [members, currentUserId]);
 
-    const updateStateFromData = (data: LocalRoomData) => {
+    const updateStateFromData = useCallback((data: LocalRoomData) => {
         setBalance(data.currentUserBalance || 0);
         setDetailedBalance(data.balances || {});
         setRoomCode(data.code || '');
@@ -1556,7 +1562,7 @@ export default function RoomPage() {
             setSelectedMemberIds(new Set(initialSelected));
             setIncludeSelfInSplit(true);
         }
-    };
+    }, [members.length]);
 
     const fetchData = useCallback(async (options: { forceLocal?: boolean } = {}) => {
         setIsLoading(true);
@@ -1587,7 +1593,7 @@ export default function RoomPage() {
             }
         }
         setIsLoading(false);
-    }, [roomId, router, isOnline, members.length, t]);
+    }, [roomId, router, isOnline, t, updateStateFromData]);
 
     const handleSyncDone = useCallback(() => {
         fetchData();
@@ -2235,6 +2241,7 @@ import Icon from '@mdi/react';
 import { mdiKettle } from '@mdi/js';
 import { useTheme } from '@/components/ThemeProvider';
 import { useLocale } from '@/components/IntlProvider';
+import { useUser } from '@/components/UserProvider';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import ConfirmationDialog from './ConfirmationDialog';
 import { useSync } from './SyncProvider';
@@ -2251,6 +2258,18 @@ interface RoomsSidebarProps {
     closeSidebar: () => void;
 }
 
+// Type guard to check if the error is an object with a numeric status property
+const isApiError = (error: unknown): error is { status: number } => {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    // Cast to a more specific object shape to safely check the property type
+    typeof (error as { status: unknown }).status === 'number'
+  );
+};
+
+
 export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const t = useTranslations('Rooms');
     const tAccess = useTranslations('Accessibility');
@@ -2264,22 +2283,18 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
+    const { user, logout } = useUser();
     const { isSimplified, setIsSimplified } = useSimplifiedLayout();
     const { isOnline, isSyncing, pendingRequestCount, isReadyForOffline } = useSync();
 
     const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
     const [selectedRoomToLeave, setSelectedRoomToLeave] = useState<Room | null>(null);
 
-    const handleLogout = useCallback(() => {
-        localStorage.removeItem('token');
-        router.push('/');
-    }, [router]);
-
     const fetchRooms = useCallback(async () => {
         setIsLoading(true);
         const token = localStorage.getItem('token');
         if (!token) {
-            router.push('/');
+            logout();
             return;
         }
 
@@ -2295,12 +2310,16 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                     setRooms(fetchedRooms);
                     await saveRoomsList(fetchedRooms);
                 }
-            } catch (error) {
-                console.warn("Failed to fetch rooms from network, using local data.", error);
+            } catch (error: unknown) {
+                if (isApiError(error) && error.status === 401) {
+                    logout();
+                } else {
+                    console.warn("Failed to fetch rooms from network, using local data.", error);
+                }
             }
         }
         setIsLoading(false);
-    }, [isOnline, router]);
+    }, [isOnline, logout]);
 
     useEffect(() => {
         fetchRooms();
@@ -2335,8 +2354,12 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             } else {
                 setNotification(isCreating ? t('createFailed') : t('joinFailed'));
             }
-        } catch {
-             setNotification(isCreating ? t('createFailed') : t('joinFailed'));
+        } catch (err: unknown) {
+             if (isApiError(err) && err.status === 401) {
+                 logout();
+             } else {
+                 setNotification(isCreating ? t('createFailed') : t('joinFailed'));
+             }
         }
     };
 
@@ -2368,10 +2391,14 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
             if (result?.optimistic) {
                 setNotification(tNotif('requestQueued'));
             }
-        } catch {
-            setNotification(t('leaveRoomFailed'));
-            setRooms(originalRooms);
-            await saveRoomsList(originalRooms);
+        } catch (err: unknown) {
+            if (isApiError(err) && err.status === 401) {
+                logout();
+            } else {
+                setNotification(t('leaveRoomFailed'));
+                setRooms(originalRooms);
+                await saveRoomsList(originalRooms);
+            }
         } finally {
             setSelectedRoomToLeave(null);
         }
@@ -2384,6 +2411,15 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     return (
         <>
             <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
+                {user && (
+                    <div className="px-2 mb-4 border-b border-card-border pb-4">
+                        <div className="flex items-baseline space-x-1 rtl:space-x-reverse truncate">
+                            <p className="text-md text-muted-foreground">{t('welcomeBack')}</p>
+                            <p className="text-md font-semibold text-card-foreground truncate">{user.username}</p>
+                        </div>
+                    </div>
+                )}
+                
                 <div className="flex items-center justify-between mb-6 px-2">
                      <h2 className="text-2xl font-bold text-card-foreground">{t('myRooms')}</h2>
                     <div className="flex items-center space-x-2">
@@ -2454,7 +2490,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                     </div>
                     <button onClick={() => handleJoinOrCreateRoom({})} className="w-full py-2 rounded-lg btn-secondary mb-4">{t('createRoom')}</button>
                     <div className="space-y-2">
-                        <button onClick={handleLogout} className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted" aria-label={t('logout')}>
+                        <button onClick={logout} className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted" aria-label={t('logout')}>
                             <FiLogOut size={16} className="me-2"/>
                             <span className="font-semibold text-xs">{t('logout')}</span>
                         </button>
@@ -2719,6 +2755,115 @@ export default function ThemeSwitcher() {
             </button>
         </div>
     );
+}
+
+---
+
+--- File: src/components/UserProvider.tsx ---
+// src/components/UserProvider.tsx
+"use client";
+
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+
+interface User {
+  userId: number;
+  username: string;
+}
+
+interface UserContextType {
+  user: User | null;
+  logout: () => void;
+}
+
+const UserContext = createContext<UserContextType | undefined>(undefined);
+
+// A simple and safe JWT payload decoder
+function decodeToken(token: string): User | null {
+    try {
+        const base64Url = token.split('.')[1];
+        if (!base64Url) return null;
+        
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+        );
+        
+        const decoded = JSON.parse(jsonPayload);
+        // Ensure the decoded token has the properties we expect for a valid user
+        if (decoded.userId && decoded.username) {
+            return { userId: decoded.userId, username: decoded.username };
+        }
+        return null;
+    } catch (e) {
+        console.error("Failed to decode token:", e);
+        return null;
+    }
+}
+
+export default function UserProvider({ children }: { children: ReactNode }) {
+    const [user, setUser] = useState<User | null>(null);
+    const router = useRouter();
+    const pathname = usePathname();
+
+    const logout = useCallback(() => {
+        localStorage.removeItem('token');
+        setUser(null);
+        router.push('/');
+    }, [router]);
+
+    const checkUser = useCallback(() => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            const decodedUser = decodeToken(token);
+            if (decodedUser) {
+                setUser(decodedUser);
+            } else {
+                logout(); // Token is invalid or malformed
+            }
+        } else {
+            setUser(null);
+        }
+    }, [logout]);
+
+    // Initial check and listen for changes in other tabs
+    useEffect(() => {
+        checkUser();
+        
+        const handleStorageChange = (event: StorageEvent) => {
+            if (event.key === 'token') {
+                checkUser();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, [checkUser]);
+    
+    // Re-check user on route changes
+    useEffect(() => {
+        checkUser();
+    }, [pathname, checkUser]);
+
+
+    return (
+        <UserContext.Provider value={{ user, logout }}>
+            {children}
+        </UserContext.Provider>
+    );
+}
+
+export function useUser() {
+    const context = useContext(UserContext);
+    if (context === undefined) {
+        throw new Error('useUser must be used within a UserProvider');
+    }
+    return context;
 }
 
 ---

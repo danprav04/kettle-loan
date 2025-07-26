@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
@@ -13,11 +13,12 @@ interface DbEntry {
     split_with_user_ids: number[] | null;
 }
 
-export async function GET(req: Request) {
+export async function GET(
+    req: NextRequest,
+    { params }: { params: Promise<{ roomId: string }> }
+) {
     try {
-        const url = new URL(req.url);
-        const pathnameParts = url.pathname.split('/');
-        const roomId = pathnameParts[pathnameParts.length - 1];
+        const { roomId } = await params;
 
         const token = req.headers.get('authorization')?.split(' ')[1];
         const user = verifyToken(token);
@@ -131,11 +132,12 @@ export async function GET(req: Request) {
     }
 }
 
-export async function PUT(req: Request) {
+export async function PUT(
+    req: NextRequest,
+    { params }: { params: Promise<{ roomId: string }> }
+) {
     try {
-        const url = new URL(req.url);
-        const pathnameParts = url.pathname.split('/');
-        const roomId = pathnameParts[pathnameParts.length - 1];
+        const { roomId } = await params;
 
         const token = req.headers.get('authorization')?.split(' ')[1];
         const user = verifyToken(token);

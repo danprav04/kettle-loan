@@ -51,7 +51,11 @@
     "everyone": "Everyone",
     "shareWithMe": "Share with me",
     "offlineRoomDataError": "This room's data isn't saved for offline use.",
-    "requestQueued": "Request queued. It will sync when you're back online."
+    "requestQueued": "Request queued. It will sync when you're back online.",
+    "deleteEntry": "Delete Entry",
+    "deleteEntryConfirmation": "Are you sure you want to delete this entry? This action will permanently remove the record and cannot be undone.",
+    "deleteEntryFailed": "Failed to delete the entry. Please try again.",
+    "deleteEntrySyncing": "Cannot delete an entry that is still syncing."
   },
   "Dialog": {
     "cancel": "Cancel",

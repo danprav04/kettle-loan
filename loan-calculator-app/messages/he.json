@@ -51,7 +51,11 @@
     "everyone": "כולם",
     "shareWithMe": "שתף איתי",
     "offlineRoomDataError": "נתוני החדר הזה לא נשמרו לשימוש לא מקוון.",
-    "requestQueued": "הבקשה נרשמה בתור. היא תסונכרן כשתהיה מחובר."
+    "requestQueued": "הבקשה נרשמה בתור. היא תסונכרן כשתהיה מחובר.",
+    "deleteEntry": "מחיקת רשומה",
+    "deleteEntryConfirmation": "האם אתה בטוח שברצונך למחוק רשומה זו? לא ניתן לבטל פעולה זו.",
+    "deleteEntryFailed": "מחיקת הרשומה נכשלה. אנא נסה שוב.",
+    "deleteEntrySyncing": "לא ניתן למחוק רשומה שעדיין מסתנכרנת."
   },
   "Dialog": {
     "cancel": "ביטול",
