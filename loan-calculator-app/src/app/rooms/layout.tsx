@@ -49,8 +49,8 @@ export default function RoomsLayout({ children }: { children: ReactNode }) {
                     </button>
                 </header>
                 
-                {/* Main content area */}
-                <main className="flex-1 bg-muted p-4 sm:p-6 md:p-8 overflow-y-auto">
+                {/* Main content area - removed overflow-y-auto to allow children to control scrolling */}
+                <main className="flex-1 bg-muted p-4 sm:p-6 md:p-8">
                     {children}
                 </main>
             </div>
