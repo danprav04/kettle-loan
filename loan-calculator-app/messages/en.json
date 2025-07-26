@@ -55,7 +55,8 @@
     "deleteEntry": "Delete Entry",
     "deleteEntryConfirmation": "Are you sure you want to delete this entry? This action will permanently remove the record and cannot be undone.",
     "deleteEntryFailed": "Failed to delete the entry. Please try again.",
-    "deleteEntrySyncing": "Cannot delete an entry that is still syncing."
+    "deleteEntrySyncing": "Cannot delete an entry that is still syncing.",
+    "balanceDetailsTitle": "Balance Breakdown"
   },
   "Dialog": {
     "cancel": "Cancel",

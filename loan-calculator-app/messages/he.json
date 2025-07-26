@@ -55,7 +55,8 @@
     "deleteEntry": "מחיקת רשומה",
     "deleteEntryConfirmation": "האם אתה בטוח שברצונך למחוק רשומה זו? לא ניתן לבטל פעולה זו.",
     "deleteEntryFailed": "מחיקת הרשומה נכשלה. אנא נסה שוב.",
-    "deleteEntrySyncing": "לא ניתן למחוק רשומה שעדיין מסתנכרנת."
+    "deleteEntrySyncing": "לא ניתן למחוק רשומה שעדיין מסתנכרנת.",
+    "balanceDetailsTitle": "פירוט יתרה"
   },
   "Dialog": {
     "cancel": "ביטול",
