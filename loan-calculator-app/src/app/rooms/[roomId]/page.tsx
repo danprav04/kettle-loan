@@ -190,6 +190,7 @@ export default function RoomPage() {
             description,
             created_at: new Date().toISOString(),
             username: currentUser.username,
+            user_id: currentUserId,
             split_with_user_ids: finalSplitWithIds,
             offline_timestamp: Date.now()
         };

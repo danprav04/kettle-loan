@@ -30,6 +30,7 @@ export interface Entry {
     description: string;
     created_at: string;
     username: string;
+    user_id: number;
     split_with_user_ids: number[] | null;
     offline_timestamp?: number;
 }
@@ -118,7 +119,7 @@ export async function syncOutbox(): Promise<boolean> {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${req.token}`,
                 },
-                body: JSON.stringify(req.body),
+                body: req.method !== 'DELETE' ? JSON.stringify(req.body) : undefined,
             });
             if (response.ok || (response.status >= 400 && response.status < 500)) {
                 await db.delete(OUTBOX_STORE, req.id);
@@ -208,6 +209,83 @@ export async function addLocalEntry(roomId: string, newEntry: Entry, newBalances
         roomData.entries.unshift(newEntry);
         roomData.currentUserBalance = newBalances.currentUserBalance;
         roomData.balances = newBalances.otherBalances;
+        roomData.lastUpdated = Date.now();
+        await tx.store.put(roomData);
+    }
+    await tx.done;
+}
+
+export async function deleteLocalEntry(roomId: string, entryId: number | string) {
+    const db = await getDb();
+    const tx = db.transaction(ROOM_DATA_STORE, 'readwrite');
+    const roomData = await tx.store.get(roomId);
+
+    if (roomData) {
+        const entryExists = roomData.entries.some(e => e.id === entryId);
+        if (!entryExists) return;
+
+        roomData.entries = roomData.entries.filter(e => e.id !== entryId);
+
+        // Recalculate balances from scratch for accuracy
+        const { members, entries, currentUserId } = roomData;
+
+        if (!members || !currentUserId || members.length === 0) {
+            roomData.currentUserBalance = 0;
+            roomData.balances = {};
+        } else {
+            const finalBalances: { [key: string]: number } = {};
+            members.forEach(member => { finalBalances[member.id] = 0; });
+
+            entries.forEach(entry => {
+                const amount = parseFloat(entry.amount);
+                const payerId = entry.user_id;
+
+                if (amount > 0) { // Expense
+                    const participants = entry.split_with_user_ids;
+                    if (!participants || participants.length === 0) {
+                        const share = amount / members.length;
+                        members.forEach(member => {
+                            if (member.id === payerId) {
+                                finalBalances[member.id] += (amount - share);
+                            } else {
+                                finalBalances[member.id] -= share;
+                            }
+                        });
+                    } else {
+                        if (participants.length === 0) return;
+                        const share = amount / participants.length;
+                        finalBalances[payerId] += amount;
+                        participants.forEach(pId => {
+                            if (finalBalances[pId] !== undefined) {
+                                finalBalances[pId] -= share;
+                            }
+                        });
+                    }
+                } else if (amount < 0) { // Loan
+                    const loanAmount = Math.abs(amount);
+                    const borrowerId = payerId;
+                    finalBalances[borrowerId] -= loanAmount;
+
+                    const lenders = members.filter(m => m.id !== borrowerId);
+                    if (lenders.length > 0) {
+                        const creditPerLender = loanAmount / lenders.length;
+                        lenders.forEach(lender => {
+                            finalBalances[lender.id] += creditPerLender;
+                        });
+                    }
+                }
+            });
+
+            roomData.currentUserBalance = finalBalances[currentUserId] || 0;
+            const otherUserBalances: { [key: string]: number } = {};
+            members.forEach(member => {
+                if (member.id !== currentUserId) {
+                    otherUserBalances[member.username] = finalBalances[member.id] || 0;
+                }
+            });
+            roomData.balances = otherUserBalances;
+        }
+
         roomData.lastUpdated = Date.now();
         await tx.store.put(roomData);
     }
