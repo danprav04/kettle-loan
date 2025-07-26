@@ -127,7 +127,7 @@ export default function EntriesPage() {
                 )}
             </div>
             
-            <div className="bg-card shadow-md rounded-lg border border-card-border flex flex-col flex-grow overflow-hidden">
+            <div className="bg-card shadow-md max-h-[80vh] rounded-lg border border-card-border flex flex-col flex-grow overflow-hidden">
                 <div className="p-4 border-b border-card-border shrink-0">
                     <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
                 </div>
