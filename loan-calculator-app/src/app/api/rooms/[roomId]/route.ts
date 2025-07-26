@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
@@ -14,7 +14,7 @@ interface DbEntry {
 }
 
 export async function GET(
-    req: Request,
+    req: NextRequest,
     { params }: { params: { roomId: string } }
 ) {
     try {
@@ -133,7 +133,7 @@ export async function GET(
 }
 
 export async function PUT(
-    req: Request,
+    req: NextRequest,
     { params }: { params: { roomId: string } }
 ) {
     try {
