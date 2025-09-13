@@ -1,7 +1,7 @@
 // src/app/rooms/[roomId]/entries/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
@@ -10,6 +10,13 @@ import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
 import { FiClock, FiTrash2, FiInfo } from 'react-icons/fi';
+
+interface Member {
+    id: number;
+    username: string;
+}
+
+type ProcessedEntry = Entry & { runningBalance: number };
 
 export default function EntriesPage() {
     const params = useParams<{ roomId: string }>();
@@ -20,6 +27,7 @@ export default function EntriesPage() {
     const { user } = useUser();
     
     const [entries, setEntries] = useState<Entry[]>([]);
+    const [members, setMembers] = useState<Member[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [notification, setNotification] = useState<string | null>(null);
     const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null);
@@ -38,6 +46,7 @@ export default function EntriesPage() {
         const localData = await getRoomData(roomId);
         if (localData) {
             setEntries(localData.entries);
+            setMembers(localData.members);
         }
 
         if (isOnline) {
@@ -48,6 +57,7 @@ export default function EntriesPage() {
                 if (res.ok) {
                     const data = await res.json();
                     setEntries(data.entries);
+                    setMembers(data.members);
                 } else if (res.status === 401) {
                     router.push('/');
                 }
@@ -65,6 +75,54 @@ export default function EntriesPage() {
             window.removeEventListener('syncdone', fetchEntries);
         };
     }, [fetchEntries]);
+    
+    const processedEntries: ProcessedEntry[] = useMemo(() => {
+        if (!user || members.length === 0) {
+            return [];
+        }
+
+        const chronologicalEntries = [...entries].reverse();
+        const runningBalances: { [key: number]: number } = {};
+        members.forEach(member => { runningBalances[member.id] = 0; });
+
+        const entriesWithBalance = chronologicalEntries.map(entry => {
+            const amount = parseFloat(entry.amount);
+            const payerId = entry.user_id;
+
+            if (amount > 0) { // Expense
+                const participants = entry.split_with_user_ids ?? members.map(m => m.id);
+                if (participants.length > 0) {
+                    const share = amount / participants.length;
+                    runningBalances[payerId] += amount;
+                    participants.forEach(pId => {
+                        if (runningBalances[pId] !== undefined) {
+                            runningBalances[pId] -= share;
+                        }
+                    });
+                }
+            } else if (amount < 0) { // Loan
+                const loanAmount = Math.abs(amount);
+                const borrowerId = payerId;
+                runningBalances[borrowerId] -= loanAmount;
+                const lenders = members.filter(m => m.id !== borrowerId);
+                if (lenders.length > 0) {
+                    const creditPerLender = loanAmount / lenders.length;
+                    lenders.forEach(lender => {
+                        if (runningBalances[lender.id] !== undefined) {
+                            runningBalances[lender.id] += creditPerLender;
+                        }
+                    });
+                }
+            }
+
+            return {
+                ...entry,
+                runningBalance: runningBalances[user.userId] || 0,
+            };
+        });
+
+        return entriesWithBalance.reverse();
+    }, [entries, members, user]);
 
     useEffect(() => {
         if (notification) {
@@ -134,13 +192,13 @@ export default function EntriesPage() {
                 <div className="overflow-y-auto flex-grow">
                     {isLoading ? (
                         <p className="p-4 text-center text-muted-foreground">Loading entries...</p>
-                    ) : entries.length === 0 ? (
+                    ) : processedEntries.length === 0 ? (
                         <p className="p-4 text-center text-muted-foreground">No entries have been added to this room yet.</p>
                     ) : (
                         <ul>
-                            {entries.map((entry, index) => (
+                            {processedEntries.map((entry, index) => (
                                 <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn group" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
-                                    <div>
+                                    <div className="flex-grow">
                                         <p className="font-semibold text-card-foreground">{entry.description}</p>
                                         <p className="text-sm text-muted-foreground flex items-center">
                                             {entry.offline_timestamp && (
@@ -149,11 +207,19 @@ export default function EntriesPage() {
                                             {entry.username} - {new Date(entry.created_at).toLocaleString()}
                                         </p>
                                     </div>
-                                    <div className="flex items-center space-x-2 md:space-x-4">
-                                        <div className={`text-lg font-bold ${parseFloat(entry.amount) < 0 ? 'text-danger' : 'text-success'}`}>
-                                            {parseFloat(entry.amount).toFixed(2)} ILS
+                                    <div className="flex items-center space-x-2 md:space-x-4 shrink-0">
+                                        <div className="text-right w-24">
+                                            <div className={`text-lg font-bold ${parseFloat(entry.amount) < 0 ? 'text-danger' : 'text-success'}`}>
+                                                {parseFloat(entry.amount).toFixed(2)} ILS
+                                            </div>
                                         </div>
-                                        {user && user.userId === entry.user_id && typeof entry.id === 'number' && (
+                                        <div className="text-right w-24">
+                                            <div className={`text-md font-semibold ${entry.runningBalance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                {entry.runningBalance.toFixed(2)} ILS
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">Balance</div>
+                                        </div>
+                                        {user && user.userId === entry.user_id && typeof entry.id === 'number' ? (
                                             <button
                                                 onClick={() => openConfirmDialog(entry)}
                                                 className="text-muted-foreground hover:text-danger p-2 rounded-full hover:bg-danger/10 transition-all opacity-0 group-hover:opacity-100"
@@ -161,6 +227,8 @@ export default function EntriesPage() {
                                             >
                                                 <FiTrash2 size={18} />
                                             </button>
+                                        ) : (
+                                            <div className="w-[34px]"></div> // Placeholder to maintain alignment
                                         )}
                                     </div>
                                 </li>
