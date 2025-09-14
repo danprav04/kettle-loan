@@ -14,7 +14,7 @@ interface Member {
     username: string;
 }
 
-type PeerToPeerTransaction = Entry & { contribution: number };
+type PeerToPeerTransaction = Entry & { contribution: number; runningP2PBalance: number };
 
 export default function BalanceDetailsPage() {
     const params = useParams<{ roomId: string }>();
@@ -83,8 +83,10 @@ export default function BalanceDetailsPage() {
         otherMembers.forEach(member => {
             breakdown.set(member.id, { netBalance: 0, transactions: [] });
         });
+        
+        const chronologicalEntries = [...entries].reverse();
 
-        for (const entry of entries) {
+        for (const entry of chronologicalEntries) {
             const payerId = entry.user_id;
             const amount = parseFloat(entry.amount);
 
@@ -97,14 +99,16 @@ export default function BalanceDetailsPage() {
                     participants.forEach(pId => {
                         if (pId !== currentUserId && breakdown.has(pId)) {
                             const data = breakdown.get(pId)!;
-                            data.netBalance += share; // They owe me
-                            data.transactions.push({ ...entry, contribution: share });
+                            const contribution = share;
+                            data.netBalance += contribution;
+                            data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
                         }
                     });
                 } else if (participants.includes(currentUserId) && breakdown.has(payerId)) {
                     const data = breakdown.get(payerId)!;
-                    data.netBalance -= share; // I owe them
-                    data.transactions.push({ ...entry, contribution: -share });
+                    const contribution = -share;
+                    data.netBalance += contribution;
+                    data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
                 }
             } else if (amount < 0) { // Loan
                 const loanAmount = Math.abs(amount);
@@ -117,18 +121,22 @@ export default function BalanceDetailsPage() {
                     lenders.forEach(lender => {
                         if (breakdown.has(lender.id)) {
                              const data = breakdown.get(lender.id)!;
-                             data.netBalance -= share; // I owe them
-                             data.transactions.push({ ...entry, contribution: -share });
+                             const contribution = -share;
+                             data.netBalance += contribution;
+                             data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
                         }
                     });
                 } else if (lenders.some(l => l.id === currentUserId) && breakdown.has(borrowerId)) {
                      const data = breakdown.get(borrowerId)!;
-                     data.netBalance += share; // They owe me
-                     data.transactions.push({ ...entry, contribution: share });
+                     const contribution = share;
+                     data.netBalance += contribution;
+                     data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
                 }
             }
         }
         
+        // Reverse the transactions to show the most recent first
+        breakdown.forEach(value => value.transactions.reverse());
         return breakdown;
     }, [entries, members, user, otherMembers]);
     
@@ -188,11 +196,22 @@ export default function BalanceDetailsPage() {
                                                             <li key={`${tx.id}-${index}`} className="flex justify-between items-center text-sm">
                                                                 <div>
                                                                     <p className="font-medium text-foreground">{tx.description}</p>
-                                                                    <p className="text-muted-foreground">Paid by {tx.username}</p>
+                                                                    <p className="text-xs text-muted-foreground">Paid by {tx.username}</p>
                                                                 </div>
-                                                                <span className={`font-bold ${tx.contribution >= 0 ? 'text-success' : 'text-danger'}`}>
-                                                                    {tx.contribution.toFixed(2)}
-                                                                </span>
+                                                                <div className="flex items-center space-x-2 md:space-x-4 shrink-0">
+                                                                    <div className="text-right w-20">
+                                                                        <div className={`font-bold ${tx.contribution >= 0 ? 'text-success' : 'text-danger'}`}>
+                                                                            {tx.contribution.toFixed(2)}
+                                                                        </div>
+                                                                        <div className="text-xs text-muted-foreground">Change</div>
+                                                                    </div>
+                                                                     <div className="text-right w-20">
+                                                                        <div className={`font-semibold ${tx.runningP2PBalance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                                            {tx.runningP2PBalance.toFixed(2)}
+                                                                        </div>
+                                                                        <div className="text-xs text-muted-foreground">Balance</div>
+                                                                    </div>
+                                                                </div>
                                                             </li>
                                                         ))}
                                                     </ul>
