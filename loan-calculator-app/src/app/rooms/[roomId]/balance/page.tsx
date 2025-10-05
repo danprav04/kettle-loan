@@ -196,7 +196,9 @@ export default function BalanceDetailsPage() {
                                                             <li key={`${tx.id}-${index}`} className="flex justify-between items-center text-sm">
                                                                 <div>
                                                                     <p className="font-medium text-foreground">{tx.description}</p>
-                                                                    <p className="text-xs text-muted-foreground">{tx.username}</p>
+                                                                    <p className="text-xs text-muted-foreground">
+                                                                        {tx.username} &bull; {new Date(tx.created_at).toLocaleString()}
+                                                                    </p>
                                                                 </div>
                                                                 <div className="flex items-center space-x-2 md:space-x-4 shrink-0">
                                                                     <div className="text-right w-20">
