@@ -344,12 +344,15 @@ export default function RoomPage() {
                                     </div>
                                 )}
 
-                                <div className="flex items-center justify-between mt-6">
-                                    <button type="submit" className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}>
+                                <div className="grid grid-cols-2 gap-4 mt-6">
+                                    <button type="submit" className="col-span-2 font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}>
                                         {t('addEntry')}
                                     </button>
                                     <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center">
                                         {t('allEntries')}
+                                    </Link>
+                                    <Link href={`/rooms/${roomId}/stats`} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center">
+                                        {t('roomStatistics')}
                                     </Link>
                                 </div>
                             </form>

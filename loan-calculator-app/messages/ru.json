@@ -41,6 +41,7 @@
     "description": "Описание",
     "addEntry": "Добавить запись",
     "allEntries": "Все записи",
+    "roomStatistics": "Статистика комнаты",
     "backToRoom": "Вернуться в комнату",
     "expense": "Я плачу",
     "loan": "Я должен",
@@ -63,6 +64,22 @@
     "entryFromGroup": "От: Группы",
     "entryParticipantYou": "вас",
     "entryParticipantEveryone": "Всех"
+  },
+  "Stats": {
+    "title": "Статистика комнаты",
+    "totalExpenses": "Всего расходов",
+    "totalLoans": "Всего займов",
+    "totalEntries": "Всего записей",
+    "biggestExpense": "Самый большой расход",
+    "memberContributions": "Вклады участников",
+    "paid": "Заплатил",
+    "owes": "Должен",
+    "net": "Нетто",
+    "exportData": "Экспорт данных",
+    "exportAs": "Экспортировать как:",
+    "exportXLSX": "Экспорт XLSX",
+    "exportCSV": "Экспорт CSV",
+    "exportTXT": "Экспорт TXT (CSV)"
   },
   "Dialog": {
     "cancel": "Отмена",

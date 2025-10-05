@@ -41,6 +41,7 @@
     "description": "Description",
     "addEntry": "Add Entry",
     "allEntries": "All Entries",
+    "roomStatistics": "Room Statistics",
     "backToRoom": "Back to Room",
     "expense": "I Pay",
     "loan": "I Owe",
@@ -63,6 +64,22 @@
     "entryFromGroup": "From: The Group",
     "entryParticipantYou": "you",
     "entryParticipantEveryone": "Everyone"
+  },
+  "Stats": {
+    "title": "Room Statistics",
+    "totalExpenses": "Total Expenses",
+    "totalLoans": "Total Loans",
+    "totalEntries": "Total Entries",
+    "biggestExpense": "Biggest Expense",
+    "memberContributions": "Member Contributions",
+    "paid": "Paid",
+    "owes": "Owes",
+    "net": "Net",
+    "exportData": "Export Data",
+    "exportAs": "Export as:",
+    "exportXLSX": "Export XLSX",
+    "exportCSV": "Export CSV",
+    "exportTXT": "Export TXT (CSV)"
   },
   "Dialog": {
     "cancel": "Cancel",

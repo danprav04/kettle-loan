@@ -41,6 +41,7 @@
     "description": "תיאור",
     "addEntry": "הוסף רשומה",
     "allEntries": "כל הרשומות",
+    "roomStatistics": "סטטיסטיקות חדר",
     "backToRoom": "חזור לחדר",
     "expense": "אני משלם",
     "loan": "אני חייב",
@@ -63,6 +64,22 @@
     "entryFromGroup": "מ: הקבוצה",
     "entryParticipantYou": "אתה",
     "entryParticipantEveryone": "כולם"
+  },
+  "Stats": {
+    "title": "סטטיסטיקות חדר",
+    "totalExpenses": "סך כל ההוצאות",
+    "totalLoans": "סך כל ההלוואות",
+    "totalEntries": "סך כל הרשומות",
+    "biggestExpense": "ההוצאה הגדולה ביותר",
+    "memberContributions": "תרומות חברים",
+    "paid": "שילם",
+    "owes": "חייב",
+    "net": "נטו",
+    "exportData": "ייצוא נתונים",
+    "exportAs": "ייצא כ:",
+    "exportXLSX": "ייצוא XLSX",
+    "exportCSV": "ייצוא CSV",
+    "exportTXT": "ייצוא TXT (CSV)"
   },
   "Dialog": {
     "cancel": "ביטול",
