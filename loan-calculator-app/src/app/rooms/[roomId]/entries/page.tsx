@@ -16,7 +16,56 @@ interface Member {
     username: string;
 }
 
+interface User {
+  userId: number;
+  username: string;
+}
+
 type ProcessedEntry = Entry & { runningBalance: number };
+
+// Helper function to generate the detailed description for an entry
+const getEntryDetails = (entry: Entry, memberMap: Map<number, string>, allMembers: Member[], currentUser: User | null, t: (key: string, values?: any) => string) => {
+    const amount = parseFloat(entry.amount);
+    const actorUsername = entry.username;
+    
+    if (amount > 0) { // Expense
+        const payerText = entry.user_id === currentUser?.userId ? t('entryParticipantYou') : actorUsername;
+        let participantsText: string;
+        
+        const participants = entry.split_with_user_ids;
+        // Logic for "Everyone": if participants array is null, empty, or includes all members.
+        const isForAll = !participants || participants.length === 0 || participants.length === allMembers.length;
+
+        if (isForAll) {
+            participantsText = t('entryParticipantEveryone');
+        } else {
+            participantsText = participants.map(id => {
+                if (id === currentUser?.userId) return t('entryParticipantYou');
+                return memberMap.get(id) || '...';
+            }).join(', ');
+        }
+        
+        return (
+            <>
+                <span>{t('entryPaidBy', { payer: payerText })}</span>
+                <span className="mx-1.5">&bull;</span>
+                <span>{t('entryFor', { participants: participantsText })}</span>
+            </>
+        );
+    } else if (amount < 0) { // Loan
+        const borrowerText = entry.user_id === currentUser?.userId ? t('entryParticipantYou') : actorUsername;
+        return (
+            <>
+                <span>{t('entryLoanTo', { borrower: borrowerText })}</span>
+                <span className="mx-1.5">&bull;</span>
+                <span>{t('entryFromGroup')}</span>
+            </>
+        );
+    }
+    
+    return null;
+};
+
 
 export default function EntriesPage() {
     const params = useParams<{ roomId: string }>();
@@ -124,6 +173,10 @@ export default function EntriesPage() {
         return entriesWithBalance.reverse();
     }, [entries, members, user]);
 
+    const memberMap = useMemo(() => {
+        return new Map(members.map(m => [m.id, m.username]));
+    }, [members]);
+
     useEffect(() => {
         if (notification) {
             const timer = setTimeout(() => setNotification(null), 5000);
@@ -200,7 +253,10 @@ export default function EntriesPage() {
                                 <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn group" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
                                     <div className="flex-grow">
                                         <p className="font-semibold text-card-foreground">{entry.description}</p>
-                                        <p className="text-sm text-muted-foreground flex items-center">
+                                        <div className="text-xs text-muted-foreground italic flex items-center mt-0.5">
+                                            {getEntryDetails(entry, memberMap, members, user, t)}
+                                        </div>
+                                        <p className="text-sm text-muted-foreground flex items-center mt-1.5">
                                             {entry.offline_timestamp && (
                                                 <FiClock className="me-1.5 text-amber-500" title={`Created offline at ${new Date(entry.offline_timestamp).toLocaleTimeString()}`} />
                                             )}

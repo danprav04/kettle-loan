@@ -56,7 +56,13 @@
     "deleteEntryConfirmation": "Вы уверены, что хотите удалить эту запись? Это действие необратимо.",
     "deleteEntryFailed": "Не удалось удалить запись. Пожалуйста, попробуйте еще раз.",
     "deleteEntrySyncing": "Невозможно удалить запись, которая еще синхронизируется.",
-    "balanceDetailsTitle": "Детализация баланса"
+    "balanceDetailsTitle": "Детализация баланса",
+    "entryPaidBy": "Заплатил: {payer}",
+    "entryFor": "Для: {participants}",
+    "entryLoanTo": "Заём для: {borrower}",
+    "entryFromGroup": "От: Группы",
+    "entryParticipantYou": "вас",
+    "entryParticipantEveryone": "Всех"
   },
   "Dialog": {
     "cancel": "Отмена",

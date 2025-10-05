@@ -56,7 +56,13 @@
     "deleteEntryConfirmation": "האם אתה בטוח שברצונך למחוק רשומה זו? לא ניתן לבטל פעולה זו.",
     "deleteEntryFailed": "מחיקת הרשומה נכשלה. אנא נסה שוב.",
     "deleteEntrySyncing": "לא ניתן למחוק רשומה שעדיין מסתנכרנת.",
-    "balanceDetailsTitle": "פירוט יתרה"
+    "balanceDetailsTitle": "פירוט יתרה",
+    "entryPaidBy": "שולם על ידי: {payer}",
+    "entryFor": "עבור: {participants}",
+    "entryLoanTo": "הלוואה ל: {borrower}",
+    "entryFromGroup": "מ: הקבוצה",
+    "entryParticipantYou": "אתה",
+    "entryParticipantEveryone": "כולם"
   },
   "Dialog": {
     "cancel": "ביטול",

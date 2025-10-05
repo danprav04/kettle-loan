@@ -56,7 +56,13 @@
     "deleteEntryConfirmation": "Are you sure you want to delete this entry? This action will permanently remove the record and cannot be undone.",
     "deleteEntryFailed": "Failed to delete the entry. Please try again.",
     "deleteEntrySyncing": "Cannot delete an entry that is still syncing.",
-    "balanceDetailsTitle": "Balance Breakdown"
+    "balanceDetailsTitle": "Balance Breakdown",
+    "entryPaidBy": "Paid by: {payer}",
+    "entryFor": "For: {participants}",
+    "entryLoanTo": "Loan to: {borrower}",
+    "entryFromGroup": "From: The Group",
+    "entryParticipantYou": "you",
+    "entryParticipantEveryone": "Everyone"
   },
   "Dialog": {
     "cancel": "Cancel",
