@@ -130,7 +130,7 @@ export default function StatsPage() {
         
         const dataToExport = entries.map(entry => {
             const amount = parseFloat(entry.amount);
-            let type = amount > 0 ? 'Expense' : 'Loan';
+            const type = amount > 0 ? 'Expense' : 'Loan';
             let participantsText = '';
             
             const pIds = entry.split_with_user_ids;
