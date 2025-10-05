@@ -24,7 +24,7 @@ interface User {
 type ProcessedEntry = Entry & { runningBalance: number };
 
 // Helper function to generate the detailed description for an entry
-const getEntryDetails = (entry: Entry, memberMap: Map<number, string>, allMembers: Member[], currentUser: User | null, t: (key: string, values?: any) => string) => {
+const getEntryDetails = (entry: Entry, memberMap: Map<number, string>, allMembers: Member[], currentUser: User | null, t: (key: string, values?: Record<string, string | number>) => string) => {
     const amount = parseFloat(entry.amount);
     const actorUsername = entry.username;
     
