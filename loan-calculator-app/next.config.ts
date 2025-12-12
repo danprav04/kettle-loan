@@ -79,6 +79,9 @@ const nextConfig: NextConfig = {
   // This is the critical line that was missing.
   // It tells Next.js to create the .next/standalone directory.
   output: 'standalone',
+  
+  // ADD THIS LINE TO FIX THE ERROR:
+  turbopack: {},
 };
 
 export default withPWA(nextConfig);
