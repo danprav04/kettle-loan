@@ -69,15 +69,19 @@ const withPWA = withPWAInit({
     skipWaiting: true,
     runtimeCaching,
     importScripts: ['/push-sw.js'],
-    // Fix for "bad-precaching-response" & TS Error:
-    // Move exclusion rules here. This prevents Workbox from trying to cache
-    // generated Next.js build files that aren't static assets.
+    // Robust exclusion list to prevent "bad-precaching-response" 404 errors
+    // for internal Next.js build manifests which shouldn't be precached.
     exclude: [
+      /\.map$/,
+      /^.*tsbuildinfo$/,
+      // Exclude Next.js build manifests
       /middleware-manifest\.json$/,
       /_middlewareManifest\.js$/,
       /_buildManifest\.js$/,
       /_ssgManifest\.js$/,
-      /build-manifest\.json$/
+      /build-manifest\.json$/,
+      /react-loadable-manifest\.json$/,
+      /server\/middleware-manifest\.json$/,
     ],
   },
   fallbacks: {
