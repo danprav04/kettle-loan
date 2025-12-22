@@ -69,16 +69,15 @@ const withPWA = withPWAInit({
     skipWaiting: true,
     runtimeCaching,
     importScripts: ['/push-sw.js'],
-    // Robust exclusion list to prevent "bad-precaching-response" 404 errors
-    // for internal Next.js build manifests which shouldn't be precached.
+    // UPDATED: Robust exclusion patterns to prevent 404 errors on build manifests
     exclude: [
       /\.map$/,
       /^.*tsbuildinfo$/,
-      // Exclude Next.js build manifests
+      // Match build manifests anywhere in the path
+      /(^|\/|\\)_buildManifest\.js$/,
+      /(^|\/|\\)_ssgManifest\.js$/,
+      /(^|\/|\\)_middlewareManifest\.js$/,
       /middleware-manifest\.json$/,
-      /_middlewareManifest\.js$/,
-      /_buildManifest\.js$/,
-      /_ssgManifest\.js$/,
       /build-manifest\.json$/,
       /react-loadable-manifest\.json$/,
       /server\/middleware-manifest\.json$/,
