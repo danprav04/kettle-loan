@@ -1,7 +1,7 @@
 // src/lib/push-client.ts
 
-// Hardcoded Public Key (Safe to expose)
-const VAPID_PUBLIC_KEY = "BBP2WoLz_uq0qyfcoEbthsSzzCWYww-CLJ-WVtaIe6x7SK3KcPOK6ZQ9pIQEDjSNoaC2uza_iuFNSieql3h-sTA";
+// Public Key from Environment Variables
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -21,6 +21,11 @@ function urlBase64ToUint8Array(base64String: string) {
 export async function subscribeToPushNotifications() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     throw new Error('Push messaging is not supported');
+  }
+
+  if (!VAPID_PUBLIC_KEY) {
+    console.error("VAPID Public Key is missing in environment variables.");
+    throw new Error('Push configuration missing');
   }
 
   const registration = await navigator.serviceWorker.ready;

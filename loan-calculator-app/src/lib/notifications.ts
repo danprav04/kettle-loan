@@ -1,10 +1,8 @@
 import webPush from 'web-push';
 import { db } from './db';
 
-// Hardcoded Public Key (Must match client)
-const VAPID_PUBLIC_KEY = "BBP2WoLz_uq0qyfcoEbthsSzzCWYww-CLJ-WVtaIe6x7SK3KcPOK6ZQ9pIQEDjSNoaC2uza_iuFNSieql3h-sTA";
-
-// Private Key must come from Env
+// Keys must come from Env for production security
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:contact@danprav.me';
 
@@ -19,7 +17,7 @@ try {
         );
         isPushConfigured = true;
     } else {
-        console.warn("Push Notifications disabled: Missing VAPID_PRIVATE_KEY in server environment.");
+        console.warn("Push Notifications disabled: Missing VAPID_PRIVATE_KEY or NEXT_PUBLIC_VAPID_PUBLIC_KEY in server environment.");
     }
 } catch (e) {
     console.error("Failed to initialize web-push:", e);
@@ -58,6 +56,7 @@ export async function sendRoomNotification(roomId: number | string, excludeUserI
 
             return webPush.sendNotification(pushSubscription, JSON.stringify(payload))
                 .catch(err => {
+                    // 410 Gone / 404 Not Found indicates the subscription is no longer valid
                     if (err.statusCode === 410 || err.statusCode === 404) {
                         console.log(`Deleting expired subscription for endpoint: ${sub.endpoint}`);
                         return db.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
