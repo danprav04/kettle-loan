@@ -40,9 +40,9 @@ const runtimeCaching = [
     },
   },
   {
-    urlPattern: ({ request, url }: { request: Request; url: URL }) => {
-      if (url.pathname.startsWith('/api/')) return false;
-      return request.method === 'GET';
+    // Simplified function to avoid transpilation issues in SW generation
+    urlPattern: ({ url }) => {
+      return !url.pathname.startsWith('/api/');
     },
     handler: 'NetworkFirst' as const,
     options: {
@@ -63,11 +63,13 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
+  // --- FIX START: Disable buggy start-url caching ---
+  cacheStartUrl: false, 
+  // --- FIX END ---
   workboxOptions: {
     disableDevLogs: true,
     skipWaiting: true,
     runtimeCaching,
-    // Import the custom push notification service worker
     importScripts: ['/push-sw.js'],
   },
   fallbacks: {

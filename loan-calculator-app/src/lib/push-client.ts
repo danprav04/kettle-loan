@@ -23,17 +23,23 @@ export async function subscribeToPushNotifications() {
   }
 
   if (!VAPID_PUBLIC_KEY) {
-    throw new Error('VAPID Public Key missing');
+    console.error("VAPID Public Key is missing from environment variables.");
+    throw new Error('VAPID Public Key missing. Check .env.local');
   }
 
   const registration = await navigator.serviceWorker.ready;
 
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-  });
+  let subscription = await registration.pushManager.getSubscription();
 
-  // Send subscription to server
+  // If no subscription exists, subscribe
+  if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+  }
+
+  // Always send/update subscription on server to ensure it's fresh
   await fetch('/api/notifications/subscribe', {
     method: 'POST',
     headers: {
@@ -52,11 +58,14 @@ export async function unsubscribeFromPushNotifications() {
   
   if (subscription) {
     await subscription.unsubscribe();
-    // Ideally tell backend to delete, but backend cleans up 410/404s automatically
   }
 }
 
 export async function getPushSubscription() {
+    // Check if SW is supported before accessing
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        return null;
+    }
     const registration = await navigator.serviceWorker.ready;
     return registration.pushManager.getSubscription();
 }
