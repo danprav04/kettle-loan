@@ -1,8 +1,7 @@
 // src/lib/push-client.ts
 
-// Access the environment variable. 
-// Note: If this is undefined in the browser, the build environment was missing the key.
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+// Hardcoded Public Key (Safe to expose)
+const VAPID_PUBLIC_KEY = "BBP2WoLz_uq0qyfcoEbthsSzzCWYww-CLJ-WVtaIe6x7SK3KcPOK6ZQ9pIQEDjSNoaC2uza_iuFNSieql3h-sTA";
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -22,12 +21,6 @@ function urlBase64ToUint8Array(base64String: string) {
 export async function subscribeToPushNotifications() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     throw new Error('Push messaging is not supported');
-  }
-
-  // Robust check for the key
-  if (!VAPID_PUBLIC_KEY) {
-    console.error("CRITICAL: VAPID Public Key is missing in client bundle. Check GitHub Secrets and Docker build logs.");
-    throw new Error('Push notification configuration is missing.');
   }
 
   const registration = await navigator.serviceWorker.ready;
