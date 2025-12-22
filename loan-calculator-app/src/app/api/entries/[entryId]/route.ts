@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
+import { sendRoomNotification } from '@/lib/notifications';
 
 export async function DELETE(
     req: NextRequest,
@@ -20,7 +21,11 @@ export async function DELETE(
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const entryQuery = await db.query('SELECT user_id FROM entries WHERE id = $1', [numericEntryId]);
+        // Fetch details necessary for permission check AND notification
+        const entryQuery = await db.query(
+            'SELECT user_id, room_id, description FROM entries WHERE id = $1', 
+            [numericEntryId]
+        );
 
         if (entryQuery.rows.length === 0) {
             return new NextResponse(null, { status: 204 });
@@ -36,6 +41,13 @@ export async function DELETE(
             'DELETE FROM entries WHERE id = $1',
             [numericEntryId]
         );
+
+        // Send Push Notification
+        sendRoomNotification(entry.room_id, user.userId, {
+            title: 'Entry Deleted',
+            body: `${user.username} removed: ${entry.description}`,
+            url: `/rooms/${entry.room_id}`
+        });
 
         return new NextResponse(null, { status: 204 });
     } catch (error) {

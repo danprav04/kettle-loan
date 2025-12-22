@@ -67,20 +67,16 @@ const withPWA = withPWAInit({
     disableDevLogs: true,
     skipWaiting: true,
     runtimeCaching,
+    // Import the custom push notification service worker
+    importScripts: ['/push-sw.js'],
   },
-  // Add this fallback for a complete offline experience.
-  // It tells the service worker to serve '/~offline' if a navigation request fails.
   fallbacks: {
     document: "/~offline",
   },
 });
 
 const nextConfig: NextConfig = {
-  // This is the critical line that was missing.
-  // It tells Next.js to create the .next/standalone directory.
   output: 'standalone',
-  
-  // ADD THIS LINE TO FIX THE ERROR:
   turbopack: {},
 };
 

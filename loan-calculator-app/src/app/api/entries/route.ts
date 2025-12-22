@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
+import { sendRoomNotification } from '@/lib/notifications';
 
 export async function POST(req: Request) {
     try {
@@ -13,18 +14,27 @@ export async function POST(req: Request) {
         const { roomId, amount, description, splitWithUserIds, createdAt } = await req.json();
 
         // For expenses, splitWithUserIds will be an array of user IDs.
-        // We must manually stringify it for the JSONB column.
-        // For loans, it will be null.
         const finalSplitWith = Array.isArray(splitWithUserIds) ? JSON.stringify(splitWithUserIds) : null;
         
         // Use the client-provided timestamp if available, otherwise use the current time.
-        // This ensures offline entries retain their original creation time.
         const finalCreatedAt = createdAt ? new Date(createdAt) : new Date();
 
         await db.query(
             'INSERT INTO entries (room_id, user_id, amount, description, split_with_user_ids, created_at) VALUES ($1, $2, $3, $4, $5, $6)',
             [roomId, user.userId, amount, description, finalSplitWith, finalCreatedAt.toISOString()]
         );
+
+        // Send Push Notification
+        const numAmount = parseFloat(amount);
+        const type = numAmount > 0 ? 'added expense' : 'added loan';
+        const formattedAmount = Math.abs(numAmount).toFixed(2);
+        
+        // Trigger non-blocking notification
+        sendRoomNotification(roomId, user.userId, {
+            title: `New Entry in Room`,
+            body: `${user.username} ${type}: ${description} (${formattedAmount} ILS)`,
+            url: `/rooms/${roomId}`
+        });
 
         return NextResponse.json({ message: 'Entry added successfully' });
     } catch (error) {

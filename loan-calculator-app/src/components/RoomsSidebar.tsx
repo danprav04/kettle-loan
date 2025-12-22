@@ -16,6 +16,7 @@ import ConfirmationDialog from './ConfirmationDialog';
 import { useSync } from './SyncProvider';
 import { handleApi } from '@/lib/api';
 import { saveRoomsList, getRoomsList } from '@/lib/offline-sync';
+import PushSubscriptionToggle from './PushSubscriptionToggle';
 
 interface Room {
     id: number;
@@ -33,7 +34,6 @@ const isApiError = (error: unknown): error is { status: number } => {
     typeof error === 'object' &&
     error !== null &&
     'status' in error &&
-    // Cast to a more specific object shape to safely check the property type
     typeof (error as { status: unknown }).status === 'number'
   );
 };
@@ -263,7 +263,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                             <FiLogOut size={16} className="me-2"/>
                             <span className="font-semibold text-xs">{t('logout')}</span>
                         </button>
-                        <div className="flex items-center justify-center space-x-2">
+                        <div className="grid grid-cols-2 gap-2">
                              <button onClick={toggleTheme} className="flex items-center justify-center w-full p-2 rounded-md btn-muted" aria-label={tAccess('toggleTheme')} >
                                 {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
                             </button>
@@ -271,9 +271,13 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                                 <FiGlobe size={16} className="me-1.5"/>
                                 <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
                             </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
                              <button onClick={toggleSimplifiedLayout} className={`flex items-center justify-center w-full p-2 rounded-md btn-muted transition-colors ${isSimplified ? 'text-primary' : ''}`} aria-label={tAccess('toggleSimplifiedLayout')} >
                                  <Icon path={mdiKettle} size={0.75} />
+                                 <span className="font-semibold text-xs ms-1">SIMPLE</span>
                             </button>
+                            <PushSubscriptionToggle />
                         </div>
                     </div>
                 </div>
