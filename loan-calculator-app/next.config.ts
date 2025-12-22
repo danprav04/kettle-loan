@@ -70,6 +70,8 @@ const withPWA = withPWAInit({
     skipWaiting: true,
     runtimeCaching,
     importScripts: ['/push-sw.js'],
+    // Fix for "bad-precaching-response": Exclude build manifests from precache
+    exclude: [/_buildManifest\.js$/, /_ssgManifest\.js$/],
   },
   fallbacks: {
     document: "/~offline",
@@ -79,6 +81,10 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   output: 'standalone',
   turbopack: {},
+  // Ensure the public key is explicitly exposed to the build environment
+  env: {
+    NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+  },
 };
 
 export default withPWA(nextConfig);

@@ -1,5 +1,6 @@
 // src/lib/push-client.ts
 
+// Access the environment variable. The explicit env in next.config.ts ensures this is populated at build time.
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -23,8 +24,8 @@ export async function subscribeToPushNotifications() {
   }
 
   if (!VAPID_PUBLIC_KEY) {
-    console.error("VAPID Public Key is missing from environment variables.");
-    throw new Error('VAPID Public Key missing. Check .env.local');
+    console.error("VAPID Public Key is missing. Ensure NEXT_PUBLIC_VAPID_PUBLIC_KEY is set at build time.");
+    throw new Error('Push notification configuration is missing.');
   }
 
   const registration = await navigator.serviceWorker.ready;
