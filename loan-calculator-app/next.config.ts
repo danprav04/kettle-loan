@@ -40,8 +40,8 @@ const runtimeCaching = [
     },
   },
   {
-    // Simplified function to avoid transpilation issues in SW generation
-    urlPattern: ({ url }) => {
+    // Simplified function with explicit type to satisfy TypeScript
+    urlPattern: ({ url }: { url: URL }) => {
       return !url.pathname.startsWith('/api/');
     },
     handler: 'NetworkFirst' as const,
@@ -63,9 +63,8 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
-  // --- FIX START: Disable buggy start-url caching ---
-  cacheStartUrl: false, 
-  // --- FIX END ---
+  // Disable buggy start-url caching to fix "_ref is not defined" error
+  cacheStartUrl: false,
   workboxOptions: {
     disableDevLogs: true,
     skipWaiting: true,
