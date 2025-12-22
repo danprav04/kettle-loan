@@ -1,17 +1,19 @@
 # Stage 1: Dependency installation
 # This stage installs dependencies and is cached separately.
 FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
 # Stage 2: Application builder
-# This stage builds the Next.js application. It does NOT need secrets.
+# This stage builds the Next.js application.
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# This ensures the key is baked into the JS bundle during build
 ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
 ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
@@ -24,15 +26,19 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
+# Install libc6-compat in runner for compatibility with some native binaries
+RUN apk add --no-cache libc6-compat
+
 # Correct, modern ENV syntax (key=value)
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# At this stage, you MUST provide the runtime environment variables.
-# For example, in your deployment platform (Kubernetes, Docker Compose, etc.):
-# -e POSTGRES_URL=...
-# -e JWT_SECRET=...
-# We are only declaring them here so the Node.js process knows to expect them.
+# --- FIX: Bind to all interfaces ---
+# This is critical for Docker. Without it, the app might only listen on localhost inside the container.
+ENV HOSTNAME="0.0.0.0"
+ENV PORT=3000
+
+# Environment variables placeholder (populated by docker run --env-file)
 ENV POSTGRES_URL=""
 ENV JWT_SECRET=""
 
