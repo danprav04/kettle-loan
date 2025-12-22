@@ -62,7 +62,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # Pass the Public Key so it is baked into the frontend JS
           build-args: |
             NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
 
@@ -92,10 +91,8 @@ jobs:
           FULL_IMAGE_URI: ${{ needs.build-and-push-image.outputs.image_uri }}
           GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
           GHCR_USERNAME: ${{ github.repository_owner }}
-          # Existing Secrets
           PROD_POSTGRES_URL: ${{ secrets.PROD_POSTGRES_URL }}
           PROD_JWT_SECRET: ${{ secrets.PROD_JWT_SECRET }}
-          # New Secrets for Push Notifications
           PROD_VAPID_PRIVATE_KEY: ${{ secrets.PROD_VAPID_PRIVATE_KEY }}
           PROD_VAPID_SUBJECT: ${{ secrets.PROD_VAPID_SUBJECT }}
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
@@ -111,7 +108,6 @@ jobs:
             echo "POSTGRES_URL=${PROD_POSTGRES_URL}" | sudo tee "${{ env.SERVER_ENV_FILE_PATH }}" > /dev/null
             echo "JWT_SECRET=${PROD_JWT_SECRET}" | sudo tee -a "${{ env.SERVER_ENV_FILE_PATH }}" > /dev/null
             
-            # Add Push Notification Keys
             echo "VAPID_PRIVATE_KEY=${PROD_VAPID_PRIVATE_KEY}" | sudo tee -a "${{ env.SERVER_ENV_FILE_PATH }}" > /dev/null
             echo "VAPID_SUBJECT=${PROD_VAPID_SUBJECT}" | sudo tee -a "${{ env.SERVER_ENV_FILE_PATH }}" > /dev/null
             echo "NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}" | sudo tee -a "${{ env.SERVER_ENV_FILE_PATH }}" > /dev/null
@@ -123,10 +119,10 @@ jobs:
             echo "${GHCR_PULL_TOKEN}" | sudo docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
 
             # 3. FULL Database Migration
-            # This script defines the ENTIRE schema (idempotently)
+            # Changed --network host to --add-host to resolve host.docker.internal correctly
             echo "Running Full Database Migration..."
             sudo docker run --rm \
-              --network host \
+              --add-host=host.docker.internal:host-gateway \
               -e POSTGRES_URL="${PROD_POSTGRES_URL}" \
               ${FULL_IMAGE_URI} \
               node -e '
@@ -136,7 +132,6 @@ jobs:
                 const sql = \`
                   BEGIN;
 
-                  -- 1. Users Table
                   CREATE TABLE IF NOT EXISTS users (
                       id SERIAL PRIMARY KEY,
                       username VARCHAR(255) UNIQUE NOT NULL,
@@ -144,15 +139,16 @@ jobs:
                       last_ip VARCHAR(255)
                   );
 
-                  -- 2. Rooms Table (Updated to include "name")
                   CREATE TABLE IF NOT EXISTS rooms (
                       id SERIAL PRIMARY KEY,
                       code VARCHAR(6) UNIQUE NOT NULL,
                       creator_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                       name VARCHAR(255)
                   );
+                  
+                  -- Safe update for existing production databases
+                  ALTER TABLE rooms ADD COLUMN IF NOT EXISTS name VARCHAR(255);
 
-                  -- 3. Room Members Table
                   CREATE TABLE IF NOT EXISTS room_members (
                       id SERIAL PRIMARY KEY,
                       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -160,7 +156,6 @@ jobs:
                       UNIQUE(user_id, room_id)
                   );
 
-                  -- 4. Entries Table
                   CREATE TABLE IF NOT EXISTS entries (
                       id SERIAL PRIMARY KEY,
                       room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
@@ -171,7 +166,6 @@ jobs:
                       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                   );
 
-                  -- 5. Push Subscriptions Table (NEW)
                   CREATE TABLE IF NOT EXISTS push_subscriptions (
                       id SERIAL PRIMARY KEY,
                       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
