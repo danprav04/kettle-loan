@@ -1,6 +1,7 @@
 // src/lib/push-client.ts
 
-// Access the environment variable. The explicit env in next.config.ts ensures this is populated at build time.
+// Access the environment variable. 
+// Note: If this is undefined in the browser, the build environment was missing the key.
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -23,8 +24,9 @@ export async function subscribeToPushNotifications() {
     throw new Error('Push messaging is not supported');
   }
 
+  // Robust check for the key
   if (!VAPID_PUBLIC_KEY) {
-    console.error("VAPID Public Key is missing. Ensure NEXT_PUBLIC_VAPID_PUBLIC_KEY is set at build time.");
+    console.error("CRITICAL: VAPID Public Key is missing in client bundle. Check GitHub Secrets and Docker build logs.");
     throw new Error('Push notification configuration is missing.');
   }
 
@@ -34,21 +36,30 @@ export async function subscribeToPushNotifications() {
 
   // If no subscription exists, subscribe
   if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-      });
+      try {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+      } catch (err) {
+        console.error("Failed to subscribe to PushManager:", err);
+        throw err;
+      }
   }
 
   // Always send/update subscription on server to ensure it's fresh
-  await fetch('/api/notifications/subscribe', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem('token')}`
-    },
-    body: JSON.stringify(subscription)
-  });
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  
+  if (token) {
+    await fetch('/api/notifications/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(subscription)
+    });
+  }
 
   return subscription;
 }

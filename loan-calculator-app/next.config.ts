@@ -2,6 +2,14 @@
 import type { NextConfig } from 'next';
 import withPWAInit from '@ducanh2912/next-pwa';
 
+// Validation: Ensure the VAPID key is present during build time.
+// If this logs "Missing" in your GitHub Action logs, check your Repository Secrets.
+if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+  console.warn('⚠️ WARNING: NEXT_PUBLIC_VAPID_PUBLIC_KEY is missing at build time. Push notifications will fail.');
+} else {
+  console.log('✅ NEXT_PUBLIC_VAPID_PUBLIC_KEY is present in build environment.');
+}
+
 // Define the runtime caching strategies for the service worker.
 const runtimeCaching = [
   {
@@ -40,9 +48,9 @@ const runtimeCaching = [
     },
   },
   {
-    // Simplified function with explicit type to satisfy TypeScript
     urlPattern: ({ url }: { url: URL }) => {
-      return !url.pathname.startsWith('/api/');
+      // Exclude API routes and internal Next.js files from page caching
+      return !url.pathname.startsWith('/api/') && !url.pathname.startsWith('/_next/static/');
     },
     handler: 'NetworkFirst' as const,
     options: {
@@ -63,15 +71,21 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
-  // Disable buggy start-url caching to fix "_ref is not defined" error
-  cacheStartUrl: false,
+  cacheStartUrl: false, // Fix for "_ref is not defined"
   workboxOptions: {
     disableDevLogs: true,
     skipWaiting: true,
     runtimeCaching,
     importScripts: ['/push-sw.js'],
-    // Fix for "bad-precaching-response": Exclude build manifests from precache
-    exclude: [/_buildManifest\.js$/, /_ssgManifest\.js$/],
+    // Fix for "bad-precaching-response" (404 errors):
+    // Exclude Next.js build manifests and middleware manifests from the precache list.
+    exclude: [
+      /_buildManifest\.js$/,
+      /_ssgManifest\.js$/,
+      /_middlewareManifest\.js$/,
+      /middleware-manifest\.json$/,
+      /build-manifest\.json$/
+    ],
   },
   fallbacks: {
     document: "/~offline",
@@ -81,7 +95,7 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   output: 'standalone',
   turbopack: {},
-  // Ensure the public key is explicitly exposed to the build environment
+  // Explicitly bake the environment variable into the build
   env: {
     NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
   },
