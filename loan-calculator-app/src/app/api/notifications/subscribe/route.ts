@@ -14,10 +14,11 @@ export async function POST(req: Request) {
         const { endpoint, keys } = subscription;
 
         if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
+            console.error("Invalid subscription data:", subscription);
             return NextResponse.json({ message: 'Invalid subscription data' }, { status: 400 });
         }
 
-        // Upsert subscription (update user_id if endpoint exists, handle logins from same browser)
+        // Upsert subscription
         await db.query(
             `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) 
              VALUES ($1, $2, $3, $4)
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ message: 'Subscribed successfully' });
     } catch (error) {
-        console.error('Subscription error:', error);
-        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+        console.error('SERVER ERROR in /api/notifications/subscribe:', error);
+        return NextResponse.json({ message: 'Internal server error', error: String(error) }, { status: 500 });
     }
 }

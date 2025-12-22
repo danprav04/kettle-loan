@@ -63,19 +63,20 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
-  cacheStartUrl: false, // Fix for "_ref is not defined"
+  cacheStartUrl: false,
   workboxOptions: {
     disableDevLogs: true,
     skipWaiting: true,
     runtimeCaching,
     importScripts: ['/push-sw.js'],
-    // Exclude Next.js build manifests and middleware manifests from the precache list.
-    // This fixes the "bad-precaching-response" (404) errors.
+    // Fix for "bad-precaching-response" & TS Error:
+    // Move exclusion rules here. This prevents Workbox from trying to cache
+    // generated Next.js build files that aren't static assets.
     exclude: [
+      /middleware-manifest\.json$/,
+      /_middlewareManifest\.js$/,
       /_buildManifest\.js$/,
       /_ssgManifest\.js$/,
-      /_middlewareManifest\.js$/,
-      /middleware-manifest\.json$/,
       /build-manifest\.json$/
     ],
   },
