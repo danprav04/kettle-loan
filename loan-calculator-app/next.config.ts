@@ -69,18 +69,19 @@ const withPWA = withPWAInit({
     skipWaiting: true,
     runtimeCaching,
     importScripts: ['/push-sw.js'],
-    // UPDATED: Robust exclusion patterns to prevent 404 errors on build manifests
+    // Exclude build-specific files that change every deployment
     exclude: [
       /\.map$/,
       /^.*tsbuildinfo$/,
-      // Match build manifests anywhere in the path
-      /(^|\/|\\)_buildManifest\.js$/,
-      /(^|\/|\\)_ssgManifest\.js$/,
-      /(^|\/|\\)_middlewareManifest\.js$/,
+      // Exclude ALL build manifests using simple pattern matching
+      /_buildManifest\.js$/,
+      /_ssgManifest\.js$/,
+      /_middlewareManifest\.js$/,
       /middleware-manifest\.json$/,
       /build-manifest\.json$/,
       /react-loadable-manifest\.json$/,
-      /server\/middleware-manifest\.json$/,
+      // Exclude the build ID specific directory entirely
+      /\/_next\/static\/[a-zA-Z0-9_-]+\/_/,
     ],
   },
   fallbacks: {
