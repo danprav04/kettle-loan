@@ -19,6 +19,8 @@ ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
 # Secrets are NOT needed at build time. The build will proceed without them.
 # The `output: 'standalone'` config will prepare the app for production.
+# Set NODE_ENV=production so next-pwa generates the service worker (it's disabled in development)
+ENV NODE_ENV=production
 RUN npm run build
 
 # Stage 3: Production runner
@@ -47,6 +49,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Copy only the necessary files for the standalone output
+# IMPORTANT: Copy public AFTER build because next-pwa generates sw.js during build
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
