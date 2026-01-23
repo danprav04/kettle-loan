@@ -12,12 +12,21 @@ self.addEventListener('push', function(event) {
 
     try {
         if (event.data) {
-            const payload = event.data.json();
-            data = {
-                title: payload.title || data.title,
-                body: payload.body || data.body,
-                url: payload.url || data.url
-            };
+            // Try parsing as JSON first (from server)
+            try {
+                const payload = event.data.json();
+                data = {
+                    title: payload.title || data.title,
+                    body: payload.body || data.body,
+                    url: payload.url || data.url
+                };
+            } catch (jsonError) {
+                // If JSON parsing fails, treat as plain text (e.g., from DevTools testing)
+                const text = event.data.text();
+                if (text) {
+                    data.body = text;
+                }
+            }
         }
     } catch (e) {
         console.error('[Push SW] Error parsing push data:', e);
