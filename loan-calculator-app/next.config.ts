@@ -91,7 +91,7 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  turbopack: {},
+  // Note: turbopack is disabled because next-pwa requires webpack plugins
 };
 
 export default withPWA(nextConfig);
