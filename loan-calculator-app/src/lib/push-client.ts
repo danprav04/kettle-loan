@@ -42,6 +42,7 @@ export async function subscribeToPushNotifications() {
 
   // Always send/update subscription on server to ensure it's fresh
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const locale = typeof window !== 'undefined' ? localStorage.getItem('locale') || 'en' : 'en';
   
   if (token) {
     await fetch('/api/notifications/subscribe', {
@@ -50,7 +51,10 @@ export async function subscribeToPushNotifications() {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify(subscription)
+      body: JSON.stringify({
+        ...subscription.toJSON(),
+        locale
+      })
     });
   }
 

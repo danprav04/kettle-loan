@@ -102,5 +102,12 @@
     "syncing": "Syncing...",
     "youAreOffline": "You are offline.",
     "pendingSync": "{count, plural, =0{} one{# item pending sync.} other{# items pending sync.}}"
+  },
+  "PushNotifications": {
+    "newEntryTitle": "New Entry in Room",
+    "entryDeletedTitle": "Entry Deleted",
+    "addedExpense": "{username} added expense: {description} ({amount} ILS)",
+    "addedLoan": "{username} added loan: {description} ({amount} ILS)",
+    "removedEntry": "{username} removed: {description}"
   }
 }

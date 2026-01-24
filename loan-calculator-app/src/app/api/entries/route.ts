@@ -24,15 +24,18 @@ export async function POST(req: Request) {
             [roomId, user.userId, amount, description, finalSplitWith, finalCreatedAt.toISOString()]
         );
 
-        // Send Push Notification
+        // Send Push Notification with localized messages
         const numAmount = parseFloat(amount);
-        const type = numAmount > 0 ? 'added expense' : 'added loan';
+        const isExpense = numAmount > 0;
         const formattedAmount = Math.abs(numAmount).toFixed(2);
         
         // Trigger non-blocking notification
         sendRoomNotification(roomId, user.userId, {
-            title: `New Entry in Room`,
-            body: `${user.username} ${type}: ${description} (${formattedAmount} ILS)`,
+            type: 'newEntry',
+            username: user.username,
+            description,
+            amount: formattedAmount,
+            isExpense,
             url: `/rooms/${roomId}`
         });
 

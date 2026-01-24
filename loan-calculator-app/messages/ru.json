@@ -102,5 +102,12 @@
     "syncing": "Синхронизация...",
     "youAreOffline": "Вы не в сети.",
     "pendingSync": "{count, plural, one{# элемент ожидает синхронизации.} few{# элемента ожидают синхронизации.} many{# элементов ожидают синхронизации.} other{# элемента ожидают синхронизации.}}"
+  },
+  "PushNotifications": {
+    "newEntryTitle": "Новая запись в комнате",
+    "entryDeletedTitle": "Запись удалена",
+    "addedExpense": "{username} добавил расход: {description} ({amount} ILS)",
+    "addedLoan": "{username} добавил долг: {description} ({amount} ILS)",
+    "removedEntry": "{username} удалил: {description}"
   }
 }

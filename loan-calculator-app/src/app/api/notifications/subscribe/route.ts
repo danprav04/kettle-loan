@@ -19,7 +19,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Invalid JSON body' }, { status: 400 });
         }
 
-        const { endpoint, keys } = subscription || {};
+        const { endpoint, keys, locale } = subscription || {};
 
         // Strict validation of required fields
         if (!endpoint || typeof endpoint !== 'string') {
@@ -32,6 +32,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Invalid subscription keys' }, { status: 400 });
         }
 
+        // Validate locale - default to 'en' if invalid
+        const validLocales = ['en', 'he', 'ru'];
+        const userLocale = validLocales.includes(locale) ? locale : 'en';
+
         // Verify user exists to prevent foreign key constraint violation
         const userCheck = await db.query('SELECT id FROM users WHERE id = $1', [user.userId]);
         if (userCheck.rows.length === 0) {
@@ -40,15 +44,16 @@ export async function POST(req: Request) {
 
         // Upsert subscription
         await db.query(
-            `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) 
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, locale) 
+             VALUES ($1, $2, $3, $4, $5)
              ON CONFLICT (endpoint) 
              DO UPDATE SET 
                 user_id = EXCLUDED.user_id, 
                 p256dh = EXCLUDED.p256dh, 
-                auth = EXCLUDED.auth, 
+                auth = EXCLUDED.auth,
+                locale = EXCLUDED.locale,
                 created_at = CURRENT_TIMESTAMP`,
-            [user.userId, endpoint, String(keys.p256dh), String(keys.auth)]
+            [user.userId, endpoint, String(keys.p256dh), String(keys.auth), userLocale]
         );
 
         return NextResponse.json({ message: 'Subscribed successfully' });

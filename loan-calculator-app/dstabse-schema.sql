@@ -35,6 +35,7 @@ CREATE TABLE push_subscriptions (
     endpoint TEXT NOT NULL UNIQUE,
     p256dh TEXT NOT NULL,
     auth TEXT NOT NULL,
+    locale VARCHAR(5) DEFAULT 'en',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_push_subs_user_id ON push_subscriptions(user_id);

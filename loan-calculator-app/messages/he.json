@@ -102,5 +102,12 @@
     "syncing": "מסנכרן...",
     "youAreOffline": "אתה לא מחובר.",
     "pendingSync": "{count, plural, one{ממתין פריט # לסנכרון.} other{ממתינים # פריטים לסנכרון.}}"
+  },
+  "PushNotifications": {
+    "newEntryTitle": "רשומה חדשה בחדר",
+    "entryDeletedTitle": "רשומה נמחקה",
+    "addedExpense": "{username} הוסיף הוצאה: {description} ({amount} ש״ח)",
+    "addedLoan": "{username} הוסיף הלוואה: {description} ({amount} ש״ח)",
+    "removedEntry": "{username} הסיר: {description}"
   }
 }

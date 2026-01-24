@@ -42,10 +42,11 @@ export async function DELETE(
             [numericEntryId]
         );
 
-        // Send Push Notification
+        // Send Push Notification with localized messages
         sendRoomNotification(entry.room_id, user.userId, {
-            title: 'Entry Deleted',
-            body: `${user.username} removed: ${entry.description}`,
+            type: 'deleteEntry',
+            username: user.username,
+            description: entry.description,
             url: `/rooms/${entry.room_id}`
         });
 
