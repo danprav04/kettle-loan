@@ -152,15 +152,38 @@ export default function EntriesPage() {
             } else if (amount < 0) { // Loan
                 const loanAmount = Math.abs(amount);
                 const borrowerId = payerId;
-                runningBalances[borrowerId] -= loanAmount;
-                const lenders = members.filter(m => m.id !== borrowerId);
-                if (lenders.length > 0) {
-                    const creditPerLender = loanAmount / lenders.length;
-                    lenders.forEach(lender => {
-                        if (runningBalances[lender.id] !== undefined) {
-                            runningBalances[lender.id] += creditPerLender;
+                // Use split_with_user_ids if present, otherwise fall back to all non-borrower members
+                const participants = entry.split_with_user_ids ?? null;
+                if (participants && participants.length > 0) {
+                    // Split the loan among specific participants
+                    const share = loanAmount / participants.length;
+                    participants.forEach(pId => {
+                        if (runningBalances[pId] !== undefined) {
+                            runningBalances[pId] -= share;
                         }
                     });
+                    // Credit goes to non-participants (the lenders)
+                    const lenders = members.filter(m => !participants.includes(m.id));
+                    if (lenders.length > 0) {
+                        const creditPerLender = loanAmount / lenders.length;
+                        lenders.forEach(lender => {
+                            if (runningBalances[lender.id] !== undefined) {
+                                runningBalances[lender.id] += creditPerLender;
+                            }
+                        });
+                    }
+                } else {
+                    // Legacy behavior: borrower owes the full amount, distributed to all others
+                    runningBalances[borrowerId] -= loanAmount;
+                    const lenders = members.filter(m => m.id !== borrowerId);
+                    if (lenders.length > 0) {
+                        const creditPerLender = loanAmount / lenders.length;
+                        lenders.forEach(lender => {
+                            if (runningBalances[lender.id] !== undefined) {
+                                runningBalances[lender.id] += creditPerLender;
+                            }
+                        });
+                    }
                 }
             }
 

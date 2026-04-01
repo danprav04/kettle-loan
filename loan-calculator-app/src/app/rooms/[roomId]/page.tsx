@@ -40,6 +40,10 @@ export default function RoomPage() {
     const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
+    // Loan-specific state
+    const [loanPaidByUserId, setLoanPaidByUserId] = useState<number | null>(null);
+    const [loanSelectedMemberIds, setLoanSelectedMemberIds] = useState<Set<number>>(new Set());
+    const [includeSelfInLoanSplit, setIncludeSelfInLoanSplit] = useState(true);
 
     const otherMembers = useMemo(() => members.filter(m => m.id !== currentUserId), [members, currentUserId]);
 
@@ -57,6 +61,12 @@ export default function RoomPage() {
                 .map((m: Member) => m.id);
             setSelectedMemberIds(new Set(initialSelected));
             setIncludeSelfInSplit(true);
+            // Initialize loan state
+            setLoanSelectedMemberIds(new Set(initialSelected));
+            setIncludeSelfInLoanSplit(true);
+            if (initialSelected.length > 0) {
+                setLoanPaidByUserId(initialSelected[0]);
+            }
         }
     }, [members.length]);
 
@@ -177,6 +187,11 @@ export default function RoomPage() {
             const participants = new Set(selectedMemberIds);
             if (includeSelfInSplit) participants.add(currentUserId);
             finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.map(m => m.id);
+        } else if (entryType === 'loan' && !isSimplified) {
+            // In non-simplified loan mode, use the loan split selection
+            const participants = new Set(loanSelectedMemberIds);
+            if (includeSelfInLoanSplit) participants.add(currentUserId);
+            finalSplitWithIds = participants.size > 0 ? Array.from(participants) : null;
         }
 
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
@@ -234,6 +249,16 @@ export default function RoomPage() {
         }
         setSelectedMemberIds(newSelection);
     };
+
+    const handleLoanMemberSelection = (memberId: number) => {
+        const newSelection = new Set(loanSelectedMemberIds);
+        if (newSelection.has(memberId)) {
+            newSelection.delete(memberId);
+        } else {
+            newSelection.add(memberId);
+        }
+        setLoanSelectedMemberIds(newSelection);
+    };
     
     const isSubmitDisabled = amount === '' || description === '';
 
@@ -243,15 +268,15 @@ export default function RoomPage() {
                 <div className="max-w-md mx-auto p-8 text-center text-muted-foreground animate-fadeIn">Loading room...</div>
             ) : (
                 <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
-                    <div className="p-8">
-                        <div className="text-center mb-6">
+                    <div className="p-4 sm:p-6 md:p-8">
+                        <div className="text-center mb-4 sm:mb-6">
                             {isEditingName ? (
                                 <div className="flex items-center space-x-2 rtl:space-x-reverse animate-fadeIn">
                                     <input
                                         type="text"
                                         value={newName}
                                         onChange={(e) => setNewName(e.target.value)}
-                                        className="w-full px-3 py-1 text-xl font-bold text-center rounded-lg themed-input"
+                                        className="w-full px-3 py-1 text-lg sm:text-xl font-bold text-center rounded-lg themed-input"
                                         autoFocus
                                         onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
                                     />
@@ -264,7 +289,7 @@ export default function RoomPage() {
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-center space-x-2 rtl:space-x-reverse group">
-                                    <h1 className="text-xl font-bold text-card-foreground">
+                                    <h1 className="text-lg sm:text-xl font-bold text-card-foreground">
                                         {roomName || t('roomTitle', { code: roomCode })}
                                     </h1>
                                     <button onClick={handleStartEditingName} className="p-1 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Edit room name">
@@ -272,21 +297,21 @@ export default function RoomPage() {
                                     </button>
                                 </div>
                             )}
-                            <p className="text-sm text-muted-foreground mt-1">Room Code: {roomCode}</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Room Code: {roomCode}</p>
                         </div>
 
 
-                        <div className="text-center mb-6">
-                            <div className="text-lg font-medium text-muted-foreground">{t('balanceTitle')}</div>
-                            <div className={`text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
+                        <div className="text-center mb-4 sm:mb-6">
+                            <div className="text-base sm:text-lg font-medium text-muted-foreground">{t('balanceTitle')}</div>
+                            <div className={`text-3xl sm:text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
                                 {balance.toFixed(2)} ILS
                             </div>
-                            <Link href={`/rooms/${roomId}/balance`} className="text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
+                            <Link href={`/rooms/${roomId}/balance`} className="text-xs sm:text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
                                 {t('detailed')}
                             </Link>
                         </div>
 
-                        <div className="border-t border-card-border my-6"></div>
+                        <div className="border-t border-card-border my-4 sm:my-6"></div>
 
                         <div>
                             {notification && (
@@ -295,42 +320,35 @@ export default function RoomPage() {
                                     <span>{notification}</span>
                                 </div>
                             )}
-                            <h2 className="text-xl font-semibold text-center text-card-foreground mb-4">
+                            <h2 className="text-lg sm:text-xl font-semibold text-center text-card-foreground mb-4">
                                 {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
                             </h2>
                             <form onSubmit={handleAddEntry}>
                                 {!isSimplified && (
-                                    <div className="mb-6">
+                                    <div className="mb-4 sm:mb-6">
                                         <div className="relative flex w-full rounded-full bg-muted p-1">
                                             <span
                                                 className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
                                                 style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }}
                                             />
-                                            <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
+                                            <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2.5 text-xs sm:text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
                                                 {t('expense')}
                                             </button>
-                                            <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2 text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
+                                            <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2.5 text-xs sm:text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
                                                 {t('loan')}
                                             </button>
                                         </div>
                                     </div>
                                 )}
-                                <div className="mb-4">
-                                    <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
-                                    <input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required min="0" step="any" />
-                                </div>
-                                <div className="mb-4">
-                                    <label className="block text-muted-foreground text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
-                                    <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required />
-                                </div>
 
+                                {/* EXPENSE: Split member selector (moved before inputs) */}
                                 {entryType === 'expense' && !isSimplified && otherMembers.length > 0 && (
-                                    <div className="mb-6 bg-muted/50 p-3 rounded-lg animate-fadeIn">
+                                    <div className="mb-4 bg-muted/50 p-3 rounded-lg animate-fadeIn">
                                         <div className="flex justify-between items-center pb-2 border-b border-card-border mb-2">
-                                            <label className="block text-muted-foreground text-sm font-bold">{t('splitWith')}</label>
+                                            <label className="block text-muted-foreground text-xs sm:text-sm font-bold">{t('splitWith')}</label>
                                             <div className="flex items-center">
                                                 <input id="share-with-me" type="checkbox" checked={includeSelfInSplit} onChange={(e) => setIncludeSelfInSplit(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
-                                                <label htmlFor="share-with-me" className="ms-2 block text-sm font-medium text-foreground">{t('shareWithMe')}</label>
+                                                <label htmlFor="share-with-me" className="ms-2 block text-xs sm:text-sm font-medium text-foreground">{t('shareWithMe')}</label>
                                             </div>
                                         </div>
                                         <div className="space-y-2 max-h-32 overflow-y-auto px-1">
@@ -344,14 +362,66 @@ export default function RoomPage() {
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-2 gap-4 mt-6">
-                                    <button type="submit" className="col-span-2 font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}>
+                                {/* LOAN: Who paid for you + split selector (non-simplified only) */}
+                                {entryType === 'loan' && !isSimplified && otherMembers.length > 0 && (
+                                    <div className="mb-4 space-y-3 animate-fadeIn">
+                                        {/* Who paid for you - single select */}
+                                        <div className="bg-muted/50 p-3 rounded-lg">
+                                            <label className="block text-muted-foreground text-xs sm:text-sm font-bold mb-2">{t('loanPaidBy')}</label>
+                                            <div className="space-y-2 max-h-32 overflow-y-auto px-1">
+                                                {otherMembers.map(member => (
+                                                    <div key={member.id} className="flex items-center">
+                                                        <input
+                                                            id={`loan-payer-${member.id}`}
+                                                            name="loanPayer"
+                                                            type="radio"
+                                                            checked={loanPaidByUserId === member.id}
+                                                            onChange={() => setLoanPaidByUserId(member.id)}
+                                                            className="h-4 w-4 border-gray-300 text-success focus:ring-success"
+                                                        />
+                                                        <label htmlFor={`loan-payer-${member.id}`} className="ms-2 block text-sm text-foreground">{member.username}</label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* Split owed amount with */}
+                                        <div className="bg-muted/50 p-3 rounded-lg">
+                                            <div className="flex justify-between items-center pb-2 border-b border-card-border mb-2">
+                                                <label className="block text-muted-foreground text-xs sm:text-sm font-bold">{t('loanSplitWith')}</label>
+                                                <div className="flex items-center">
+                                                    <input id="loan-share-with-me" type="checkbox" checked={includeSelfInLoanSplit} onChange={(e) => setIncludeSelfInLoanSplit(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-success focus:ring-success" />
+                                                    <label htmlFor="loan-share-with-me" className="ms-2 block text-xs sm:text-sm font-medium text-foreground">{t('shareWithMe')}</label>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2 max-h-32 overflow-y-auto px-1">
+                                                {otherMembers.map(member => (
+                                                    <div key={member.id} className="flex items-center">
+                                                        <input id={`loan-member-${member.id}`} name="loanMembers" type="checkbox" checked={loanSelectedMemberIds.has(member.id)} onChange={() => handleLoanMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-success focus:ring-success" />
+                                                        <label htmlFor={`loan-member-${member.id}`} className="ms-2 block text-sm text-foreground">{member.username}</label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="mb-3 sm:mb-4">
+                                    <label className="block text-muted-foreground text-xs sm:text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
+                                    <input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required min="0" step="any" />
+                                </div>
+                                <div className="mb-3 sm:mb-4">
+                                    <label className="block text-muted-foreground text-xs sm:text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
+                                    <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required />
+                                </div>
+
+                                <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 sm:gap-4 mt-4 sm:mt-6">
+                                    <button type="submit" className="sm:col-span-2 font-bold py-2.5 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}>
                                         {t('addEntry')}
                                     </button>
-                                    <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center">
+                                    <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2.5 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center text-sm sm:text-base">
                                         {t('allEntries')}
                                     </Link>
-                                    <Link href={`/rooms/${roomId}/stats`} className="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center">
+                                    <Link href={`/rooms/${roomId}/stats`} className="font-bold py-2.5 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center text-sm sm:text-base">
                                         {t('roomStatistics')}
                                     </Link>
                                 </div>
