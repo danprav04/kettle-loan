@@ -97,7 +97,11 @@ export async function GET(
                 
                 finalBalances[borrowerId] -= loanAmount;
 
-                const lenders = members.filter(m => m.id !== borrowerId);
+                const participants = entry.split_with_user_ids;
+                const lenders = participants && participants.length > 0
+                    ? members.filter(m => participants.includes(m.id))
+                    : members.filter(m => m.id !== borrowerId);
+
                 if (lenders.length > 0) {
                     const creditPerLender = loanAmount / lenders.length;
                     lenders.forEach(lender => {

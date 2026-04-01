@@ -41,7 +41,7 @@ export default function RoomPage() {
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
     // Loan-specific state
-    const [loanPaidByUserId, setLoanPaidByUserId] = useState<number | null>(null);
+    const [loanPaidByUserIds, setLoanPaidByUserIds] = useState<Set<number>>(new Set());
 
     const otherMembers = useMemo(() => members.filter((m: Member) => m.id !== currentUserId), [members, currentUserId]);
 
@@ -61,7 +61,7 @@ export default function RoomPage() {
             setIncludeSelfInSplit(true);
             // Initialize loan state
             if (initialSelected.length > 0) {
-                setLoanPaidByUserId(initialSelected[0]);
+                setLoanPaidByUserIds(new Set([initialSelected[0]]));
             }
         }
     }, [members.length]);
@@ -184,8 +184,8 @@ export default function RoomPage() {
             if (includeSelfInSplit && currentUserId) participants.add(currentUserId);
             finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.map((m: Member) => m.id);
         } else if (entryType === 'loan' && !isSimplified) {
-            // In non-simplified loan mode, the user takes the whole loan
-            finalSplitWithIds = currentUserId ? [currentUserId] : null;
+            // In non-simplified loan mode, the user owes money to the selected lenders
+            finalSplitWithIds = loanPaidByUserIds.size > 0 ? Array.from(loanPaidByUserIds) : null;
         }
 
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
@@ -362,10 +362,15 @@ export default function RoomPage() {
                                                         <input
                                                             id={`loan-payer-${member.id}`}
                                                             name="loanPayer"
-                                                            type="radio"
-                                                            checked={loanPaidByUserId === member.id}
-                                                            onChange={() => setLoanPaidByUserId(member.id)}
-                                                            className="h-4 w-4 border-gray-300 text-success focus:ring-success"
+                                                            type="checkbox"
+                                                            checked={loanPaidByUserIds.has(member.id)}
+                                                            onChange={(e: any) => {
+                                                                const newSet = new Set(loanPaidByUserIds);
+                                                                if (e.target.checked) newSet.add(member.id);
+                                                                else newSet.delete(member.id);
+                                                                setLoanPaidByUserIds(newSet);
+                                                            }}
+                                                            className="h-4 w-4 rounded border-gray-300 text-success focus:ring-success"
                                                         />
                                                         <label htmlFor={`loan-payer-${member.id}`} className="ms-2 block text-sm text-foreground">{member.username}</label>
                                                     </div>
