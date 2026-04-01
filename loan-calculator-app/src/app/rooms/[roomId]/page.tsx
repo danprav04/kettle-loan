@@ -42,8 +42,6 @@ export default function RoomPage() {
     const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
     // Loan-specific state
     const [loanPaidByUserId, setLoanPaidByUserId] = useState<number | null>(null);
-    const [loanSelectedMemberIds, setLoanSelectedMemberIds] = useState<Set<number>>(new Set());
-    const [includeSelfInLoanSplit, setIncludeSelfInLoanSplit] = useState(true);
 
     const otherMembers = useMemo(() => members.filter((m: Member) => m.id !== currentUserId), [members, currentUserId]);
 
@@ -62,8 +60,6 @@ export default function RoomPage() {
             setSelectedMemberIds(new Set(initialSelected));
             setIncludeSelfInSplit(true);
             // Initialize loan state
-            setLoanSelectedMemberIds(new Set(initialSelected));
-            setIncludeSelfInLoanSplit(true);
             if (initialSelected.length > 0) {
                 setLoanPaidByUserId(initialSelected[0]);
             }
@@ -188,10 +184,8 @@ export default function RoomPage() {
             if (includeSelfInSplit && currentUserId) participants.add(currentUserId);
             finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.map((m: Member) => m.id);
         } else if (entryType === 'loan' && !isSimplified) {
-            // In non-simplified loan mode, use the loan split selection
-            const participants = new Set<number>(loanSelectedMemberIds);
-            if (includeSelfInLoanSplit && currentUserId) participants.add(currentUserId);
-            finalSplitWithIds = participants.size > 0 ? Array.from<number>(participants) : null;
+            // In non-simplified loan mode, the user takes the whole loan
+            finalSplitWithIds = currentUserId ? [currentUserId] : null;
         }
 
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
@@ -250,15 +244,7 @@ export default function RoomPage() {
         setSelectedMemberIds(newSelection);
     };
 
-    const handleLoanMemberSelection = (memberId: number) => {
-        const newSelection = new Set(loanSelectedMemberIds);
-        if (newSelection.has(memberId)) {
-            newSelection.delete(memberId);
-        } else {
-            newSelection.add(memberId);
-        }
-        setLoanSelectedMemberIds(newSelection);
-    };
+
     
     const isSubmitDisabled = amount === '' || description === '';
 
@@ -346,12 +332,14 @@ export default function RoomPage() {
                                     <div className="mb-3 sm:mb-4 bg-muted/50 p-3 rounded-lg animate-fadeIn">
                                         <div className="flex justify-between items-center pb-2 border-b border-card-border mb-2">
                                             <label className="block text-muted-foreground text-xs sm:text-sm font-bold">{t('splitWith')}</label>
-                                            <div className="flex items-center">
-                                                <input id="share-with-me" type="checkbox" checked={includeSelfInSplit} onChange={(e: any) => setIncludeSelfInSplit(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
-                                                <label htmlFor="share-with-me" className="ms-2 block text-xs sm:text-sm font-medium text-foreground">{t('shareWithMe')}</label>
-                                            </div>
                                         </div>
                                         <div className="space-y-1.5 sm:space-y-2 max-h-24 sm:max-h-32 overflow-y-auto px-1">
+                                            {currentUserId && (
+                                                <div className="flex items-center">
+                                                    <input id="share-with-me" type="checkbox" checked={includeSelfInSplit} onChange={(e: any) => setIncludeSelfInSplit(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                                                    <label htmlFor="share-with-me" className="ms-2 block text-sm text-foreground">{t('me')}</label>
+                                                </div>
+                                            )}
                                             {otherMembers.map((member: Member) => (
                                                 <div key={member.id} className="flex items-center">
                                                     <input id={`member-${member.id}`} name="members" type="checkbox" checked={selectedMemberIds.has(member.id)} onChange={() => handleMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
@@ -384,24 +372,7 @@ export default function RoomPage() {
                                                 ))}
                                             </div>
                                         </div>
-                                        {/* Split owed amount with */}
-                                        <div className="bg-muted/50 p-3 rounded-lg">
-                                            <div className="flex flex-wrap gap-2 justify-between items-center pb-2 border-b border-card-border mb-2">
-                                                <label className="block text-muted-foreground text-xs sm:text-sm font-bold">{t('loanSplitWith')}</label>
-                                                <div className="flex items-center">
-                                                    <input id="loan-share-with-me" type="checkbox" checked={includeSelfInLoanSplit} onChange={(e: any) => setIncludeSelfInLoanSplit(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-success focus:ring-success" />
-                                                    <label htmlFor="loan-share-with-me" className="ms-2 block text-xs sm:text-sm font-medium text-foreground">{t('loanIncludeMe')}</label>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-1.5 sm:space-y-2 max-h-24 sm:max-h-32 overflow-y-auto px-1">
-                                                {otherMembers.filter((m: Member) => m.id !== loanPaidByUserId).map((member: Member) => (
-                                                    <div key={member.id} className="flex items-center">
-                                                        <input id={`loan-member-${member.id}`} name="loanMembers" type="checkbox" checked={loanSelectedMemberIds.has(member.id)} onChange={() => handleLoanMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-success focus:ring-success" />
-                                                        <label htmlFor={`loan-member-${member.id}`} className="ms-2 block text-sm text-foreground">{member.username}</label>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
+
                                     </div>
                                 )}
 

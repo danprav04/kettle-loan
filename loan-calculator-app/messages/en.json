@@ -54,6 +54,7 @@
     "splitWith": "Share cost with:",
     "everyone": "Everyone",
     "shareWithMe": "Share with me",
+    "me": "Me",
     "offlineRoomDataError": "This room's data isn't saved for offline use.",
     "requestQueued": "Request queued. It will sync when you're back online.",
     "deleteEntry": "Delete Entry",
