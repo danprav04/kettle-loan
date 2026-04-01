@@ -263,13 +263,13 @@ export default function RoomPage() {
     const isSubmitDisabled = amount === '' || description === '';
 
     return (
-        <div className="h-full overflow-y-auto">
+        <div className="h-full overflow-y-auto pb-4 sm:pb-0">
             {isLoading ? (
                 <div className="max-w-md mx-auto p-8 text-center text-muted-foreground animate-fadeIn">Loading room...</div>
             ) : (
                 <div className="max-w-md mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
-                    <div className="p-4 sm:p-6 md:p-8">
-                        <div className="text-center mb-4 sm:mb-6">
+                    <div className="p-4 sm:p-5 md:p-6 lg:p-8">
+                        <div className="text-center mb-3 sm:mb-5">
                             {isEditingName ? (
                                 <div className="flex items-center space-x-2 rtl:space-x-reverse animate-fadeIn">
                                     <input
@@ -301,7 +301,7 @@ export default function RoomPage() {
                         </div>
 
 
-                        <div className="text-center mb-4 sm:mb-6">
+                        <div className="text-center mb-3 sm:mb-5">
                             <div className="text-base sm:text-lg font-medium text-muted-foreground">{t('balanceTitle')}</div>
                             <div className={`text-3xl sm:text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
                                 {balance.toFixed(2)} ILS
@@ -311,7 +311,7 @@ export default function RoomPage() {
                             </Link>
                         </div>
 
-                        <div className="border-t border-card-border my-4 sm:my-6"></div>
+                        <div className="border-t border-card-border my-3 sm:my-5"></div>
 
                         <div>
                             {notification && (
@@ -320,12 +320,12 @@ export default function RoomPage() {
                                     <span>{notification}</span>
                                 </div>
                             )}
-                            <h2 className="text-lg sm:text-xl font-semibold text-center text-card-foreground mb-4">
+                            <h2 className="text-lg sm:text-xl font-semibold text-center text-card-foreground mb-3 sm:mb-4">
                                 {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
                             </h2>
                             <form onSubmit={handleAddEntry}>
                                 {!isSimplified && (
-                                    <div className="mb-4 sm:mb-6">
+                                    <div className="mb-3 sm:mb-5">
                                         <div className="relative flex w-full rounded-full bg-muted p-1">
                                             <span
                                                 className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
@@ -343,7 +343,7 @@ export default function RoomPage() {
 
                                 {/* EXPENSE: Split member selector (moved before inputs) */}
                                 {entryType === 'expense' && !isSimplified && otherMembers.length > 0 && (
-                                    <div className="mb-4 bg-muted/50 p-3 rounded-lg animate-fadeIn">
+                                    <div className="mb-3 sm:mb-4 bg-muted/50 p-3 rounded-lg animate-fadeIn">
                                         <div className="flex justify-between items-center pb-2 border-b border-card-border mb-2">
                                             <label className="block text-muted-foreground text-xs sm:text-sm font-bold">{t('splitWith')}</label>
                                             <div className="flex items-center">
@@ -351,7 +351,7 @@ export default function RoomPage() {
                                                 <label htmlFor="share-with-me" className="ms-2 block text-xs sm:text-sm font-medium text-foreground">{t('shareWithMe')}</label>
                                             </div>
                                         </div>
-                                        <div className="space-y-2 max-h-32 overflow-y-auto px-1">
+                                        <div className="space-y-1.5 sm:space-y-2 max-h-24 sm:max-h-32 overflow-y-auto px-1">
                                             {otherMembers.map((member: Member) => (
                                                 <div key={member.id} className="flex items-center">
                                                     <input id={`member-${member.id}`} name="members" type="checkbox" checked={selectedMemberIds.has(member.id)} onChange={() => handleMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
@@ -364,11 +364,11 @@ export default function RoomPage() {
 
                                 {/* LOAN: Who paid for you + split selector (non-simplified only) */}
                                 {entryType === 'loan' && !isSimplified && otherMembers.length > 0 && (
-                                    <div className="mb-4 space-y-3 animate-fadeIn">
+                                    <div className="mb-3 sm:mb-4 space-y-3 animate-fadeIn">
                                         {/* Who paid for you - single select */}
                                         <div className="bg-muted/50 p-3 rounded-lg">
                                             <label className="block text-muted-foreground text-xs sm:text-sm font-bold mb-2">{t('loanPaidBy')}</label>
-                                            <div className="space-y-2 max-h-32 overflow-y-auto px-1">
+                                            <div className="space-y-1.5 sm:space-y-2 max-h-24 sm:max-h-32 overflow-y-auto px-1">
                                                 {otherMembers.map((member: Member) => (
                                                     <div key={member.id} className="flex items-center">
                                                         <input
@@ -393,7 +393,7 @@ export default function RoomPage() {
                                                     <label htmlFor="loan-share-with-me" className="ms-2 block text-xs sm:text-sm font-medium text-foreground">{t('loanIncludeMe')}</label>
                                                 </div>
                                             </div>
-                                            <div className="space-y-2 max-h-32 overflow-y-auto px-1">
+                                            <div className="space-y-1.5 sm:space-y-2 max-h-24 sm:max-h-32 overflow-y-auto px-1">
                                                 {otherMembers.filter((m: Member) => m.id !== loanPaidByUserId).map((member: Member) => (
                                                     <div key={member.id} className="flex items-center">
                                                         <input id={`loan-member-${member.id}`} name="loanMembers" type="checkbox" checked={loanSelectedMemberIds.has(member.id)} onChange={() => handleLoanMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-success focus:ring-success" />
@@ -405,23 +405,23 @@ export default function RoomPage() {
                                     </div>
                                 )}
 
-                                <div className="mb-3 sm:mb-4">
-                                    <label className="block text-muted-foreground text-xs sm:text-sm font-bold mb-2" htmlFor="amount">{t('amount')}</label>
-                                    <input id="amount" type="number" value={amount} onChange={(e: any) => setAmount(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required min="0" step="any" />
+                                <div className="mb-2 sm:mb-4">
+                                    <label className="block text-muted-foreground text-xs sm:text-sm font-bold mb-1 sm:mb-2" htmlFor="amount">{t('amount')}</label>
+                                    <input id="amount" type="number" value={amount} onChange={(e: any) => setAmount(e.target.value)} className="w-full px-3 py-1.5 sm:py-2 leading-tight rounded-lg themed-input" required min="0" step="any" />
                                 </div>
-                                <div className="mb-3 sm:mb-4">
-                                    <label className="block text-muted-foreground text-xs sm:text-sm font-bold mb-2" htmlFor="description">{t('description')}</label>
-                                    <input id="description" type="text" value={description} onChange={(e: any) => setDescription(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required />
+                                <div className="mb-2 sm:mb-4">
+                                    <label className="block text-muted-foreground text-xs sm:text-sm font-bold mb-1 sm:mb-2" htmlFor="description">{t('description')}</label>
+                                    <input id="description" type="text" value={description} onChange={(e: any) => setDescription(e.target.value)} className="w-full px-3 py-1.5 sm:py-2 leading-tight rounded-lg themed-input" required />
                                 </div>
 
-                                <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 sm:gap-4 mt-4 sm:mt-6">
-                                    <button type="submit" className="sm:col-span-2 font-bold py-2.5 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}>
+                                <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2 sm:gap-4 mt-3 sm:mt-6">
+                                    <button type="submit" className="sm:col-span-2 font-bold py-2 sm:py-2.5 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-primary disabled:opacity-50 disabled:transform-none disabled:shadow-none" disabled={isSubmitDisabled}>
                                         {t('addEntry')}
                                     </button>
-                                    <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2.5 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center text-sm sm:text-base">
+                                    <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2 sm:py-2.5 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center text-sm sm:text-base">
                                         {t('allEntries')}
                                     </Link>
-                                    <Link href={`/rooms/${roomId}/stats`} className="font-bold py-2.5 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center text-sm sm:text-base">
+                                    <Link href={`/rooms/${roomId}/stats`} className="font-bold py-2 sm:py-2.5 px-4 rounded-lg focus:outline-none focus:shadow-outline btn-muted text-center text-sm sm:text-base">
                                         {t('roomStatistics')}
                                     </Link>
                                 </div>
