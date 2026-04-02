@@ -26,6 +26,7 @@ CREATE TABLE entries (
     amount NUMERIC(10, 2) NOT NULL,
     description VARCHAR(255) NOT NULL,
     split_with_user_ids JSONB,
+    paid_by_user_ids JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

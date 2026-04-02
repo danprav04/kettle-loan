@@ -90,82 +90,57 @@ export default function BalanceDetailsPage() {
             const payerId = entry.user_id;
             const amount = parseFloat(entry.amount);
 
-            if (amount > 0) { // Expense (including event entries)
-                const effectivePayerId = entry.paid_by_user_id ?? payerId;
-                const participants = entry.split_with_user_ids ?? members.map(m => m.id);
-                if (participants.length === 0) continue;
-                const share = amount / participants.length;
+            let payers: number[];
+            let borrowers: number[];
+            const absAmount = Math.abs(amount);
 
-                if (effectivePayerId === currentUserId) {
-                    participants.forEach(pId => {
-                        if (pId !== currentUserId && breakdown.has(pId)) {
-                            const data = breakdown.get(pId)!;
-                            const contribution = share;
-                            data.netBalance += contribution;
-                            data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
-                        }
-                    });
-                } else if (participants.includes(currentUserId) && breakdown.has(effectivePayerId)) {
-                    const data = breakdown.get(effectivePayerId)!;
-                    const contribution = -share;
-                    data.netBalance += contribution;
-                    data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
-                }
-            } else if (amount < 0) { // Loan
-                const loanAmount = Math.abs(amount);
-                const borrowerId = payerId;
-                const participants = entry.split_with_user_ids ?? null;
-
-                if (participants && participants.length > 0) {
-                    // Loan with specific split: participants are the borrowers
-                    const lenders = members.filter(m => !participants.includes(m.id));
-                    if (lenders.length === 0) continue;
-                    const share = loanAmount / participants.length;
-                    const creditPerLender = loanAmount / lenders.length;
-
-                    if (participants.includes(currentUserId)) {
-                        // Current user is a borrower
-                        lenders.forEach(lender => {
-                            if (breakdown.has(lender.id)) {
-                                const data = breakdown.get(lender.id)!;
-                                const contribution = -(share < creditPerLender ? share : share);
-                                data.netBalance += -share;
-                                data.transactions.push({ ...entry, contribution: -share, runningP2PBalance: data.netBalance });
-                            }
-                        });
-                    } else if (lenders.some(l => l.id === currentUserId)) {
-                        // Current user is a lender
-                        participants.forEach(pId => {
-                            if (breakdown.has(pId)) {
-                                const data = breakdown.get(pId)!;
-                                data.netBalance += creditPerLender;
-                                data.transactions.push({ ...entry, contribution: creditPerLender, runningP2PBalance: data.netBalance });
-                            }
-                        });
-                    }
+            if (amount >= 0) { // Expense / Event
+                if (entry.paid_by_user_ids && entry.paid_by_user_ids.length > 0) {
+                    payers = entry.paid_by_user_ids;
+                } else if ((entry as any).paid_by_user_id) {
+                    payers = [(entry as any).paid_by_user_id];
                 } else {
-                    // Legacy behavior: borrower owes full amount, distributed to all others
-                    const lenders = members.filter(m => m.id !== borrowerId);
-                    if (lenders.length === 0) continue;
-                    const share = loanAmount / lenders.length;
-
-                    if (borrowerId === currentUserId) {
-                        lenders.forEach(lender => {
-                            if (breakdown.has(lender.id)) {
-                                 const data = breakdown.get(lender.id)!;
-                                 const contribution = -share;
-                                 data.netBalance += contribution;
-                                 data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
-                            }
-                        });
-                    } else if (lenders.some(l => l.id === currentUserId) && breakdown.has(borrowerId)) {
-                         const data = breakdown.get(borrowerId)!;
-                         const contribution = share;
-                         data.netBalance += contribution;
-                         data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
-                    }
+                    payers = [payerId];
+                }
+                
+                if (entry.split_with_user_ids && entry.split_with_user_ids.length > 0) {
+                    borrowers = entry.split_with_user_ids;
+                } else {
+                    borrowers = members.map(m => m.id);
+                }
+            } else { // Loan (amount < 0)
+                borrowers = [payerId];
+                if (entry.split_with_user_ids && entry.split_with_user_ids.length > 0) {
+                    payers = entry.split_with_user_ids;
+                } else {
+                    // Legacy: if lenders aren't explicit, it's everyone else
+                    payers = members.map(m => m.id).filter(id => id !== payerId);
                 }
             }
+
+            if (payers.length === 0 || borrowers.length === 0) continue;
+
+            // Distribute fractional debt identically 
+            const debtUnit = absAmount / (borrowers.length * payers.length);
+            
+            payers.forEach(pId => {
+                borrowers.forEach(bId => {
+                    if (pId !== bId) {
+                        // For a user viewing THEIR balances:
+                        if (pId === currentUserId && breakdown.has(bId)) {
+                            // Current user is the payer, so bId owes them.
+                            const data = breakdown.get(bId)!;
+                            data.netBalance += debtUnit;
+                            data.transactions.push({ ...entry, contribution: debtUnit, runningP2PBalance: data.netBalance });
+                        } else if (bId === currentUserId && breakdown.has(pId)) {
+                            // Current user is the borrower, so they owe pId.
+                            const data = breakdown.get(pId)!;
+                            data.netBalance -= debtUnit;
+                            data.transactions.push({ ...entry, contribution: -debtUnit, runningP2PBalance: data.netBalance });
+                        }
+                    }
+                });
+            });
         }
         
         // Reverse the transactions to show the most recent first
