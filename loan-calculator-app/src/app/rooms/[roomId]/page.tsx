@@ -330,9 +330,7 @@ export default function RoomPage() {
                                 {/* EXPENSE: Split member selector (moved before inputs) */}
                                 {entryType === 'expense' && !isSimplified && otherMembers.length > 0 && (
                                     <div className="mb-3 sm:mb-4 bg-muted/50 p-3 rounded-lg animate-fadeIn">
-                                        <div className="flex justify-between items-center pb-2 border-b border-card-border mb-2">
-                                            <label className="block text-muted-foreground text-xs sm:text-sm font-bold">{t('splitWith')}</label>
-                                        </div>
+
                                         <div className="space-y-1.5 sm:space-y-2 max-h-24 sm:max-h-32 overflow-y-auto px-1">
                                             {currentUserId && (
                                                 <div className="flex items-center">
@@ -355,7 +353,6 @@ export default function RoomPage() {
                                     <div className="mb-3 sm:mb-4 space-y-3 animate-fadeIn">
                                         {/* Who paid for you - single select */}
                                         <div className="bg-muted/50 p-3 rounded-lg">
-                                            <label className="block text-muted-foreground text-xs sm:text-sm font-bold mb-2">{t('loanPaidBy')}</label>
                                             <div className="space-y-1.5 sm:space-y-2 max-h-24 sm:max-h-32 overflow-y-auto px-1">
                                                 {otherMembers.map((member: Member) => (
                                                     <div key={member.id} className="flex items-center">
