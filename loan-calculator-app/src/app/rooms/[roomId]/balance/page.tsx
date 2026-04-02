@@ -90,13 +90,12 @@ export default function BalanceDetailsPage() {
             const payerId = entry.user_id;
             const amount = parseFloat(entry.amount);
 
-            if (amount > 0) { // Expense (including event entries)
-                const effectivePayerId = entry.paid_by_user_id ?? payerId;
+            if (amount > 0) { // Expense
                 const participants = entry.split_with_user_ids ?? members.map(m => m.id);
                 if (participants.length === 0) continue;
                 const share = amount / participants.length;
 
-                if (effectivePayerId === currentUserId) {
+                if (payerId === currentUserId) {
                     participants.forEach(pId => {
                         if (pId !== currentUserId && breakdown.has(pId)) {
                             const data = breakdown.get(pId)!;
@@ -105,8 +104,8 @@ export default function BalanceDetailsPage() {
                             data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
                         }
                     });
-                } else if (participants.includes(currentUserId) && breakdown.has(effectivePayerId)) {
-                    const data = breakdown.get(effectivePayerId)!;
+                } else if (participants.includes(currentUserId) && breakdown.has(payerId)) {
+                    const data = breakdown.get(payerId)!;
                     const contribution = -share;
                     data.netBalance += contribution;
                     data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });

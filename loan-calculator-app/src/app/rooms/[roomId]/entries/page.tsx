@@ -27,10 +27,9 @@ type ProcessedEntry = Entry & { runningBalance: number };
 const getEntryDetails = (entry: Entry, memberMap: Map<number, string>, allMembers: Member[], currentUser: User | null, t: (key: string, values?: Record<string, string | number>) => string) => {
     const amount = parseFloat(entry.amount);
     const actorUsername = entry.username;
-    const effectivePayerId = entry.paid_by_user_id ?? entry.user_id;
     
-    if (amount > 0) { // Expense (including event entries)
-        const payerText = effectivePayerId === currentUser?.userId ? t('entryParticipantYou') : (memberMap.get(effectivePayerId) || actorUsername);
+    if (amount > 0) { // Expense
+        const payerText = entry.user_id === currentUser?.userId ? t('entryParticipantYou') : actorUsername;
         let participantsText: string;
         
         const participants = entry.split_with_user_ids;
@@ -45,22 +44,12 @@ const getEntryDetails = (entry: Entry, memberMap: Map<number, string>, allMember
                 return memberMap.get(id) || '...';
             }).join(', ');
         }
-
-        // If this is an event entry (paid_by_user_id differs from user_id), show who logged it
-        const isEventEntry = entry.paid_by_user_id != null && entry.paid_by_user_id !== entry.user_id;
-        const loggerText = entry.user_id === currentUser?.userId ? t('entryParticipantYou') : actorUsername;
         
         return (
             <>
                 <span>{t('entryPaidBy', { payer: payerText })}</span>
                 <span className="mx-1.5">&bull;</span>
                 <span>{t('entryFor', { participants: participantsText })}</span>
-                {isEventEntry && (
-                    <>
-                        <span className="mx-1.5">&bull;</span>
-                        <span className="text-amber-500">{t('entryEventBy', { logger: loggerText })}</span>
-                    </>
-                )}
             </>
         );
     } else if (amount < 0) { // Loan
@@ -147,13 +136,13 @@ export default function EntriesPage() {
 
         const entriesWithBalance = chronologicalEntries.map(entry => {
             const amount = parseFloat(entry.amount);
+            const payerId = entry.user_id;
 
-            if (amount > 0) { // Expense (including event entries)
-                const effectivePayerId = entry.paid_by_user_id ?? entry.user_id;
+            if (amount > 0) { // Expense
                 const participants = entry.split_with_user_ids ?? members.map(m => m.id);
                 if (participants.length > 0) {
                     const share = amount / participants.length;
-                    runningBalances[effectivePayerId] += amount;
+                    runningBalances[payerId] += amount;
                     participants.forEach(pId => {
                         if (runningBalances[pId] !== undefined) {
                             runningBalances[pId] -= share;

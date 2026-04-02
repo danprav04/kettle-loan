@@ -37,14 +37,11 @@ export default function RoomPage() {
 
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
-    const [entryType, setEntryType] = useState<'expense' | 'loan' | 'event'>('expense');
+    const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
     // Loan-specific state
     const [loanPaidByUserIds, setLoanPaidByUserIds] = useState<Set<number>>(new Set());
-    // Event-specific state
-    const [eventPayerId, setEventPayerId] = useState<number | null>(null);
-    const [eventForMemberIds, setEventForMemberIds] = useState<Set<number>>(new Set());
 
     const otherMembers = useMemo(() => members.filter((m: Member) => m.id !== currentUserId), [members, currentUserId]);
 
@@ -66,11 +63,6 @@ export default function RoomPage() {
             if (initialSelected.length > 0) {
                 setLoanPaidByUserIds(new Set([initialSelected[0]]));
             }
-            // Initialize event state
-            if (data.currentUserId) {
-                setEventPayerId(data.currentUserId);
-            }
-            setEventForMemberIds(new Set((data.members || []).map((m: Member) => m.id)));
         }
     }, [members.length]);
 
@@ -126,12 +118,12 @@ export default function RoomPage() {
         if (isSimplified) {
             setEntryType('loan');
         } else {
-            const savedEntryType = localStorage.getItem('entryType') as 'expense' | 'loan' | 'event';
-            setEntryType(savedEntryType && ['expense', 'loan', 'event'].includes(savedEntryType) ? savedEntryType : 'expense');
+            const savedEntryType = localStorage.getItem('entryType') as 'expense' | 'loan';
+            setEntryType(savedEntryType && ['expense', 'loan'].includes(savedEntryType) ? savedEntryType : 'expense');
         }
     }, [isSimplified]);
 
-    const handleSetEntryType = (type: 'expense' | 'loan' | 'event') => {
+    const handleSetEntryType = (type: 'expense' | 'loan') => {
         if (isSimplified) return;
         setEntryType(type);
         localStorage.setItem('entryType', type);
@@ -187,7 +179,6 @@ export default function RoomPage() {
         if (isNaN(parsedAmount) || parsedAmount <= 0 || !currentUserId || !currentUser) return;
 
         let finalSplitWithIds: number[] | null = null;
-        let paidByUserId: number | null = null;
         if (entryType === 'expense') {
             const participants = new Set<number>(selectedMemberIds);
             if (includeSelfInSplit && currentUserId) participants.add(currentUserId);
@@ -195,11 +186,6 @@ export default function RoomPage() {
         } else if (entryType === 'loan' && !isSimplified) {
             // In non-simplified loan mode, the user owes money to the selected lenders
             finalSplitWithIds = loanPaidByUserIds.size > 0 ? Array.from(loanPaidByUserIds) : null;
-        } else if (entryType === 'event') {
-            // Event mode: any member can be the payer
-            if (!eventPayerId) return;
-            paidByUserId = eventPayerId;
-            finalSplitWithIds = eventForMemberIds.size > 0 ? Array.from(eventForMemberIds) : members.map((m: Member) => m.id);
         }
 
         const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
@@ -212,7 +198,6 @@ export default function RoomPage() {
             username: currentUser.username,
             user_id: currentUserId,
             split_with_user_ids: finalSplitWithIds,
-            paid_by_user_id: paidByUserId,
             offline_timestamp: Date.now()
         };
         
@@ -233,7 +218,6 @@ export default function RoomPage() {
                     amount: finalAmount, 
                     description, 
                     splitWithUserIds: finalSplitWithIds,
-                    paidByUserId: paidByUserId,
                     createdAt: optimisticEntry.created_at
                 },
             });
@@ -262,19 +246,7 @@ export default function RoomPage() {
 
 
     
-    const handleEventMemberSelection = (memberId: number) => {
-        const newSelection = new Set(eventForMemberIds);
-        if (newSelection.has(memberId)) {
-            newSelection.delete(memberId);
-        } else {
-            newSelection.add(memberId);
-        }
-        setEventForMemberIds(newSelection);
-    };
-
-
-    
-    const isSubmitDisabled = amount === '' || description === '' || (entryType === 'event' && !eventPayerId);
+    const isSubmitDisabled = amount === '' || description === '';
 
     return (
         <div className="h-full overflow-y-auto pb-4 sm:pb-0">
@@ -342,20 +314,14 @@ export default function RoomPage() {
                                     <div className="mb-3 sm:mb-5">
                                         <div className="relative flex w-full rounded-full bg-muted p-1">
                                             <span
-                                                className={`absolute top-1 bottom-1 rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : entryType === 'loan' ? 'border-success' : 'border-amber-500'}`}
-                                                style={{
-                                                    width: 'calc(33.333% - 5px)',
-                                                    transform: entryType === 'expense' ? 'translateX(0)' : entryType === 'loan' ? 'translateX(calc(100% + 2.5px))' : 'translateX(calc(200% + 5px))'
-                                                }}
+                                                className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
+                                                style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }}
                                             />
-                                            <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/3 py-2.5 text-xs sm:text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
+                                            <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2.5 text-xs sm:text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
                                                 {t('expense')}
                                             </button>
-                                            <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/3 py-2.5 text-xs sm:text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
+                                            <button type="button" onClick={() => handleSetEntryType('loan')} className={`z-10 w-1/2 py-2.5 text-xs sm:text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'loan' ? 'text-success' : 'text-muted-foreground'}`}>
                                                 {t('loan')}
-                                            </button>
-                                            <button type="button" onClick={() => handleSetEntryType('event')} className={`z-10 w-1/3 py-2.5 text-xs sm:text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'event' ? 'text-amber-500' : 'text-muted-foreground'}`}>
-                                                {t('event')}
                                             </button>
                                         </div>
                                     </div>
@@ -412,54 +378,6 @@ export default function RoomPage() {
                                             </div>
                                         </div>
 
-                                    </div>
-                                )}
-
-                                {/* EVENT: Who paid + for whom selectors */}
-                                {entryType === 'event' && !isSimplified && members.length > 0 && (
-                                    <div className="mb-3 sm:mb-4 space-y-3 animate-fadeIn">
-                                        {/* Who paid - single select */}
-                                        <div className="bg-muted/50 p-3 rounded-lg">
-                                            <label className="block text-muted-foreground text-xs sm:text-sm font-bold mb-2">{t('eventWhoPaid')}</label>
-                                            <div className="space-y-1.5 sm:space-y-2 max-h-24 sm:max-h-32 overflow-y-auto px-1">
-                                                {members.map((member: Member) => (
-                                                    <div key={member.id} className="flex items-center">
-                                                        <input
-                                                            id={`event-payer-${member.id}`}
-                                                            name="eventPayer"
-                                                            type="radio"
-                                                            checked={eventPayerId === member.id}
-                                                            onChange={() => setEventPayerId(member.id)}
-                                                            className="h-4 w-4 border-gray-300 text-amber-500 focus:ring-amber-500"
-                                                        />
-                                                        <label htmlFor={`event-payer-${member.id}`} className="ms-2 block text-sm text-foreground">
-                                                            {member.id === currentUserId ? t('me') : member.username}
-                                                        </label>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        {/* For whom - multi-select */}
-                                        <div className="bg-muted/50 p-3 rounded-lg">
-                                            <label className="block text-muted-foreground text-xs sm:text-sm font-bold mb-2">{t('eventForWhom')}</label>
-                                            <div className="space-y-1.5 sm:space-y-2 max-h-24 sm:max-h-32 overflow-y-auto px-1">
-                                                {members.map((member: Member) => (
-                                                    <div key={member.id} className="flex items-center">
-                                                        <input
-                                                            id={`event-for-${member.id}`}
-                                                            name="eventFor"
-                                                            type="checkbox"
-                                                            checked={eventForMemberIds.has(member.id)}
-                                                            onChange={() => handleEventMemberSelection(member.id)}
-                                                            className="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500"
-                                                        />
-                                                        <label htmlFor={`event-for-${member.id}`} className="ms-2 block text-sm text-foreground">
-                                                            {member.id === currentUserId ? t('me') : member.username}
-                                                        </label>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
                                     </div>
                                 )}
 
