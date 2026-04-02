@@ -31,8 +31,8 @@ export interface Entry {
     created_at: string;
     username: string;
     user_id: number;
-    split_with_user_ids?: number[] | null;
-    paid_by_user_ids?: number[] | null;
+    split_with_user_ids: number[] | null;
+    paid_by_user_id?: number | null;
     offline_timestamp?: number;
 }
 
@@ -151,43 +151,48 @@ const recalculateBalances = (entries: Entry[], members: Member[], currentUserId:
 
     entries.forEach(entry => {
         const amount = parseFloat(entry.amount);
-        let payers: number[];
-        let borrowers: number[];
-        const absAmount = Math.abs(amount);
+        const payerId = entry.paid_by_user_id ?? entry.user_id;
 
-        if (amount >= 0) { // Expense / Event
-            if (entry.paid_by_user_ids && entry.paid_by_user_ids.length > 0) {
-                payers = entry.paid_by_user_ids;
+        if (amount > 0) { // Expense
+            const participants = entry.split_with_user_ids;
+            if (!participants || participants.length === 0) {
+                const share = amount / members.length;
+                members.forEach(member => {
+                    if (member.id === payerId) {
+                        finalBalances[member.id] += (amount - share);
+                    } else {
+                        finalBalances[member.id] -= share;
+                    }
+                });
             } else {
-                payers = [entry.user_id];
+                if (participants.length === 0) return;
+                const share = amount / participants.length;
+                finalBalances[payerId] += amount;
+                participants.forEach(pId => {
+                    if (finalBalances[pId] !== undefined) {
+                        finalBalances[pId] -= share;
+                    }
+                });
             }
-            
-            if (entry.split_with_user_ids && entry.split_with_user_ids.length > 0) {
-                borrowers = entry.split_with_user_ids;
-            } else {
-                borrowers = members.map(m => m.id);
-            }
-        } else { // Loan (amount < 0)
-            borrowers = [entry.user_id];
-            if (entry.split_with_user_ids && entry.split_with_user_ids.length > 0) {
-                payers = entry.split_with_user_ids;
-            } else {
-                // Legacy: if lenders aren't explicit, it's everyone else
-                payers = members.map(m => m.id).filter(id => id !== entry.user_id);
+        } else if (amount < 0) { // Loan
+            const loanAmount = Math.abs(amount);
+            const borrowerId = payerId;
+            finalBalances[borrowerId] -= loanAmount;
+
+            const participants = entry.split_with_user_ids;
+            const lenders = participants && participants.length > 0 
+                ? members.filter(m => participants.includes(m.id))
+                : members.filter(m => m.id !== borrowerId);
+
+            if (lenders.length > 0) {
+                const creditPerLender = loanAmount / lenders.length;
+                lenders.forEach(lender => {
+                    if(finalBalances[lender.id] !== undefined) {
+                        finalBalances[lender.id] += creditPerLender;
+                    }
+                });
             }
         }
-
-        if (payers.length === 0 || borrowers.length === 0) return;
-
-        const amountPerPayer = absAmount / payers.length;
-        const amountPerBorrower = absAmount / borrowers.length;
-
-        payers.forEach(p => { 
-            if (finalBalances[p] !== undefined) finalBalances[p] += amountPerPayer; 
-        });
-        borrowers.forEach(b => { 
-            if (finalBalances[b] !== undefined) finalBalances[b] -= amountPerBorrower; 
-        });
     });
 
     const currentUserBalance = finalBalances[currentUserId] || 0;

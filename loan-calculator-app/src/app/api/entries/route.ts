@@ -11,20 +11,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const { roomId, amount, description, splitWithUserIds, paidByUserIds, createdAt } = await req.json();
+        const { roomId, amount, description, splitWithUserIds, createdAt } = await req.json();
 
         // For expenses, splitWithUserIds will be an array of user IDs.
         const finalSplitWith = Array.isArray(splitWithUserIds) ? JSON.stringify(splitWithUserIds) : null;
-        
-        // Use paidByUserIds explicitly for multiple payers in events.
-        const finalPaidBy = Array.isArray(paidByUserIds) ? JSON.stringify(paidByUserIds) : null;
         
         // Use the client-provided timestamp if available, otherwise use the current time.
         const finalCreatedAt = createdAt ? new Date(createdAt) : new Date();
 
         await db.query(
-            'INSERT INTO entries (room_id, user_id, amount, description, split_with_user_ids, paid_by_user_ids, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-            [roomId, user.userId, amount, description, finalSplitWith, finalPaidBy, finalCreatedAt.toISOString()]
+            'INSERT INTO entries (room_id, user_id, amount, description, split_with_user_ids, created_at) VALUES ($1, $2, $3, $4, $5, $6)',
+            [roomId, user.userId, amount, description, finalSplitWith, finalCreatedAt.toISOString()]
         );
 
         // Send Push Notification with localized messages

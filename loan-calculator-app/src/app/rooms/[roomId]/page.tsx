@@ -43,7 +43,7 @@ export default function RoomPage() {
     // Loan-specific state
     const [loanPaidByUserIds, setLoanPaidByUserIds] = useState<Set<number>>(new Set());
     // Event-specific state
-    const [eventPayerIds, setEventPayerIds] = useState<Set<number>>(new Set());
+    const [eventPayerId, setEventPayerId] = useState<number | null>(null);
     const [eventForMemberIds, setEventForMemberIds] = useState<Set<number>>(new Set());
 
     const otherMembers = useMemo(() => members.filter((m: Member) => m.id !== currentUserId), [members, currentUserId]);
@@ -67,7 +67,9 @@ export default function RoomPage() {
                 setLoanPaidByUserIds(new Set([initialSelected[0]]));
             }
             // Initialize event state
-            setEventPayerIds(new Set());
+            if (data.currentUserId) {
+                setEventPayerId(data.currentUserId);
+            }
             setEventForMemberIds(new Set((data.members || []).map((m: Member) => m.id)));
         }
     }, [members.length]);
@@ -185,7 +187,7 @@ export default function RoomPage() {
         if (isNaN(parsedAmount) || parsedAmount <= 0 || !currentUserId || !currentUser) return;
 
         let finalSplitWithIds: number[] | null = null;
-        let paidByUserIds: number[] | null = null;
+        let paidByUserId: number | null = null;
         if (entryType === 'expense') {
             const participants = new Set<number>(selectedMemberIds);
             if (includeSelfInSplit && currentUserId) participants.add(currentUserId);
@@ -195,8 +197,8 @@ export default function RoomPage() {
             finalSplitWithIds = loanPaidByUserIds.size > 0 ? Array.from(loanPaidByUserIds) : null;
         } else if (entryType === 'event') {
             // Event mode: any member can be the payer
-            if (eventPayerIds.size === 0) return;
-            paidByUserIds = Array.from(eventPayerIds);
+            if (!eventPayerId) return;
+            paidByUserId = eventPayerId;
             finalSplitWithIds = eventForMemberIds.size > 0 ? Array.from(eventForMemberIds) : members.map((m: Member) => m.id);
         }
 
@@ -210,7 +212,7 @@ export default function RoomPage() {
             username: currentUser.username,
             user_id: currentUserId,
             split_with_user_ids: finalSplitWithIds,
-            paid_by_user_ids: paidByUserIds,
+            paid_by_user_id: paidByUserId,
             offline_timestamp: Date.now()
         };
         
@@ -231,7 +233,7 @@ export default function RoomPage() {
                     amount: finalAmount, 
                     description, 
                     splitWithUserIds: finalSplitWithIds,
-                    paidByUserIds: paidByUserIds,
+                    paidByUserId: paidByUserId,
                     createdAt: optimisticEntry.created_at
                 },
             });
@@ -272,7 +274,7 @@ export default function RoomPage() {
 
 
     
-    const isSubmitDisabled = amount === '' || description === '' || (entryType === 'event' && eventPayerIds.size === 0);
+    const isSubmitDisabled = amount === '' || description === '' || (entryType === 'event' && !eventPayerId);
 
     return (
         <div className="h-full overflow-y-auto pb-4 sm:pb-0">
@@ -416,33 +418,24 @@ export default function RoomPage() {
                                 {/* EVENT: Who paid + for whom selectors */}
                                 {entryType === 'event' && !isSimplified && members.length > 0 && (
                                     <div className="mb-3 sm:mb-4 space-y-3 animate-fadeIn">
-                                        {/* Who paid - multi select */}
+                                        {/* Who paid - single select */}
                                         <div className="bg-muted/50 p-3 rounded-lg">
-                                            <p className="font-semibold mb-2 text-sm text-gray-400">{t('eventWhoPaid')}</p>
-                                            <div className="space-y-2">
+                                            <label className="block text-muted-foreground text-xs sm:text-sm font-bold mb-2">{t('eventWhoPaid')}</label>
+                                            <div className="space-y-1.5 sm:space-y-2 max-h-24 sm:max-h-32 overflow-y-auto px-1">
                                                 {members.map((member: Member) => (
-                                                    <label key={`event-payer-${member.id}`} className="flex items-center space-x-3 cursor-pointer">
-                                                        <div className="relative flex items-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={eventPayerIds.has(member.id)}
-                                                                onChange={(e) => {
-                                                                    const newSet = new Set(eventPayerIds);
-                                                                    if (e.target.checked) {
-                                                                        newSet.add(member.id);
-                                                                    } else {
-                                                                        newSet.delete(member.id);
-                                                                    }
-                                                                    setEventPayerIds(newSet);
-                                                                }}
-                                                                className="peer w-5 h-5 appearance-none border-2 border-gray-500 rounded-sm checked:bg-[#20A454] checked:border-[#20A454] transition-all"
-                                                            />
-                                                            <svg className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white pointer-events-none opacity-0 peer-checked:opacity-100 placeholder-shown:opacity-0" viewBox="0 0 14 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                <path d="M1 5L4.5 8.5L13 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                            </svg>
-                                                        </div>
-                                                        <span className="text-gray-200 truncate">{member.id === currentUserId ? t('me') : member.username}</span>
-                                                    </label>
+                                                    <div key={member.id} className="flex items-center">
+                                                        <input
+                                                            id={`event-payer-${member.id}`}
+                                                            name="eventPayer"
+                                                            type="radio"
+                                                            checked={eventPayerId === member.id}
+                                                            onChange={() => setEventPayerId(member.id)}
+                                                            className="h-4 w-4 border-gray-300 text-amber-500 focus:ring-amber-500"
+                                                        />
+                                                        <label htmlFor={`event-payer-${member.id}`} className="ms-2 block text-sm text-foreground">
+                                                            {member.id === currentUserId ? t('me') : member.username}
+                                                        </label>
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>
