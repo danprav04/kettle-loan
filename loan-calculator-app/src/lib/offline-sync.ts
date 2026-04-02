@@ -32,6 +32,7 @@ export interface Entry {
     username: string;
     user_id: number;
     split_with_user_ids: number[] | null;
+    paid_by_user_id?: number | null;
     offline_timestamp?: number;
 }
 
@@ -150,7 +151,7 @@ const recalculateBalances = (entries: Entry[], members: Member[], currentUserId:
 
     entries.forEach(entry => {
         const amount = parseFloat(entry.amount);
-        const payerId = entry.user_id;
+        const payerId = entry.paid_by_user_id ?? entry.user_id;
 
         if (amount > 0) { // Expense
             const participants = entry.split_with_user_ids;
