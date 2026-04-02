@@ -162,7 +162,7 @@ export default function EntriesPage() {
                 }
             } else if (amount < 0) { // Loan
                 const loanAmount = Math.abs(amount);
-                const borrowerId = entry.user_id;
+                const borrowerId = payerId;
                 // Use split_with_user_ids if present, otherwise fall back to all non-borrower members
                 const participants = entry.split_with_user_ids ?? null;
                 if (participants && participants.length > 0) {
