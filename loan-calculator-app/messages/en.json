@@ -67,7 +67,9 @@
     "entryLoanTo": "Loan to: {borrower}",
     "entryFromGroup": "From: The Group",
     "entryParticipantYou": "you",
-    "entryParticipantEveryone": "Everyone"
+    "entryParticipantEveryone": "Everyone",
+    "settleUp": "Settle Up",
+    "settleUpDescription": "Settle up"
   },
   "Stats": {
     "title": "Room Statistics",

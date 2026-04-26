@@ -67,7 +67,9 @@
     "entryLoanTo": "Заём для: {borrower}",
     "entryFromGroup": "От: Группы",
     "entryParticipantYou": "вас",
-    "entryParticipantEveryone": "Всех"
+    "entryParticipantEveryone": "Всех",
+    "settleUp": "Погасить долг",
+    "settleUpDescription": "Погашение долга"
   },
   "Stats": {
     "title": "Статистика комнаты",

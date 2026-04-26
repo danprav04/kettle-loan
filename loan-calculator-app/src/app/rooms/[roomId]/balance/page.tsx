@@ -5,7 +5,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
-import { getRoomData, Entry } from '@/lib/offline-sync';
+import { getRoomData, Entry, addLocalEntry } from '@/lib/offline-sync';
+import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
 import { FiChevronDown } from 'react-icons/fi';
 
@@ -63,6 +64,49 @@ export default function BalanceDetailsPage() {
         }
         setIsLoading(false);
     }, [roomId, router, isOnline, user]);
+
+    const handleSettleUp = async (memberId: number, amountToSettle: number) => {
+        if (!user || !user.userId) return;
+
+        const finalAmount = amountToSettle;
+        const description = t('settleUpDescription') || "Settle up";
+        
+        const currentUser = members.find(m => m.id === user.userId);
+        if (!currentUser) return;
+
+        const optimisticEntry: Entry = {
+            id: `temp-${Date.now()}`,
+            amount: finalAmount.toFixed(2),
+            description,
+            created_at: new Date().toISOString(),
+            username: currentUser.username,
+            user_id: user.userId,
+            split_with_user_ids: [memberId],
+            offline_timestamp: Date.now()
+        };
+
+        await addLocalEntry(roomId, optimisticEntry);
+        await fetchData();
+
+        try {
+            await handleApi({
+                method: 'POST',
+                url: '/api/entries',
+                body: { 
+                    roomId, 
+                    amount: finalAmount, 
+                    description, 
+                    splitWithUserIds: [memberId],
+                    createdAt: optimisticEntry.created_at
+                },
+            });
+            if (isOnline) {
+                fetchData();
+            }
+        } catch (error) {
+            console.error("Failed to add settlement entry:", error);
+        }
+    };
 
     useEffect(() => {
         fetchData();
@@ -194,6 +238,16 @@ export default function BalanceDetailsPage() {
                                         </button>
                                         {isExpanded && (
                                             <div className="bg-muted px-4 py-3 animate-fadeIn">
+                                                {netBalance < -0.005 && (
+                                                    <div className="mb-4 flex justify-end">
+                                                        <button 
+                                                            onClick={() => handleSettleUp(member.id, Math.abs(netBalance))}
+                                                            className="bg-success text-success-foreground hover:bg-success/90 py-1.5 px-4 rounded-md text-sm font-semibold transition-colors shadow-sm"
+                                                        >
+                                                            {t('settleUp')}
+                                                        </button>
+                                                    </div>
+                                                )}
                                                 {p2pData?.transactions && p2pData.transactions.length > 0 ? (
                                                     <ul className="space-y-3">
                                                         {p2pData.transactions.map((tx, index) => (

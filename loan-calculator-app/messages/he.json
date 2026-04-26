@@ -67,7 +67,9 @@
     "entryLoanTo": "הלוואה ל: {borrower}",
     "entryFromGroup": "מ: הקבוצה",
     "entryParticipantYou": "אתה",
-    "entryParticipantEveryone": "כולם"
+    "entryParticipantEveryone": "כולם",
+    "settleUp": "סגור חוב",
+    "settleUpDescription": "סגירת חוב"
   },
   "Stats": {
     "title": "סטטיסטיקות חדר",
