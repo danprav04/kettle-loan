@@ -113,56 +113,28 @@ export default function BalanceDetailsPage() {
             } else if (amount < 0) { // Loan
                 const loanAmount = Math.abs(amount);
                 const borrowerId = payerId;
-                const participants = entry.split_with_user_ids ?? null;
+                const participants = entry.split_with_user_ids;
+                const lenders = participants && participants.length > 0
+                    ? members.filter(m => participants.includes(m.id))
+                    : members.filter(m => m.id !== borrowerId);
 
-                if (participants && participants.length > 0) {
-                    // Loan with specific split: participants are the borrowers
-                    const lenders = members.filter(m => !participants.includes(m.id));
-                    if (lenders.length === 0) continue;
-                    const share = loanAmount / participants.length;
-                    const creditPerLender = loanAmount / lenders.length;
+                if (lenders.length === 0) continue;
+                const creditPerLender = loanAmount / lenders.length;
 
-                    if (participants.includes(currentUserId)) {
-                        // Current user is a borrower
-                        lenders.forEach(lender => {
-                            if (breakdown.has(lender.id)) {
-                                const data = breakdown.get(lender.id)!;
-                                const contribution = -(share < creditPerLender ? share : share);
-                                data.netBalance += -share;
-                                data.transactions.push({ ...entry, contribution: -share, runningP2PBalance: data.netBalance });
-                            }
-                        });
-                    } else if (lenders.some(l => l.id === currentUserId)) {
-                        // Current user is a lender
-                        participants.forEach(pId => {
-                            if (breakdown.has(pId)) {
-                                const data = breakdown.get(pId)!;
-                                data.netBalance += creditPerLender;
-                                data.transactions.push({ ...entry, contribution: creditPerLender, runningP2PBalance: data.netBalance });
-                            }
-                        });
-                    }
-                } else {
-                    // Legacy behavior: borrower owes full amount, distributed to all others
-                    const lenders = members.filter(m => m.id !== borrowerId);
-                    if (lenders.length === 0) continue;
-                    const share = loanAmount / lenders.length;
-
-                    if (borrowerId === currentUserId) {
-                        lenders.forEach(lender => {
-                            if (breakdown.has(lender.id)) {
-                                 const data = breakdown.get(lender.id)!;
-                                 const contribution = -share;
-                                 data.netBalance += contribution;
-                                 data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
-                            }
-                        });
-                    } else if (lenders.some(l => l.id === currentUserId) && breakdown.has(borrowerId)) {
-                         const data = breakdown.get(borrowerId)!;
-                         const contribution = share;
-                         data.netBalance += contribution;
-                         data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
-                    }
+                if (borrowerId === currentUserId) {
+                    lenders.forEach(lender => {
+                        if (breakdown.has(lender.id)) {
+                            const data = breakdown.get(lender.id)!;
+                            const contribution = -creditPerLender;
+                            data.netBalance += contribution;
+                            data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
+                        }
+                    });
+                } else if (lenders.some(l => l.id === currentUserId) && breakdown.has(borrowerId)) {
+                    const data = breakdown.get(borrowerId)!;
+                    const contribution = creditPerLender;
+                    data.netBalance += contribution;
+                    data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
                 }
             }
         }
