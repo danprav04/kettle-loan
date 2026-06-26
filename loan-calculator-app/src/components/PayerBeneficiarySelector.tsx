@@ -77,7 +77,11 @@ export default function PayerBeneficiarySelector({
     // If master total is 0, auto-sync master total directly
     if (totalAmount <= 0 && safeVal > 0 && onUpdateTotal) {
       onUpdateTotal(safeVal);
-      onChange([{ userId, percentage: 100 }]);
+      const nextShares = shares.map((s) => ({
+        userId: s.userId,
+        percentage: s.userId === userId ? 100 : 0,
+      }));
+      onChange(nextShares.length > 0 ? nextShares : [{ userId, percentage: 100 }]);
       setLockedUserIds(new Set([userId]));
       return;
     }
@@ -111,10 +115,10 @@ export default function PayerBeneficiarySelector({
       return { ...s, percentage: Math.round(pct * 100) / 100 };
     });
 
-    // Fix rounding discrepancies on index 0
+    // Fix rounding discrepancies on index 0 (only if <= 0.05% floating point error)
     const currTotPct = nextShares.reduce((a, b) => a + b.percentage, 0);
     const diffPct = Math.round((100 - currTotPct) * 100) / 100;
-    if (nextShares.length > 0 && Math.abs(diffPct) > 0.001) {
+    if (nextShares.length > 0 && Math.abs(diffPct) > 0.001 && Math.abs(diffPct) <= 0.05) {
       nextShares[0].percentage = Math.round((nextShares[0].percentage + diffPct) * 100) / 100;
     }
 
@@ -157,7 +161,7 @@ export default function PayerBeneficiarySelector({
 
     const currTotPct = nextShares.reduce((a, b) => a + b.percentage, 0);
     const diffPct = Math.round((100 - currTotPct) * 100) / 100;
-    if (nextShares.length > 0 && Math.abs(diffPct) > 0.001) {
+    if (nextShares.length > 0 && Math.abs(diffPct) > 0.001 && Math.abs(diffPct) <= 0.05) {
       nextShares[0].percentage = Math.round((nextShares[0].percentage + diffPct) * 100) / 100;
     }
     onChange(nextShares);
@@ -175,7 +179,23 @@ export default function PayerBeneficiarySelector({
           {onUpdateTotal && totalAmount > 0 && !isValid && (
             <button
               type="button"
-              onClick={() => onUpdateTotal(parseFloat(currentSumMonetary) || 0)}
+              onClick={() => {
+                const newTot = parseFloat(currentSumMonetary) || 0;
+                if (onUpdateTotal && newTot > 0) {
+                  onUpdateTotal(newTot);
+                  const updatedShares = shares.map((s) => {
+                    const currentMon = (totalAmount * s.percentage) / 100;
+                    const nextPct = (currentMon / newTot) * 100;
+                    return { ...s, percentage: Math.round(nextPct * 100) / 100 };
+                  });
+                  const currTotPct = updatedShares.reduce((a, b) => a + b.percentage, 0);
+                  const diffPct = Math.round((100 - currTotPct) * 100) / 100;
+                  if (updatedShares.length > 0 && Math.abs(diffPct) > 0.001 && Math.abs(diffPct) <= 0.05) {
+                    updatedShares[0].percentage = Math.round((updatedShares[0].percentage + diffPct) * 100) / 100;
+                  }
+                  onChange(updatedShares);
+                }
+              }}
               className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary hover:bg-primary/90 text-white font-bold text-[11px] shadow-md transition-all animate-bounce cursor-pointer"
               title="Click to update master bill total to match this sum"
             >
@@ -225,6 +245,16 @@ export default function PayerBeneficiarySelector({
           >
             {t('splitEquallyShort')}
           </button>
+          {lockedUserIds.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setLockedUserIds(new Set())}
+              className="px-2 py-1 bg-warning/20 hover:bg-warning/30 text-warning font-medium rounded-lg transition-all border border-warning/30 text-[11px] ml-auto cursor-pointer"
+              title="Click to unlock all custom amounts"
+            >
+              🔓 Unlock All
+            </button>
+          )}
         </div>
       )}
 
@@ -268,7 +298,18 @@ export default function PayerBeneficiarySelector({
                   )}
                 </div>
                 {isSelected && isLocked && (
-                  <span className="text-[9px] bg-warning/20 text-warning px-1.5 py-0.2 rounded font-mono font-bold tracking-tighter shrink-0" title="Manual amount locked">🔒 LOCKED</span>
+                  <span
+                    className="text-[9px] bg-warning/20 hover:bg-warning/40 text-warning px-1.5 py-0.2 rounded font-mono font-bold tracking-tighter shrink-0 transition-colors cursor-pointer"
+                    title="Click to unlock this custom amount"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const next = new Set(lockedUserIds);
+                      next.delete(member.id);
+                      setLockedUserIds(next);
+                    }}
+                  >
+                    🔒 LOCKED
+                  </span>
                 )}
               </div>
 
