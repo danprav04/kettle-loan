@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
+import { resolveRoomId } from '@/lib/room-resolver';
 
 export async function PUT(
     req: NextRequest,
     { params }: { params: Promise<{ roomId: string; memberId: string }> }
 ) {
     try {
-        const { roomId, memberId } = await params;
-        const targetUserId = parseInt(memberId, 10);
+        const { roomId: rawRoomId, memberId } = await params;
+        const resolvedId = await resolveRoomId(db, rawRoomId);
+        if (!resolvedId) {
+            return NextResponse.json({ message: 'Room not found' }, { status: 404 });
+        }
 
+        const targetUserId = parseInt(memberId, 10);
         if (isNaN(targetUserId)) {
             return NextResponse.json({ message: 'Invalid member ID' }, { status: 400 });
         }
@@ -31,7 +36,7 @@ export async function PUT(
         // Check acting user's admin status
         const actingMemberRes = await db.query(
             'SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2',
-            [roomId, user.userId]
+            [resolvedId, user.userId]
         );
 
         if (actingMemberRes.rows.length === 0 || actingMemberRes.rows[0].role !== 'admin') {
@@ -41,7 +46,7 @@ export async function PUT(
         // Check target user's current role
         const targetMemberRes = await db.query(
             'SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2',
-            [roomId, targetUserId]
+            [resolvedId, targetUserId]
         );
 
         if (targetMemberRes.rows.length === 0) {
@@ -54,7 +59,7 @@ export async function PUT(
         if (currentTargetRole === 'admin' && newRole !== 'admin') {
             const adminCountRes = await db.query(
                 'SELECT COUNT(*) as count FROM room_members WHERE room_id = $1 AND role = $2',
-                [roomId, 'admin']
+                [resolvedId, 'admin']
             );
             const adminCount = parseInt(adminCountRes.rows[0].count, 10);
 
@@ -67,7 +72,7 @@ export async function PUT(
 
         await db.query(
             'UPDATE room_members SET role = $1 WHERE room_id = $2 AND user_id = $3',
-            [newRole, roomId, targetUserId]
+            [newRole, resolvedId, targetUserId]
         );
 
         return NextResponse.json({ message: 'Role updated successfully' });

@@ -290,13 +290,13 @@ export default function EntriesPage() {
             <div className="bg-card shadow-md max-h-[80vh] rounded-lg border border-card-border flex flex-col flex-grow overflow-hidden">
                 <div className="p-4 border-b border-card-border shrink-0 flex items-center justify-between">
                     <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
-                    <span className="text-xs text-muted-foreground font-mono">Currency: {currency}</span>
+                    <span className="text-xs text-muted-foreground font-mono">{t('currencyLabel')}: {currency}</span>
                 </div>
                 <div className="overflow-y-auto flex-grow">
                     {isLoading ? (
-                        <p className="p-4 text-center text-muted-foreground">Loading entries...</p>
+                        <p className="p-4 text-center text-muted-foreground">{t('loadingEntries')}</p>
                     ) : processedEntries.length === 0 ? (
-                        <p className="p-4 text-center text-muted-foreground">No entries have been added to this room yet.</p>
+                        <p className="p-4 text-center text-muted-foreground">{t('noEntries')}</p>
                     ) : (
                         <ul>
                             {processedEntries.map((entry, index) => {
@@ -312,7 +312,7 @@ export default function EntriesPage() {
                                             </div>
                                             {showProxy && (
                                                 <div className="text-[11px] text-purple-400 font-medium mt-1">
-                                                    Logged on behalf by: {recorderName || `User #${entry.created_by_user_id}`}
+                                                    {t('loggedOnBehalfBy', { name: recorderName || `User #${entry.created_by_user_id}` })}
                                                 </div>
                                             )}
                                             <p className="text-xs text-muted-foreground flex items-center mt-1.5">
@@ -393,6 +393,8 @@ export default function EntriesPage() {
                 onClose={() => setEntryToEdit(null)}
                 entry={entryToEdit}
                 currency={currency}
+                members={members}
+                currentUserId={user?.userId || null}
                 onSuccess={() => fetchEntries()}
             />
 

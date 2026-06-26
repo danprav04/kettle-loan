@@ -214,7 +214,7 @@ export default function RoomPage() {
             const sumP = payerShares.reduce((a, b) => a + b.percentage, 0);
             const sumB = beneficiaryShares.reduce((a, b) => a + b.percentage, 0);
             if (Math.abs(sumP - 100) > 0.1 || Math.abs(sumB - 100) > 0.1) {
-                setNotification('Percentages must sum exactly to 100% on both lists.');
+                setNotification(t('percentagesMustSum100'));
                 return;
             }
             finalPayerShares = payerShares;
@@ -292,11 +292,11 @@ export default function RoomPage() {
 
     return (
         <RoomRoleProvider role={currentUserRole} currency={currency}>
-            <div className="h-full overflow-y-auto pb-4 sm:pb-0">
+            <div className="pb-16 sm:pb-6">
                 {isLoading ? (
                     <div className="max-w-md mx-auto p-8 text-center text-muted-foreground animate-fadeIn">Loading room...</div>
                 ) : (
-                    <div className="max-w-lg mx-auto bg-card rounded-xl shadow-md overflow-hidden border border-card-border animate-scaleIn">
+                    <div className="max-w-5xl w-full mx-auto bg-card rounded-2xl shadow-xl overflow-hidden border border-card-border animate-scaleIn">
                         <div className="p-4 sm:p-5 md:p-6 lg:p-8">
                             {/* Title & Admin Button */}
                             <div className="text-center mb-3 sm:mb-5 relative">
@@ -330,17 +330,22 @@ export default function RoomPage() {
                                     </div>
                                 )}
                                 <div className="flex items-center justify-center gap-2 mt-1">
-                                    <span className="text-xs text-muted-foreground">Room Code: {roomCode}</span>
-                                    <span className="text-[10px] bg-primary/10 text-primary uppercase font-bold px-1.5 py-0.2 rounded border border-primary/20">{currentUserRole}</span>
+                                    <span className="text-xs text-muted-foreground">{t('roomCodeLabel', { code: roomCode })}</span>
+                                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm ${
+                                        currentUserRole === 'admin' ? 'bg-purple-500/20 text-purple-400 border-purple-500/40 shadow-purple-500/10' :
+                                        currentUserRole === 'active' ? 'bg-blue-500/20 text-blue-400 border-blue-500/40' :
+                                        currentUserRole === 'passive' ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' :
+                                        'bg-zinc-500/20 text-zinc-400 border-zinc-500/40'
+                                    }`}>{currentUserRole}</span>
                                 </div>
 
                                 {currentUserRole === 'admin' && (
                                     <button
                                         onClick={() => setIsAdminPanelOpen(true)}
-                                        className="absolute right-0 top-0 p-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors border border-purple-500/20"
+                                        className="absolute right-0 top-0 px-2.5 py-1.5 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 text-purple-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md border border-purple-500/30 hover:scale-105"
                                         title="Room Administration"
                                     >
-                                        <FiShield /> <span className="hidden sm:inline">Admin</span>
+                                        <FiShield className="text-purple-400" /> <span className="hidden sm:inline">{t('adminBtn')}</span>
                                     </button>
                                 )}
                             </div>
@@ -368,11 +373,11 @@ export default function RoomPage() {
 
                             {/* Entry Form or View-Only Alert */}
                             {isViewOnly ? (
-                                <div className="p-6 rounded-xl bg-amber-500/10 border border-amber-500/30 text-center space-y-2">
-                                    <FiShield className="mx-auto text-amber-500 text-2xl" />
-                                    <h3 className="font-bold text-foreground">View-Only Access</h3>
-                                    <p className="text-xs text-muted-foreground">
-                                        As a {currentUserRole}, you can observe balances and records, but cannot log or modify entries. Contact a room Admin to request active permissions.
+                                <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center space-y-2 backdrop-blur-md shadow-lg">
+                                    <FiShield className="mx-auto text-amber-500 text-3xl animate-pulse" />
+                                    <h3 className="font-bold text-foreground text-base">{t('viewOnlyTitle')}</h3>
+                                    <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
+                                        {t('viewOnlyMsg', { role: currentUserRole || 'member' })}
                                     </p>
                                 </div>
                             ) : (
@@ -386,12 +391,12 @@ export default function RoomPage() {
                                             <button
                                                 type="button"
                                                 onClick={() => setIsMultiPartyMode(!isMultiPartyMode)}
-                                                className={`text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all border ${
-                                                    isMultiPartyMode ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/40 text-muted-foreground hover:bg-muted border-border'
+                                                className={`text-xs px-3 py-1.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm ${
+                                                    isMultiPartyMode ? 'bg-primary text-primary-foreground border border-primary shadow-primary/20' : 'bg-muted/60 text-muted-foreground hover:bg-muted border border-border/60 hover:text-foreground'
                                                 }`}
                                             >
-                                                <FiSliders className="text-[11px]" />
-                                                <span>{isMultiPartyMode ? 'Advanced Split' : 'Simple Split'}</span>
+                                                <FiSliders className="text-[12px]" />
+                                                <span>{isMultiPartyMode ? t('advancedSplit') : t('simpleSplit')}</span>
                                             </button>
                                         )}
                                     </div>
@@ -399,9 +404,9 @@ export default function RoomPage() {
                                     <form onSubmit={handleAddEntry} className="space-y-4">
                                         {!isSimplified && !isMultiPartyMode && (
                                             <div>
-                                                <div className="relative flex w-full rounded-full bg-muted p-1">
+                                                <div className="relative flex w-full rounded-full bg-muted p-1 border border-border/40">
                                                     <span
-                                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
+                                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-md transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary shadow-primary/10' : 'border-success shadow-success/10'}`}
                                                         style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }}
                                                     />
                                                     <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-xs sm:text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
@@ -417,26 +422,27 @@ export default function RoomPage() {
                                         {/* Amount & Description Inputs */}
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                             <div className="sm:col-span-1">
-                                                <label className="block text-muted-foreground text-xs font-bold mb-1" htmlFor="amount">{t('amount')} ({currency})</label>
-                                                <input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input font-bold" required min="0" step="any" placeholder="0.00" />
+                                                <label className="block text-muted-foreground text-xs font-bold mb-1 tracking-wide uppercase" htmlFor="amount">{t('amount')} ({currency})</label>
+                                                <input id="amount" type="text" inputMode="decimal" value={amount} onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setAmount(e.target.value); }} className="w-full px-3 py-2 leading-tight rounded-xl themed-input font-bold text-base" required placeholder="0.00" />
                                             </div>
                                             <div className="sm:col-span-2">
-                                                <label className="block text-muted-foreground text-xs font-bold mb-1" htmlFor="description">{t('description')}</label>
-                                                <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-lg themed-input" required placeholder="Dinner, Taxi, Rent..." />
+                                                <label className="block text-muted-foreground text-xs font-bold mb-1 tracking-wide uppercase" htmlFor="description">{t('description')}</label>
+                                                <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-xl themed-input text-sm" required placeholder={t('descriptionPlaceholder')} />
                                             </div>
                                         </div>
 
                                         {/* Multi-Party Two List Selector */}
                                         {isMultiPartyMode && !isSimplified && (
-                                            <div className="space-y-4 pt-2 animate-fadeIn">
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2 animate-fadeIn items-start">
                                                 <PayerBeneficiarySelector
                                                     members={members}
                                                     shares={payerShares}
                                                     onChange={setPayerShares}
                                                     totalAmount={parseFloat(amount) || 0}
                                                     currency={currency}
-                                                    label="List 1: Who Paid?"
+                                                    label={t('list1WhoPaid')}
                                                     currentUserId={currentUserId}
+                                                    onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
                                                 />
                                                 <PayerBeneficiarySelector
                                                     members={members}
@@ -444,55 +450,91 @@ export default function RoomPage() {
                                                     onChange={setBeneficiaryShares}
                                                     totalAmount={parseFloat(amount) || 0}
                                                     currency={currency}
-                                                    label="List 2: Split For Whom?"
+                                                    label={t('list2SplitForWhom')}
                                                     currentUserId={currentUserId}
+                                                    onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
                                                 />
                                             </div>
                                         )}
 
                                         {/* Simple Split Selector */}
                                         {!isMultiPartyMode && entryType === 'expense' && !isSimplified && otherMembers.length > 0 && (
-                                            <div className="bg-muted/40 p-3 rounded-lg animate-fadeIn border border-border/50">
-                                                <label className="text-[11px] font-bold text-muted uppercase tracking-wider block mb-2">Split With:</label>
-                                                <div className="space-y-1.5 max-h-28 overflow-y-auto px-1">
+                                            <div className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-white/10 shadow-lg space-y-2.5">
+                                                <label className="text-xs font-bold text-foreground uppercase tracking-wider block">{t('splitWith')}</label>
+                                                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                                                     {currentUserId && (
-                                                        <div className="flex items-center">
-                                                            <input id="share-with-me" type="checkbox" checked={includeSelfInSplit} onChange={(e) => setIncludeSelfInSplit(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
-                                                            <label htmlFor="share-with-me" className="ms-2 block text-xs font-medium text-foreground">{t('me')}</label>
+                                                        <div
+                                                            onClick={() => setIncludeSelfInSplit(!includeSelfInSplit)}
+                                                            className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer ${
+                                                                includeSelfInSplit ? 'bg-primary/10 border-primary/60 shadow-sm text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-border/40 text-muted-foreground'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center gap-2.5">
+                                                                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold border transition-colors ${
+                                                                    includeSelfInSplit ? 'bg-primary border-primary text-white shadow-sm' : 'border-muted-foreground/40 bg-card'
+                                                                }`}>
+                                                                    {includeSelfInSplit ? '✓' : ''}
+                                                                </div>
+                                                                <span>{t('me')}</span>
+                                                            </div>
+                                                            <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-md font-bold tracking-wider">{t('youBadge')}</span>
                                                         </div>
                                                     )}
-                                                    {otherMembers.filter(m => m.role !== 'observer').map((member: Member) => (
-                                                        <div key={member.id} className="flex items-center">
-                                                            <input id={`member-${member.id}`} name="members" type="checkbox" checked={selectedMemberIds.has(member.id)} onChange={() => handleMemberSelection(member.id)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
-                                                            <label htmlFor={`member-${member.id}`} className="ms-2 block text-xs font-medium text-foreground">{member.username}</label>
-                                                        </div>
-                                                    ))}
+                                                    {otherMembers.filter(m => m.role !== 'observer').map((member: Member) => {
+                                                        const isSel = selectedMemberIds.has(member.id);
+                                                        return (
+                                                            <div
+                                                                key={member.id}
+                                                                onClick={() => handleMemberSelection(member.id)}
+                                                                className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer ${
+                                                                    isSel ? 'bg-primary/10 border-primary/60 shadow-sm text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-border/40 text-muted-foreground'
+                                                                }`}
+                                                            >
+                                                                <div className="flex items-center gap-2.5">
+                                                                    <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold border transition-colors ${
+                                                                        isSel ? 'bg-primary border-primary text-white shadow-sm' : 'border-muted-foreground/40 bg-card'
+                                                                    }`}>
+                                                                        {isSel ? '✓' : ''}
+                                                                    </div>
+                                                                    <span>{member.username}</span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         )}
 
                                         {!isMultiPartyMode && entryType === 'loan' && !isSimplified && otherMembers.length > 0 && (
-                                            <div className="bg-muted/40 p-3 rounded-lg animate-fadeIn border border-border/50">
-                                                <label className="text-[11px] font-bold text-muted uppercase tracking-wider block mb-2">Paid For Me By:</label>
-                                                <div className="space-y-1.5 max-h-28 overflow-y-auto px-1">
-                                                    {otherMembers.filter(m => m.role !== 'observer').map((member: Member) => (
-                                                        <div key={member.id} className="flex items-center">
-                                                            <input
-                                                                id={`loan-payer-${member.id}`}
-                                                                name="loanPayer"
-                                                                type="checkbox"
-                                                                checked={loanPaidByUserIds.has(member.id)}
-                                                                onChange={(e) => {
+                                            <div className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-white/10 shadow-lg space-y-2.5">
+                                                <label className="text-xs font-bold text-foreground uppercase tracking-wider block">{t('paidForMeBy')}</label>
+                                                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                                    {otherMembers.filter(m => m.role !== 'observer').map((member: Member) => {
+                                                        const isSel = loanPaidByUserIds.has(member.id);
+                                                        return (
+                                                            <div
+                                                                key={member.id}
+                                                                onClick={() => {
                                                                     const newSet = new Set(loanPaidByUserIds);
-                                                                    if (e.target.checked) newSet.add(member.id);
-                                                                    else newSet.delete(member.id);
+                                                                    if (isSel) newSet.delete(member.id);
+                                                                    else newSet.add(member.id);
                                                                     setLoanPaidByUserIds(newSet);
                                                                 }}
-                                                                className="h-4 w-4 rounded border-gray-300 text-success focus:ring-success"
-                                                            />
-                                                            <label htmlFor={`loan-payer-${member.id}`} className="ms-2 block text-xs font-medium text-foreground">{member.username}</label>
-                                                        </div>
-                                                    ))}
+                                                                className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer ${
+                                                                    isSel ? 'bg-success/15 border-success/60 shadow-sm text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-border/40 text-muted-foreground'
+                                                                }`}
+                                                            >
+                                                                <div className="flex items-center gap-2.5">
+                                                                    <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold border transition-colors ${
+                                                                        isSel ? 'bg-success border-success text-white shadow-sm' : 'border-muted-foreground/40 bg-card'
+                                                                    }`}>
+                                                                        {isSel ? '✓' : ''}
+                                                                    </div>
+                                                                    <span>{member.username}</span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         )}

@@ -31,6 +31,7 @@ export default function BalanceDetailsPage() {
     const [currency, setCurrency] = useState('ILS');
     const [isLoading, setIsLoading] = useState(true);
     const [expandedMemberId, setExpandedMemberId] = useState<number | null>(null);
+    const [perspectiveUserId, setPerspectiveUserId] = useState<number | null>(null);
 
     // Dashboard features state
     const [viewMode, setViewMode] = useState<'balance' | 'history'>('balance');
@@ -56,7 +57,8 @@ export default function BalanceDetailsPage() {
         setFilterType('all');
     };
 
-    const otherMembers = useMemo(() => members.filter(m => m.id !== user?.userId), [members, user]);
+    const activePerspectiveUserId = perspectiveUserId ?? user?.userId ?? 0;
+    const otherMembers = useMemo(() => members.filter(m => m.id !== activePerspectiveUserId && m.role !== 'observer'), [members, activePerspectiveUserId]);
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -151,7 +153,7 @@ export default function BalanceDetailsPage() {
 
         const calcMembers = members.filter(m => m.role !== 'observer');
         const breakdown = new Map<number, { netBalance: number; transactions: PeerToPeerTransaction[] }>();
-        const currentUserId = user.userId;
+        const currentUserId = activePerspectiveUserId;
 
         otherMembers.forEach(member => {
             breakdown.set(member.id, { netBalance: 0, transactions: [] });
@@ -260,15 +262,29 @@ export default function BalanceDetailsPage() {
         });
     }, [entries, searchQuery, filterType]);
 
-    const getBalanceText = (balance: number) => {
+    const getBalanceText = (balance: number, targetMemberName: string) => {
         const absBalance = Math.abs(balance);
+        const isSelf = activePerspectiveUserId === user?.userId;
+        const perspMember = members.find(m => m.id === activePerspectiveUserId);
+        const perspName = perspMember ? perspMember.username : '';
+
         if (balance > 0.005) {
-            return { text: `Owes you ${absBalance.toFixed(2)} ${currency}`, color: 'text-success' };
+            return {
+                text: isSelf
+                    ? t('owesYou', { amount: absBalance.toFixed(2), currency })
+                    : t('owesMember', { member: targetMemberName, amount: absBalance.toFixed(2), currency }),
+                color: 'text-success'
+            };
         }
         if (balance < -0.005) {
-            return { text: `You owe ${absBalance.toFixed(2)} ${currency}`, color: 'text-danger' };
+            return {
+                text: isSelf
+                    ? t('youOwe', { amount: absBalance.toFixed(2), currency })
+                    : t('memberOwes', { member: targetMemberName, amount: absBalance.toFixed(2), currency }),
+                color: 'text-danger'
+            };
         }
-        return { text: `Settled up`, color: 'text-muted-foreground' };
+        return { text: t('settledUp'), color: 'text-muted-foreground' };
     };
 
     return (
@@ -287,7 +303,7 @@ export default function BalanceDetailsPage() {
                                 viewMode === 'balance' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                             }`}
                         >
-                            <FiDollarSign /> Balance Breakdown
+                            <FiDollarSign /> {t('balanceBreakdown')}
                         </button>
                         <button
                             onClick={() => setViewMode('history')}
@@ -295,7 +311,7 @@ export default function BalanceDetailsPage() {
                                 viewMode === 'history' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                             }`}
                         >
-                            <FiClock /> Activity History
+                            <FiClock /> {t('activityHistoryTab')}
                         </button>
                     </div>
 
@@ -321,7 +337,7 @@ export default function BalanceDetailsPage() {
                     <FiSearch className="absolute left-3 top-2.5 text-muted-foreground text-sm" />
                     <input
                         type="text"
-                        placeholder="Search description or member..."
+                        placeholder={t('searchFilterPlaceholder')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full themed-input pl-9 pr-3 py-1.5 text-xs rounded-lg border border-input bg-background"
@@ -337,7 +353,7 @@ export default function BalanceDetailsPage() {
                                 filterType === type ? 'bg-primary/20 text-primary border-primary/30' : 'bg-background hover:bg-muted text-muted-foreground border-border'
                             }`}
                         >
-                            {type}
+                            {type === 'all' ? t('filterAll') : (type === 'expense' ? t('filterExpense') : (type === 'loan' ? t('filterLoan') : t('filterSettlement')))}
                         </button>
                     ))}
 
@@ -347,7 +363,7 @@ export default function BalanceDetailsPage() {
                             className="p-1.5 text-xs text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-lg flex items-center gap-1 ml-1"
                             title="Quick Reset Filters"
                         >
-                            <FiRotateCcw /> <span className="hidden sm:inline">Reset</span>
+                            <FiRotateCcw /> <span className="hidden sm:inline">{t('resetFilters')}</span>
                         </button>
                     )}
                 </div>
@@ -355,25 +371,41 @@ export default function BalanceDetailsPage() {
 
             {/* Content Container */}
             <div className="bg-card shadow-md rounded-xl border border-card-border flex flex-col flex-grow overflow-hidden max-h-[70vh]">
-                <div className="p-4 border-b border-card-border shrink-0">
+                <div className="p-4 border-b border-card-border shrink-0 flex items-center justify-between flex-wrap gap-2">
                     <h1 className="text-lg font-bold text-card-foreground">
-                        {viewMode === 'balance' ? 'Peer-to-Peer Net Balances' : `Activity History (${filteredHistory.length})`}
+                        {viewMode === 'balance' ? t('peerBalancesTitle') : `${t('activityHistoryTab')} (${filteredHistory.length})`}
                     </h1>
+                    {viewMode === 'balance' && members.length > 1 && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('perspectiveLabel')}:</span>
+                            <select
+                                value={activePerspectiveUserId}
+                                onChange={(e) => setPerspectiveUserId(parseInt(e.target.value))}
+                                className="themed-input text-xs font-bold px-2.5 py-1 rounded-lg border border-primary/40 bg-card text-foreground cursor-pointer shadow-sm focus:ring-1 focus:ring-primary"
+                            >
+                                {members.filter(m => m.role !== 'observer').map(m => (
+                                    <option key={m.id} value={m.id}>
+                                        {m.username} {m.id === user?.userId ? `(${t('me')})` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
 
                 <div className="overflow-y-auto flex-grow">
                     {isLoading ? (
-                        <p className="p-8 text-center text-muted-foreground text-xs">Loading data...</p>
+                        <p className="p-8 text-center text-muted-foreground text-xs">{t('loadingData')}</p>
                     ) : viewMode === 'balance' ? (
                         /* BALANCE TAB */
                         otherMembers.length === 0 ? (
-                            <p className="p-8 text-center text-muted-foreground text-xs">No other members in this room yet.</p>
+                            <p className="p-8 text-center text-muted-foreground text-xs">{t('noOtherMembers')}</p>
                         ) : (
                             <ul>
                                 {otherMembers.map((member) => {
                                     const p2pData = peerToPeerBalances.get(member.id);
                                     const netBalance = p2pData?.netBalance ?? 0;
-                                    const balanceInfo = getBalanceText(netBalance);
+                                    const balanceInfo = getBalanceText(netBalance, member.username);
                                     const isExpanded = expandedMemberId === member.id;
 
                                     return (
@@ -390,13 +422,13 @@ export default function BalanceDetailsPage() {
                                             </button>
                                             {isExpanded && (
                                                 <div className="bg-muted/30 px-4 py-3 animate-fadeIn border-t border-border/50">
-                                                    {netBalance < -0.005 && (
+                                                    {netBalance < -0.005 && activePerspectiveUserId === user?.userId && (
                                                         <div className="mb-4 flex justify-end">
                                                             <button 
                                                                 onClick={() => handleSettleUp(member.id, Math.abs(netBalance))}
                                                                 className="bg-success text-success-foreground hover:bg-success/90 py-1 px-3 rounded text-xs font-bold transition-colors shadow-sm"
                                                             >
-                                                                Settle Up ({Math.abs(netBalance).toFixed(2)} {currency})
+                                                                {t('settleUpBtn', { amount: Math.abs(netBalance).toFixed(2), currency })}
                                                             </button>
                                                         </div>
                                                     )}

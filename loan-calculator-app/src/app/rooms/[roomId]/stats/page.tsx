@@ -199,9 +199,9 @@ export default function StatsPage() {
             <div className="bg-card shadow-md rounded-lg border border-card-border p-6">
                 <h1 className="text-2xl font-bold text-card-foreground mb-6 flex items-center"><FiBarChart2 className="me-3 text-primary"/>{t('title')}</h1>
                 {isLoading ? (
-                    <p className="text-center text-muted-foreground">Loading statistics...</p>
+                    <p className="text-center text-muted-foreground">{t('loadingStats')}</p>
                 ) : !stats ? (
-                    <p className="text-center text-muted-foreground">No entries found to generate statistics.</p>
+                    <p className="text-center text-muted-foreground">{t('noEntriesStats')}</p>
                 ) : (
                     <div className="space-y-6">
                         {/* General Stats */}
@@ -221,7 +221,7 @@ export default function StatsPage() {
                                 <table className="w-full text-left">
                                     <thead className="border-b border-card-border">
                                         <tr>
-                                            <th className="p-2 text-sm font-semibold text-muted-foreground">Member</th>
+                                            <th className="p-2 text-sm font-semibold text-muted-foreground">{t('memberHeader')}</th>
                                             <th className="p-2 text-sm font-semibold text-muted-foreground text-right">{t('paid')}</th>
                                             <th className="p-2 text-sm font-semibold text-muted-foreground text-right">{t('owes')}</th>
                                             <th className="p-2 text-sm font-semibold text-muted-foreground text-right">{t('net')}</th>

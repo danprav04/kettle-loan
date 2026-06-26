@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { sendRoomNotification } from '@/lib/notifications';
+import { resolveRoomId } from '@/lib/room-resolver';
 
 export async function POST(req: Request) {
     try {
@@ -12,12 +13,16 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { roomId, amount, description, splitWithUserIds, payerShares, beneficiaryShares, createdAt } = body;
+        const { roomId: rawRoomId, amount, description, splitWithUserIds, payerShares, beneficiaryShares, createdAt } = body;
+        const resolvedId = await resolveRoomId(db, rawRoomId);
+        if (!resolvedId) {
+            return NextResponse.json({ message: 'Room not found' }, { status: 404 });
+        }
 
         // Verify RBAC permissions
         const memberRes = await db.query(
             'SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2',
-            [roomId, user.userId]
+            [resolvedId, user.userId]
         );
 
         if (memberRes.rows.length === 0) {
@@ -40,20 +45,20 @@ export async function POST(req: Request) {
 
         await db.query(
             'INSERT INTO entries (room_id, user_id, amount, description, split_with_user_ids, payer_shares, beneficiary_shares, created_by_user_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-            [roomId, legacyUserId, amount, description, finalSplitWith, finalPayerShares, finalBeneficiaryShares, createdByUserId, finalCreatedAt.toISOString()]
+            [resolvedId, legacyUserId, amount, description, finalSplitWith, finalPayerShares, finalBeneficiaryShares, createdByUserId, finalCreatedAt.toISOString()]
         );
 
         const numAmount = parseFloat(amount);
         const isExpense = numAmount > 0;
         const formattedAmount = Math.abs(numAmount).toFixed(2);
         
-        sendRoomNotification(roomId, user.userId, {
+        sendRoomNotification(String(resolvedId), user.userId, {
             type: 'newEntry',
             username: user.username,
             description,
             amount: formattedAmount,
             isExpense,
-            url: `/rooms/${roomId}`
+            url: `/rooms/${rawRoomId}`
         });
 
         return NextResponse.json({ message: 'Entry added successfully' });
