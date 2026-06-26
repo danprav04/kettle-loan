@@ -9,11 +9,14 @@ import { getRoomData, Entry, deleteLocalEntry } from '@/lib/offline-sync';
 import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
-import { FiClock, FiTrash2, FiInfo } from 'react-icons/fi';
+import EditEntryModal from '@/components/EditEntryModal';
+import EntryEditsModal from '@/components/EntryEditsModal';
+import { FiClock, FiTrash2, FiInfo, FiEdit3 } from 'react-icons/fi';
 
 interface Member {
     id: number;
     username: string;
+    role?: string;
 }
 
 interface User {
@@ -23,18 +26,29 @@ interface User {
 
 type ProcessedEntry = Entry & { runningBalance: number };
 
-// Helper function to generate the detailed description for an entry
 const getEntryDetails = (entry: Entry, memberMap: Map<number, string>, allMembers: Member[], currentUser: User | null, t: (key: string, values?: Record<string, string | number>) => string) => {
     const amount = parseFloat(entry.amount);
     const actorUsername = entry.username;
-    
+
+    if (entry.payer_shares && entry.beneficiary_shares && Array.isArray(entry.payer_shares) && Array.isArray(entry.beneficiary_shares)) {
+        const payers = entry.payer_shares.map(p => `${memberMap.get(p.userId) || '...'} (${p.percentage}%)`).join(', ');
+        const ben = entry.beneficiary_shares.map(b => `${memberMap.get(b.userId) || '...'} (${b.percentage}%)`).join(', ');
+        return (
+            <>
+                <span>Paid: {payers}</span>
+                <span className="mx-1.5">&bull;</span>
+                <span>Split: {ben}</span>
+            </>
+        );
+    }
+
     if (amount > 0) { // Expense
         const payerText = entry.user_id === currentUser?.userId ? t('entryParticipantYou') : actorUsername;
         let participantsText: string;
-        
+
         const participants = entry.split_with_user_ids;
-        // Logic for "Everyone": if participants array is null, empty, or includes all members.
-        const isForAll = !participants || participants.length === 0 || participants.length === allMembers.length;
+        const calcMembersCount = allMembers.filter(m => m.role !== 'observer').length || allMembers.length;
+        const isForAll = !participants || participants.length === 0 || participants.length === calcMembersCount;
 
         if (isForAll) {
             participantsText = t('entryParticipantEveryone');
@@ -44,7 +58,7 @@ const getEntryDetails = (entry: Entry, memberMap: Map<number, string>, allMember
                 return memberMap.get(id) || '...';
             }).join(', ');
         }
-        
+
         return (
             <>
                 <span>{t('entryPaidBy', { payer: payerText })}</span>
@@ -62,10 +76,9 @@ const getEntryDetails = (entry: Entry, memberMap: Map<number, string>, allMember
             </>
         );
     }
-    
+
     return null;
 };
-
 
 export default function EntriesPage() {
     const params = useParams<{ roomId: string }>();
@@ -74,14 +87,21 @@ export default function EntriesPage() {
     const tNotif = useTranslations('Notifications');
     const { isOnline } = useSync();
     const { user } = useUser();
-    
+
     const [entries, setEntries] = useState<Entry[]>([]);
     const [members, setMembers] = useState<Member[]>([]);
+    const [currency, setCurrency] = useState('ILS');
+    const [currentUserRole, setCurrentUserRole] = useState('active');
+
     const [isLoading, setIsLoading] = useState(true);
     const [notification, setNotification] = useState<string | null>(null);
     const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-    
+
+    // Modals state
+    const [entryToEdit, setEntryToEdit] = useState<Entry | null>(null);
+    const [entryForHistory, setEntryForHistory] = useState<number | string | null>(null);
+
     const router = useRouter();
 
     const fetchEntries = useCallback(async () => {
@@ -96,6 +116,8 @@ export default function EntriesPage() {
         if (localData) {
             setEntries(localData.entries);
             setMembers(localData.members);
+            if (localData.currency) setCurrency(localData.currency);
+            if (localData.currentUserRole) setCurrentUserRole(localData.currentUserRole);
         }
 
         if (isOnline) {
@@ -107,6 +129,8 @@ export default function EntriesPage() {
                     const data = await res.json();
                     setEntries(data.entries);
                     setMembers(data.members);
+                    if (data.currency) setCurrency(data.currency);
+                    if (data.currentUserRole) setCurrentUserRole(data.currentUserRole);
                 } else if (res.status === 401) {
                     router.push('/');
                 }
@@ -124,48 +148,62 @@ export default function EntriesPage() {
             window.removeEventListener('syncdone', fetchEntries);
         };
     }, [fetchEntries]);
-    
+
     const processedEntries: ProcessedEntry[] = useMemo(() => {
         if (!user || members.length === 0) {
             return [];
         }
 
+        const calcMembers = members.filter(m => m.role !== 'observer');
         const chronologicalEntries = [...entries].reverse();
         const runningBalances: { [key: number]: number } = {};
         members.forEach(member => { runningBalances[member.id] = 0; });
 
         const entriesWithBalance = chronologicalEntries.map(entry => {
             const amount = parseFloat(entry.amount);
-            const payerId = entry.user_id;
 
-            if (amount > 0) { // Expense
-                const participants = entry.split_with_user_ids ?? members.map(m => m.id);
-                if (participants.length > 0) {
-                    const share = amount / participants.length;
-                    runningBalances[payerId] += amount;
-                    participants.forEach(pId => {
-                        if (runningBalances[pId] !== undefined) {
-                            runningBalances[pId] -= share;
-                        }
-                    });
-                }
-            } else if (amount < 0) { // Loan
-                const loanAmount = Math.abs(amount);
-                const borrowerId = payerId;
-                runningBalances[borrowerId] -= loanAmount;
+            if (entry.payer_shares && entry.beneficiary_shares && Array.isArray(entry.payer_shares) && Array.isArray(entry.beneficiary_shares)) {
+                entry.payer_shares.forEach(p => {
+                    if (runningBalances[p.userId] !== undefined) {
+                        runningBalances[p.userId] += amount * (p.percentage / 100);
+                    }
+                });
+                entry.beneficiary_shares.forEach(b => {
+                    if (runningBalances[b.userId] !== undefined) {
+                        runningBalances[b.userId] -= amount * (b.percentage / 100);
+                    }
+                });
+            } else {
+                const payerId = entry.user_id;
+                if (amount > 0) { // Expense
+                    const participants = entry.split_with_user_ids ?? calcMembers.map(m => m.id);
+                    if (participants.length > 0) {
+                        const share = amount / participants.length;
+                        runningBalances[payerId] += amount;
+                        participants.forEach(pId => {
+                            if (runningBalances[pId] !== undefined) {
+                                runningBalances[pId] -= share;
+                            }
+                        });
+                    }
+                } else if (amount < 0) { // Loan
+                    const loanAmount = Math.abs(amount);
+                    const borrowerId = payerId;
+                    runningBalances[borrowerId] -= loanAmount;
 
-                const participants = entry.split_with_user_ids;
-                const lenders = participants && participants.length > 0
-                    ? members.filter(m => participants.includes(m.id))
-                    : members.filter(m => m.id !== borrowerId);
+                    const participants = entry.split_with_user_ids;
+                    const lenders = participants && participants.length > 0
+                        ? calcMembers.filter(m => participants.includes(m.id))
+                        : calcMembers.filter(m => m.id !== borrowerId);
 
-                if (lenders.length > 0) {
-                    const creditPerLender = loanAmount / lenders.length;
-                    lenders.forEach(lender => {
-                        if (runningBalances[lender.id] !== undefined) {
-                            runningBalances[lender.id] += creditPerLender;
-                        }
-                    });
+                    if (lenders.length > 0) {
+                        const creditPerLender = loanAmount / lenders.length;
+                        lenders.forEach(lender => {
+                            if (runningBalances[lender.id] !== undefined) {
+                                runningBalances[lender.id] += creditPerLender;
+                            }
+                        });
+                    }
                 }
             }
 
@@ -188,28 +226,26 @@ export default function EntriesPage() {
             return () => clearTimeout(timer);
         }
     }, [notification]);
-    
+
     const openConfirmDialog = (entry: Entry) => {
         if (typeof entry.id !== 'number') {
             setNotification(t('deleteEntrySyncing'));
             return;
         }
-        if (user && user.userId === entry.user_id) {
-            setEntryToDelete(entry);
-            setIsConfirmOpen(true);
-        }
+        setEntryToDelete(entry);
+        setIsConfirmOpen(true);
     };
 
     const handleDeleteEntry = async () => {
         if (!entryToDelete || typeof entryToDelete.id !== 'number') return;
-        
+
         const originalEntries = [...entries];
         setEntries(prev => prev.filter(e => e.id !== entryToDelete.id));
         setIsConfirmOpen(false);
-        
+
         try {
             await deleteLocalEntry(roomId, entryToDelete.id);
-            
+
             const result = await handleApi({
                 method: 'DELETE',
                 url: `/api/entries/${entryToDelete.id}`,
@@ -218,7 +254,7 @@ export default function EntriesPage() {
             if (result?.optimistic) {
                 setNotification(tNotif('requestQueued'));
             }
-            
+
             setEntryToDelete(null);
 
         } catch (error) {
@@ -228,13 +264,21 @@ export default function EntriesPage() {
         }
     };
 
+    const canModify = (entry: Entry) => {
+        if (currentUserRole === 'admin') return true;
+        if (currentUserRole === 'active') {
+            return entry.user_id === user?.userId || entry.created_by_user_id === user?.userId;
+        }
+        return false;
+    };
+
     return (
         <div className="max-w-4xl mx-auto animate-scaleIn flex flex-col h-full">
             <div className="shrink-0">
                 <button onClick={() => router.back()} className="mb-4 font-bold py-2 px-4 rounded-lg btn-primary">
                     {t('backToRoom')}
                 </button>
-                
+
                 {notification && (
                     <div className="mb-4 p-3 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-sm border border-blue-200 dark:border-blue-800 flex items-center animate-fadeIn">
                         <FiInfo className="me-2 shrink-0"/>
@@ -242,10 +286,11 @@ export default function EntriesPage() {
                     </div>
                 )}
             </div>
-            
+
             <div className="bg-card shadow-md max-h-[80vh] rounded-lg border border-card-border flex flex-col flex-grow overflow-hidden">
-                <div className="p-4 border-b border-card-border shrink-0">
+                <div className="p-4 border-b border-card-border shrink-0 flex items-center justify-between">
                     <h1 className="text-xl font-semibold text-card-foreground">{t('allEntries')}</h1>
+                    <span className="text-xs text-muted-foreground font-mono">Currency: {currency}</span>
                 </div>
                 <div className="overflow-y-auto flex-grow">
                     {isLoading ? (
@@ -254,51 +299,80 @@ export default function EntriesPage() {
                         <p className="p-4 text-center text-muted-foreground">No entries have been added to this room yet.</p>
                     ) : (
                         <ul>
-                            {processedEntries.map((entry, index) => (
-                                <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn group" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
-                                    <div className="flex-grow">
-                                        <p className="font-semibold text-card-foreground">{entry.description}</p>
-                                        <div className="text-xs text-muted-foreground italic flex items-center mt-0.5">
-                                            {getEntryDetails(entry, memberMap, members, user, t)}
-                                        </div>
-                                        <p className="text-sm text-muted-foreground flex items-center mt-1.5">
-                                            {entry.offline_timestamp && (
-                                                <FiClock className="me-1.5 text-amber-500" title={`Created offline at ${new Date(entry.offline_timestamp).toLocaleTimeString()}`} />
+                            {processedEntries.map((entry, index) => {
+                                const showProxy = entry.created_by_user_id && entry.created_by_user_id !== entry.user_id;
+                                const recorderName = memberMap.get(entry.created_by_user_id || 0);
+
+                                return (
+                                    <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn group" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
+                                        <div className="flex-grow pr-2">
+                                            <p className="font-semibold text-card-foreground">{entry.description}</p>
+                                            <div className="text-xs text-muted-foreground italic flex items-center mt-0.5">
+                                                {getEntryDetails(entry, memberMap, members, user, t)}
+                                            </div>
+                                            {showProxy && (
+                                                <div className="text-[11px] text-purple-400 font-medium mt-1">
+                                                    Logged on behalf by: {recorderName || `User #${entry.created_by_user_id}`}
+                                                </div>
                                             )}
-                                            {entry.username} - {new Date(entry.created_at).toLocaleString()}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center space-x-2 md:space-x-4 shrink-0">
-                                        <div className="text-right w-24">
-                                            <div className={`text-lg font-bold ${parseFloat(entry.amount) < 0 ? 'text-danger' : 'text-success'}`}>
-                                                {parseFloat(entry.amount).toFixed(2)} ILS
-                                            </div>
+                                            <p className="text-xs text-muted-foreground flex items-center mt-1.5">
+                                                {entry.offline_timestamp && (
+                                                    <FiClock className="me-1 text-amber-500" title={`Created offline at ${new Date(entry.offline_timestamp).toLocaleTimeString()}`} />
+                                                )}
+                                                <span>{entry.username} &bull; {new Date(entry.created_at).toLocaleString()}</span>
+                                            </p>
                                         </div>
-                                        <div className="text-right w-24">
-                                            <div className={`text-md font-semibold ${entry.runningBalance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                                {entry.runningBalance.toFixed(2)} ILS
+                                        <div className="flex items-center space-x-3 rtl:space-x-reverse shrink-0">
+                                            <div className="text-right w-24">
+                                                <div className={`text-base font-bold ${parseFloat(entry.amount) < 0 ? 'text-danger' : 'text-success'}`}>
+                                                    {parseFloat(entry.amount).toFixed(2)} {currency}
+                                                </div>
                                             </div>
-                                            <div className="text-xs text-muted-foreground">Balance</div>
+                                            <div className="text-right w-24 hidden sm:block">
+                                                <div className={`text-sm font-semibold ${entry.runningBalance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                    {entry.runningBalance.toFixed(2)} {currency}
+                                                </div>
+                                                <div className="text-[10px] text-muted-foreground uppercase">My Balance</div>
+                                            </div>
+
+                                            {typeof entry.id === 'number' && (
+                                                <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => setEntryForHistory(entry.id)}
+                                                        className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
+                                                        title="View edit history"
+                                                    >
+                                                        <FiClock size={16} />
+                                                    </button>
+                                                    {canModify(entry) && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => setEntryToEdit(entry)}
+                                                                className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
+                                                                title="Edit entry"
+                                                            >
+                                                                <FiEdit3 size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => openConfirmDialog(entry)}
+                                                                className="text-muted-foreground hover:text-danger p-1.5 rounded hover:bg-danger/10 transition-colors"
+                                                                title={t('deleteEntry')}
+                                                            >
+                                                                <FiTrash2 size={16} />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
-                                        {user && user.userId === entry.user_id && typeof entry.id === 'number' ? (
-                                            <button
-                                                onClick={() => openConfirmDialog(entry)}
-                                                className="text-muted-foreground hover:text-danger p-2 rounded-full hover:bg-danger/10 transition-all opacity-0 group-hover:opacity-100"
-                                                title={t('deleteEntry')}
-                                            >
-                                                <FiTrash2 size={18} />
-                                            </button>
-                                        ) : (
-                                            <div className="w-[34px]"></div> // Placeholder to maintain alignment
-                                        )}
-                                    </div>
-                                </li>
-                            ))}
+                                    </li>
+                                );
+                            })}
                         </ul>
                     )}
                 </div>
             </div>
-            
+
             <ConfirmationDialog
                 isOpen={isConfirmOpen}
                 onClose={() => setIsConfirmOpen(false)}
@@ -313,6 +387,21 @@ export default function EntriesPage() {
                     </div>
                 )}
             </ConfirmationDialog>
+
+            <EditEntryModal
+                isOpen={!!entryToEdit}
+                onClose={() => setEntryToEdit(null)}
+                entry={entryToEdit}
+                currency={currency}
+                onSuccess={() => fetchEntries()}
+            />
+
+            <EntryEditsModal
+                isOpen={!!entryForHistory}
+                onClose={() => setEntryForHistory(null)}
+                entryId={entryForHistory}
+                currency={currency}
+            />
         </div>
     );
 }

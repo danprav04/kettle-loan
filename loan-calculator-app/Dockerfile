@@ -53,11 +53,15 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/migrations ./migrations
+COPY --from=builder --chown=nextjs:nodejs /app/start.sh ./start.sh
+
+RUN chmod +x ./start.sh
 
 # Set the new, non-root user as the active user
 USER nextjs
 
 EXPOSE 3000
 
-# The standalone output creates a `server.js` file to run the app.
-CMD ["node", "server.js"]
+CMD ["./start.sh"]
