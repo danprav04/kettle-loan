@@ -178,5 +178,15 @@
     "addedExpense": "{username} הוסיף הוצאה: {description} ({amount} ש״ח)",
     "addedLoan": "{username} הוסיף הלוואה: {description} ({amount} ש״ח)",
     "removedEntry": "{username} הסיר: {description}"
+  },
+  "AuditTrail": {
+    "title": "מעקב שינויים ברשומה",
+    "loading": "טוען היסטוריית שינויים...",
+    "error": "טעינת היסטוריית השינויים נכשלה",
+    "noEdits": "לא נרשמו שינויים קודמים עבור רשומה זו.",
+    "userFallback": "משתמש #{id}",
+    "amountChange": "שינוי סכум",
+    "descriptionChange": "שינוי תיאור",
+    "closeBtn": "סגור"
   }
 }

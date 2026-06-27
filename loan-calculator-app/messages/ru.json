@@ -178,5 +178,15 @@
     "addedExpense": "{username} добавил расход: {description} ({amount} ILS)",
     "addedLoan": "{username} добавил долг: {description} ({amount} ILS)",
     "removedEntry": "{username} удалил: {description}"
+  },
+  "AuditTrail": {
+    "title": "История изменений записи",
+    "loading": "Загрузка истории изменений...",
+    "error": "Не удалось загрузить историю изменений",
+    "noEdits": "Для этой записи изменений не найдено.",
+    "userFallback": "Пользователь #{id}",
+    "amountChange": "Изменение суммы",
+    "descriptionChange": "Изменение описания",
+    "closeBtn": "Закрыть"
   }
 }

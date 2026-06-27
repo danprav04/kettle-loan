@@ -178,5 +178,15 @@
     "addedExpense": "{username} added expense: {description} ({amount} ILS)",
     "addedLoan": "{username} added loan: {description} ({amount} ILS)",
     "removedEntry": "{username} removed: {description}"
+  },
+  "AuditTrail": {
+    "title": "Entry Audit Trail",
+    "loading": "Loading audit history...",
+    "error": "Failed to load edit history",
+    "noEdits": "No previous edits recorded for this entry.",
+    "userFallback": "User #{id}",
+    "amountChange": "Amount Change",
+    "descriptionChange": "Description Change",
+    "closeBtn": "Close"
   }
 }
