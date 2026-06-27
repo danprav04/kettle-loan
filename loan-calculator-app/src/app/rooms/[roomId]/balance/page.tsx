@@ -317,7 +317,7 @@ export default function BalanceDetailsPage() {
                     <button
                         onClick={handleSetDefaultView}
                         className="p-2 text-muted-foreground hover:text-amber-400 bg-card border border-card-border rounded-xl shadow-sm transition-colors"
-                        title="Set current view as default"
+                        title={t('setDefaultViewTitle')}
                     >
                         <FiStar className={defaultViewSaved ? 'fill-amber-400 text-amber-400' : ''} />
                     </button>
@@ -326,12 +326,12 @@ export default function BalanceDetailsPage() {
 
             {defaultViewSaved && (
                 <div className="p-2.5 text-xs font-bold bg-success/15 text-success border border-success/30 rounded-xl text-center shadow-sm animate-fadeIn">
-                    ✓ Preferred view saved as default for this room!
+                    {t('defaultViewSavedMsg')}
                 </div>
             )}
 
             {/* Dynamic Filter Bar */}
-            <div className="bg-card/80 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl border border-card-border shadow-sm flex items-center justify-between gap-3 flex-wrap">
+            <div className="bg-card p-3 sm:p-3.5 rounded-2xl border border-card-border shadow-md flex items-center justify-between gap-3 flex-wrap">
                 <div className="relative flex-1 min-w-[200px]">
                     <FiSearch className="absolute left-3.5 top-2.5 text-muted-foreground text-sm" />
                     <input
@@ -339,7 +339,7 @@ export default function BalanceDetailsPage() {
                         placeholder={t('searchFilterPlaceholder')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full themed-input pl-9 pr-3 py-1.5 text-xs rounded-xl border border-input bg-background/80 transition-all focus:ring-1 focus:ring-primary"
+                        className="w-full themed-input pl-9 pr-3 py-1.5 text-xs rounded-xl border border-input bg-background transition-all focus:ring-1 focus:ring-primary"
                     />
                 </div>
 
@@ -360,7 +360,7 @@ export default function BalanceDetailsPage() {
                         <button
                             onClick={handleQuickReset}
                             className="p-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-xl flex items-center gap-1.5 ml-1 font-semibold transition-colors"
-                            title="Quick Reset Filters"
+                            title={t('quickResetFiltersTitle')}
                         >
                             <FiRotateCcw /> <span className="hidden sm:inline">{t('resetFilters')}</span>
                         </button>
@@ -369,8 +369,8 @@ export default function BalanceDetailsPage() {
             </div>
 
             {/* Content Container */}
-            <div className="bg-card/95 backdrop-blur-md shadow-xl rounded-2xl border border-card-border flex flex-col flex-grow overflow-hidden max-h-[75vh]">
-                <div className="p-4 sm:p-5 border-b border-card-border bg-muted/20 shrink-0 flex items-center justify-between flex-wrap gap-3">
+            <div className="bg-card shadow-xl rounded-2xl border border-card-border flex flex-col flex-grow overflow-hidden max-h-[75vh]">
+                <div className="p-4 sm:p-5 border-b border-card-border bg-muted/40 shrink-0 flex items-center justify-between flex-wrap gap-3">
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-sm shrink-0">
                             {viewMode === 'balance' ? <FiUsers className="w-5 h-5" /> : <FiActivity className="w-5 h-5" />}
@@ -453,7 +453,7 @@ export default function BalanceDetailsPage() {
                                                 </div>
                                             </button>
                                             {isExpanded && (
-                                                <div className="bg-muted/20 px-4 sm:px-6 pt-2 pb-5 animate-fadeIn border-t border-card-border/60">
+                                                <div className="bg-background/80 px-4 sm:px-6 pt-2 pb-5 animate-fadeIn border-t border-card-border/60">
                                                     {netBalance < -0.005 && activePerspectiveUserId === user?.userId && (
                                                         <div className="my-4 p-4 rounded-xl bg-gradient-to-r from-success/20 via-success/10 to-transparent border border-success/40 flex items-center justify-between flex-wrap gap-3 shadow-sm">
                                                             <div className="flex items-center gap-3 min-w-0">
@@ -461,8 +461,8 @@ export default function BalanceDetailsPage() {
                                                                     <FiCheckCircle className="w-5 h-5" />
                                                                 </div>
                                                                 <div className="min-w-0">
-                                                                    <p className="text-xs sm:text-sm font-extrabold text-foreground tracking-tight truncate">Outstanding debt</p>
-                                                                    <p className="text-[11px] text-muted-foreground truncate">Record a repayment to settle outstanding debts with {member.username}</p>
+                                                                    <p className="text-xs sm:text-sm font-extrabold text-foreground tracking-tight truncate">{t('outstandingDebtTitle')}</p>
+                                                                    <p className="text-[11px] text-muted-foreground truncate">{t('outstandingDebtSubtitle', { member: member.username })}</p>
                                                                 </div>
                                                             </div>
                                                             <button 
@@ -478,11 +478,11 @@ export default function BalanceDetailsPage() {
                                                         <div className="mt-3 space-y-2">
                                                             <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1 pb-1">
                                                                 <span className="flex items-center gap-1.5">
-                                                                    <FiClock className="w-3.5 h-3.5" /> Mutual Activity Log
+                                                                    <FiClock className="w-3.5 h-3.5" /> {t('mutualActivityLog')}
                                                                 </span>
-                                                                <span>Net Impact</span>
+                                                                <span>{t('netImpactLabel')}</span>
                                                             </div>
-                                                            <div className="divide-y divide-card-border/60 bg-card/60 rounded-xl border border-card-border overflow-hidden shadow-sm">
+                                                            <div className="divide-y divide-card-border/60 bg-card rounded-xl border border-card-border overflow-hidden shadow-sm">
                                                                 {p2pData.transactions.map((tx, index) => {
                                                                     const isPositive = tx.contribution >= 0;
                                                                     return (
@@ -513,8 +513,8 @@ export default function BalanceDetailsPage() {
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <div className="py-8 text-center bg-background/40 rounded-xl border border-dashed border-card-border mt-3">
-                                                            <p className="text-xs text-muted-foreground italic">No mutual transactions recorded yet.</p>
+                                                        <div className="py-8 text-center bg-card rounded-xl border border-dashed border-card-border mt-3">
+                                                            <p className="text-xs text-muted-foreground italic">{t('noMutualTransactions')}</p>
                                                         </div>
                                                     )}
                                                 </div>
@@ -529,7 +529,7 @@ export default function BalanceDetailsPage() {
                         filteredHistory.length === 0 ? (
                             <div className="p-16 text-center flex flex-col items-center justify-center gap-2">
                                 <FiClock className="w-8 h-8 text-muted-foreground/40" />
-                                <p className="text-muted-foreground text-xs font-medium">No transactions match your search filters.</p>
+                                <p className="text-muted-foreground text-xs font-medium">{t('noFilteredHistory')}</p>
                             </div>
                         ) : (
                             <ul className="divide-y divide-card-border/60">
@@ -547,7 +547,7 @@ export default function BalanceDetailsPage() {
                                                 <div className="min-w-0">
                                                     <p className="font-bold text-foreground text-xs sm:text-sm truncate">{entry.description}</p>
                                                     <p className="text-muted-foreground text-[11px] mt-0.5 truncate">
-                                                        By <span className="font-semibold text-foreground/80">{entry.username}</span> &bull; {new Date(entry.created_at).toLocaleString()}
+                                                        {t('byAuthor', { author: entry.username })} &bull; {new Date(entry.created_at).toLocaleString()}
                                                     </p>
                                                 </div>
                                             </div>
