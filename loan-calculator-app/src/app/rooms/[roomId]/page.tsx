@@ -1,7 +1,7 @@
 // src/app/rooms/[roomId]/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -20,6 +20,14 @@ interface Member {
     role?: string;
 }
 
+interface RoomData {
+    name: string;
+    code: string;
+    currency?: string;
+    currentUserBalance?: number;
+    currentUserRole?: string;
+}
+
 export default function RoomPage() {
     const params = useParams<{ roomId: string }>();
     const { roomId } = params;
@@ -31,7 +39,7 @@ export default function RoomPage() {
     const [roomCode, setRoomCode] = useState('');
     const [roomName, setRoomName] = useState<string | null>(null);
     const [currency, setCurrency] = useState('ILS');
-    const [currentUserRole, setCurrentUserRole] = useState<RoomRole>('active');
+    const [currentUserRole, setCurrentUserRole] = useState<RoomRole>('observer');
     const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
 
     const [isEditingName, setIsEditingName] = useState(false);
@@ -55,6 +63,7 @@ export default function RoomPage() {
     // Multi-party state
     const [payerShares, setPayerShares] = useState<ShareItem[]>([]);
     const [beneficiaryShares, setBeneficiaryShares] = useState<ShareItem[]>([]);
+    const splitsInitializedRef = useRef(false);
 
     const otherMembers = useMemo(() => members.filter((m: Member) => m.id !== currentUserId), [members, currentUserId]);
 
@@ -71,7 +80,8 @@ export default function RoomPage() {
         }
         
         const eligible = (data.members || []).filter(m => m.role !== 'observer');
-        if (eligible.length > 0 && payerShares.length === 0 && data.currentUserId) {
+        if (eligible.length > 0 && !splitsInitializedRef.current && data.currentUserId) {
+            splitsInitializedRef.current = true;
             setPayerShares([{ userId: data.currentUserId, percentage: 100 }]);
             const count = eligible.length;
             const base = Math.floor((100 / count) * 100) / 100;
@@ -80,9 +90,7 @@ export default function RoomPage() {
                 userId: m.id,
                 percentage: idx === 0 ? Math.round((base + rem) * 100) / 100 : base
             })));
-        }
 
-        if (members.length === 0 && data.members.length > 0) {
             const initialSelected = (data.members || [])
                 .filter((m: Member) => m.id !== data.currentUserId && m.role !== 'observer')
                 .map((m: Member) => m.id);
@@ -92,7 +100,7 @@ export default function RoomPage() {
                 setLoanPaidByUserIds(new Set([initialSelected[0]]));
             }
         }
-    }, [members.length, payerShares.length]);
+    }, []);
 
     const fetchData = useCallback(async (options: { forceLocal?: boolean } = {}) => {
         setIsLoading(true);
@@ -423,7 +431,7 @@ export default function RoomPage() {
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                             <div className="sm:col-span-1">
                                                 <label className="block text-muted-foreground text-xs font-bold mb-1 tracking-wide uppercase" htmlFor="amount">{t('amount')} ({currency})</label>
-                                                <input id="amount" type="text" inputMode="decimal" value={amount} onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setAmount(e.target.value); }} className="w-full px-3 py-2 leading-tight rounded-xl themed-input font-bold text-base" required placeholder="0.00" />
+                                                <input id="amount" type="text" inputMode="decimal" value={amount} onFocus={(e) => e.target.select()} onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setAmount(e.target.value); }} className="w-full px-3 py-2 leading-tight rounded-xl themed-input font-bold text-base" required placeholder="0.00" />
                                             </div>
                                             <div className="sm:col-span-2">
                                                 <label className="block text-muted-foreground text-xs font-bold mb-1 tracking-wide uppercase" htmlFor="description">{t('description')}</label>

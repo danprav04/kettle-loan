@@ -147,7 +147,7 @@ export default function EditEntryModal({
         }
       }
 
-      const res = await handleApi({
+      await handleApi({
         url: `/api/entries/${entry.id}`,
         method: 'PUT',
         body: {
@@ -158,11 +158,6 @@ export default function EditEntryModal({
           splitWithUserIds: payloadSplitWith,
         },
       });
-
-      if (!res || !res.ok) {
-        const data = res && res.json ? await res.json() : {};
-        throw new Error(data.message || 'Failed to update entry');
-      }
 
       onSuccess();
       onClose();
@@ -197,6 +192,7 @@ export default function EditEntryModal({
                   type="text"
                   inputMode="decimal"
                   value={amount}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setAmount(e.target.value); }}
                   className="w-full themed-input px-3.5 py-2 text-sm font-bold rounded-xl border border-input bg-background text-foreground"
                   required

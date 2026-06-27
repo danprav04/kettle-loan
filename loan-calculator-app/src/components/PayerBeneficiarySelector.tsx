@@ -48,7 +48,6 @@ export default function PayerBeneficiarySelector({
   const toggleMember = (userId: number) => {
     setLockedUserIds(new Set());
     if (selectedUserIds.has(userId)) {
-      if (selectedUserIds.size === 1) return;
       onChange(shares.filter((s) => s.userId !== userId));
     } else {
       const nextShares = [...shares, { userId, percentage: 0 }];
@@ -58,7 +57,10 @@ export default function PayerBeneficiarySelector({
 
   const rebalanceEqual = (userIds: number[]) => {
     setLockedUserIds(new Set());
-    if (userIds.length === 0) return;
+    if (userIds.length === 0) {
+      onChange([]);
+      return;
+    }
     const count = userIds.length;
     const basePct = Math.floor((100 / count) * 100) / 100;
     const remainder = Math.round((100 - basePct * count) * 100) / 100;
@@ -196,21 +198,22 @@ export default function PayerBeneficiarySelector({
                   onChange(updatedShares);
                 }
               }}
-              className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary hover:bg-primary/90 text-white font-bold text-[11px] shadow-md transition-all animate-bounce cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/80 hover:bg-muted text-foreground font-semibold text-[11px] border border-border transition-colors shadow-2xs cursor-pointer"
               title="Click to update master bill total to match this sum"
             >
-              <span>Sync Master Total ({currentSumMonetary} {currency})</span>
+              <span className="text-primary font-bold">↻</span>
+              <span>{t('syncTotalBtn', { sum: currentSumMonetary, currency })}</span>
             </button>
           )}
           {hasLeftover && (
             <button
               type="button"
               onClick={distributeRemaining}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 hover:bg-primary/30 text-primary font-bold text-[10px] border border-primary/40 transition-all shadow-sm animate-pulse cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/80 hover:bg-muted text-foreground font-semibold text-[11px] border border-border transition-colors shadow-2xs cursor-pointer"
               title="Click to auto-assign remaining amount"
             >
-              <span>{remainingMonetary > 0 ? `+${remainingMonetary.toFixed(2)}` : remainingMonetary.toFixed(2)} {currency}</span>
-              <span className="bg-primary text-white text-[8px] px-1 py-0.2 rounded font-black tracking-tighter">AUTO-BALANCE</span>
+              <span className="text-emerald-500 font-bold">{remainingMonetary > 0 ? `+${remainingMonetary.toFixed(2)}` : remainingMonetary.toFixed(2)} {currency}</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('autoBalanceBadge')}</span>
             </button>
           )}
           <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${isValid ? 'bg-success/20 text-success border border-success/30' : 'bg-danger/20 text-danger border border-danger/30'}`}>
@@ -240,6 +243,13 @@ export default function PayerBeneficiarySelector({
           </button>
           <button
             type="button"
+            onClick={() => rebalanceEqual([])}
+            className="px-2 py-1 bg-muted/60 hover:bg-primary/20 hover:text-primary text-foreground font-medium rounded-lg transition-all border border-white/5 text-[11px]"
+          >
+            {t('selectNone')}
+          </button>
+          <button
+            type="button"
             onClick={() => rebalanceEqual(shares.map((s) => s.userId))}
             className="px-2 py-1 bg-muted/60 hover:bg-primary/20 hover:text-primary text-foreground font-medium rounded-lg transition-all border border-white/5 text-[11px]"
           >
@@ -252,7 +262,7 @@ export default function PayerBeneficiarySelector({
               className="px-2 py-1 bg-warning/20 hover:bg-warning/30 text-warning font-medium rounded-lg transition-all border border-warning/30 text-[11px] ml-auto cursor-pointer"
               title="Click to unlock all custom amounts"
             >
-              🔓 Unlock All
+              {t('unlockAllBtn')}
             </button>
           )}
         </div>
@@ -264,18 +274,18 @@ export default function PayerBeneficiarySelector({
           placeholder={t('searchMember')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full themed-input px-3 py-1 text-xs rounded-xl border border-input bg-background mb-1"
+          className="w-full px-3 py-1.5 text-xs rounded-xl themed-input border border-border/40"
         />
       )}
 
       <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
         {filteredMembers.map((member) => {
           const isSelected = selectedUserIds.has(member.id);
+          const isLocked = lockedUserIds.has(member.id);
           const share = shares.find((s) => s.userId === member.id);
           const pct = share ? share.percentage : 0;
           const computedMonetary = totalAmount > 0 ? ((totalAmount * pct) / 100).toFixed(2) : '0.00';
           const displayStr = inputStrs[member.id] !== undefined ? inputStrs[member.id] : computedMonetary;
-          const isLocked = lockedUserIds.has(member.id);
 
           return (
             <div
@@ -308,7 +318,7 @@ export default function PayerBeneficiarySelector({
                       setLockedUserIds(next);
                     }}
                   >
-                    🔒 LOCKED
+                    {t('lockedBadge')}
                   </span>
                 )}
               </div>
@@ -323,6 +333,7 @@ export default function PayerBeneficiarySelector({
                       type="text"
                       inputMode="decimal"
                       value={displayStr}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => handleTextChange(member.id, e.target.value)}
                       onBlur={() => handleBlur(member.id)}
                       className="w-24 themed-input px-2 py-1 text-right font-bold text-xs rounded-lg border border-primary/40 bg-card text-foreground shadow-inner focus:border-primary focus:ring-1 focus:ring-primary"

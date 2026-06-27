@@ -1,9 +1,7 @@
 BEGIN;
 
-UPDATE rooms SET name = 'Euro Trip ✈️', currency = 'EUR' WHERE id = 1;
-UPDATE room_members SET role = 'admin' WHERE room_id = 1 AND user_id = 1;
-
 INSERT INTO users (id, username, password) VALUES
+(1, 'admin', '$2b$10$sDjg75WQPWumEWxd4WoGfepleWdZTibf7O2QG8V3AjB9D45hvOnUu'),
 (2, 'bob', '$2b$10$sDjg75WQPWumEWxd4WoGfepleWdZTibf7O2QG8V3AjB9D45hvOnUu'),
 (3, 'alice', '$2b$10$sDjg75WQPWumEWxd4WoGfepleWdZTibf7O2QG8V3AjB9D45hvOnUu'),
 (4, 'charlie', '$2b$10$sDjg75WQPWumEWxd4WoGfepleWdZTibf7O2QG8V3AjB9D45hvOnUu'),
@@ -12,7 +10,14 @@ ON CONFLICT (id) DO NOTHING;
 
 SELECT pg_catalog.setval('users_id_seq', 5, true);
 
+INSERT INTO rooms (id, code, creator_id, name, currency) VALUES
+(1, 'J990GT', 1, 'Euro Trip ✈️', 'EUR')
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, currency = EXCLUDED.currency;
+
+SELECT pg_catalog.setval('rooms_id_seq', 1, true);
+
 INSERT INTO room_members (user_id, room_id, role) VALUES
+(1, 1, 'admin'),
 (2, 1, 'active'),
 (3, 1, 'active'),
 (4, 1, 'passive'),

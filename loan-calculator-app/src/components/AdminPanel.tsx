@@ -54,15 +54,12 @@ export default function AdminPanel({
     setSuccess('');
 
     try {
-      const res = await handleApi({
+      await handleApi({
         url: `/api/rooms/${roomId}`,
         method: 'PUT',
         body: { name: editName, currency: editCurrency },
       });
 
-      if (!res || !res.ok) {
-        throw new Error('Failed to update room settings');
-      }
       setSuccess('Room settings updated successfully!');
       onRefresh();
     } catch (err: unknown) {
@@ -76,16 +73,11 @@ export default function AdminPanel({
     setError('');
     setSuccess('');
     try {
-      const res = await handleApi({
+      await handleApi({
         url: `/api/rooms/${roomId}/members/${memberId}`,
         method: 'PUT',
         body: { role: newRole },
       });
-
-      if (!res || !res.ok) {
-        const data = res && res.json ? await res.json() : {};
-        throw new Error(data.message || 'Failed to update role');
-      }
 
       setSuccess('Role updated successfully!');
       onRefresh();
