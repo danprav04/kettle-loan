@@ -320,6 +320,7 @@ export default function BalanceDetailsPage() {
                         onClick={handleSetDefaultView}
                         className="p-1.5 text-muted-foreground hover:text-amber-400 bg-card border border-border rounded-lg transition-colors"
                         title="Set current view as default"
+                        style={{ display: 'none' }}
                     >
                         <FiStar className={defaultViewSaved ? 'fill-amber-400 text-amber-400' : ''} />
                     </button>
