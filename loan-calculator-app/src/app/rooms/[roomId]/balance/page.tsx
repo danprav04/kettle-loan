@@ -8,7 +8,7 @@ import { useSync } from '@/components/SyncProvider';
 import { getRoomData, Entry, addLocalEntry } from '@/lib/offline-sync';
 import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
-import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign } from 'react-icons/fi';
+import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign, FiArrowDownLeft, FiArrowUpRight, FiCheckCircle, FiUsers, FiActivity } from 'react-icons/fi';
 
 interface Member {
     id: number;
@@ -265,15 +265,13 @@ export default function BalanceDetailsPage() {
     const getBalanceText = (balance: number, targetMemberName: string) => {
         const absBalance = Math.abs(balance);
         const isSelf = activePerspectiveUserId === user?.userId;
-        const perspMember = members.find(m => m.id === activePerspectiveUserId);
-        const perspName = perspMember ? perspMember.username : '';
 
         if (balance > 0.005) {
             return {
                 text: isSelf
                     ? t('owesYou', { amount: absBalance.toFixed(2), currency })
                     : t('owesMember', { member: targetMemberName, amount: absBalance.toFixed(2), currency }),
-                color: 'text-success'
+                color: 'text-success bg-success/15 border-success/30'
             };
         }
         if (balance < -0.005) {
@@ -281,34 +279,34 @@ export default function BalanceDetailsPage() {
                 text: isSelf
                     ? t('youOwe', { amount: absBalance.toFixed(2), currency })
                     : t('memberOwes', { member: targetMemberName, amount: absBalance.toFixed(2), currency }),
-                color: 'text-danger'
+                color: 'text-danger bg-danger/15 border-danger/30'
             };
         }
-        return { text: t('settledUp'), color: 'text-muted-foreground' };
+        return { text: t('settledUp'), color: 'text-muted-foreground bg-muted/50 border-card-border' };
     };
 
     return (
         <div className="max-w-4xl mx-auto animate-scaleIn flex flex-col h-full space-y-4">
             <div className="shrink-0 flex items-center justify-between flex-wrap gap-2">
-                <button onClick={() => router.back()} className="font-bold py-2 px-4 rounded-lg btn-primary text-xs sm:text-sm">
+                <button onClick={() => router.back()} className="font-bold py-2 px-4 rounded-lg btn-primary text-xs sm:text-sm shadow-sm transition-all active:scale-95">
                     {t('backToRoom')}
                 </button>
 
                 {/* View Switcher & Default Saver */}
                 <div className="flex items-center gap-2">
-                    <div className="bg-muted p-1 rounded-lg flex items-center">
+                    <div className="bg-card p-1 rounded-xl border border-card-border shadow-sm flex items-center">
                         <button
                             onClick={() => setViewMode('balance')}
-                            className={`px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                viewMode === 'balance' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                viewMode === 'balance' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                             }`}
                         >
                             <FiDollarSign /> {t('balanceBreakdown')}
                         </button>
                         <button
                             onClick={() => setViewMode('history')}
-                            className={`px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                viewMode === 'history' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                viewMode === 'history' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                             }`}
                             style={{ display: 'none' }}
                         >
@@ -318,9 +316,8 @@ export default function BalanceDetailsPage() {
 
                     <button
                         onClick={handleSetDefaultView}
-                        className="p-1.5 text-muted-foreground hover:text-amber-400 bg-card border border-border rounded-lg transition-colors"
+                        className="p-2 text-muted-foreground hover:text-amber-400 bg-card border border-card-border rounded-xl shadow-sm transition-colors"
                         title="Set current view as default"
-                        style={{ display: 'none' }}
                     >
                         <FiStar className={defaultViewSaved ? 'fill-amber-400 text-amber-400' : ''} />
                     </button>
@@ -328,21 +325,21 @@ export default function BalanceDetailsPage() {
             </div>
 
             {defaultViewSaved && (
-                <div className="p-2 text-xs bg-success/20 text-success border border-success/40 rounded-lg text-center">
+                <div className="p-2.5 text-xs font-bold bg-success/15 text-success border border-success/30 rounded-xl text-center shadow-sm animate-fadeIn">
                     ✓ Preferred view saved as default for this room!
                 </div>
             )}
 
             {/* Dynamic Filter Bar */}
-            <div className="bg-card p-3 rounded-xl border border-border shadow-sm flex items-center justify-between gap-3 flex-wrap">
+            <div className="bg-card/80 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl border border-card-border shadow-sm flex items-center justify-between gap-3 flex-wrap">
                 <div className="relative flex-1 min-w-[200px]">
-                    <FiSearch className="absolute left-3 top-2.5 text-muted-foreground text-sm" />
+                    <FiSearch className="absolute left-3.5 top-2.5 text-muted-foreground text-sm" />
                     <input
                         type="text"
                         placeholder={t('searchFilterPlaceholder')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full themed-input pl-9 pr-3 py-1.5 text-xs rounded-lg border border-input bg-background"
+                        className="w-full themed-input pl-9 pr-3 py-1.5 text-xs rounded-xl border border-input bg-background/80 transition-all focus:ring-1 focus:ring-primary"
                     />
                 </div>
 
@@ -351,8 +348,8 @@ export default function BalanceDetailsPage() {
                         <button
                             key={type}
                             onClick={() => setFilterType(type)}
-                            className={`text-[11px] px-2.5 py-1 rounded-lg uppercase font-bold tracking-wider transition-colors border ${
-                                filterType === type ? 'bg-primary/20 text-primary border-primary/30' : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                            className={`text-[11px] px-3 py-1.5 rounded-xl uppercase font-extrabold tracking-wider transition-all border ${
+                                filterType === type ? 'bg-primary/15 text-primary border-primary/40 shadow-sm' : 'bg-background hover:bg-muted text-muted-foreground border-card-border'
                             }`}
                         >
                             {type === 'all' ? t('filterAll') : (type === 'expense' ? t('filterExpense') : (type === 'loan' ? t('filterLoan') : t('filterSettlement')))}
@@ -362,7 +359,7 @@ export default function BalanceDetailsPage() {
                     {(searchQuery || filterType !== 'all') && (
                         <button
                             onClick={handleQuickReset}
-                            className="p-1.5 text-xs text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-lg flex items-center gap-1 ml-1"
+                            className="p-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-xl flex items-center gap-1.5 ml-1 font-semibold transition-colors"
                             title="Quick Reset Filters"
                         >
                             <FiRotateCcw /> <span className="hidden sm:inline">{t('resetFilters')}</span>
@@ -372,21 +369,28 @@ export default function BalanceDetailsPage() {
             </div>
 
             {/* Content Container */}
-            <div className="bg-card shadow-md rounded-xl border border-card-border flex flex-col flex-grow overflow-hidden max-h-[70vh]">
-                <div className="p-4 border-b border-card-border shrink-0 flex items-center justify-between flex-wrap gap-2">
-                    <h1 className="text-lg font-bold text-card-foreground">
-                        {viewMode === 'balance' ? t('peerBalancesTitle') : `${t('activityHistoryTab')} (${filteredHistory.length})`}
-                    </h1>
+            <div className="bg-card/95 backdrop-blur-md shadow-xl rounded-2xl border border-card-border flex flex-col flex-grow overflow-hidden max-h-[75vh]">
+                <div className="p-4 sm:p-5 border-b border-card-border bg-muted/20 shrink-0 flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-sm shrink-0">
+                            {viewMode === 'balance' ? <FiUsers className="w-5 h-5" /> : <FiActivity className="w-5 h-5" />}
+                        </div>
+                        <div>
+                            <h1 className="text-base sm:text-lg font-extrabold text-card-foreground tracking-tight">
+                                {viewMode === 'balance' ? t('peerBalancesTitle') : `${t('activityHistoryTab')} (${filteredHistory.length})`}
+                            </h1>
+                        </div>
+                    </div>
                     {viewMode === 'balance' && members.length > 1 && (
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('perspectiveLabel')}:</span>
+                        <div className="flex items-center gap-2 bg-background px-3 py-1.5 rounded-xl border border-card-border shadow-sm">
+                            <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider shrink-0">{t('perspectiveLabel')}:</span>
                             <select
                                 value={activePerspectiveUserId}
                                 onChange={(e) => setPerspectiveUserId(parseInt(e.target.value))}
-                                className="themed-input text-xs font-bold px-2.5 py-1 rounded-lg border border-primary/40 bg-card text-foreground cursor-pointer shadow-sm focus:ring-1 focus:ring-primary"
+                                className="text-xs font-bold bg-transparent text-foreground cursor-pointer focus:outline-none border-none pr-1"
                             >
                                 {members.filter(m => m.role !== 'observer').map(m => (
-                                    <option key={m.id} value={m.id}>
+                                    <option key={m.id} value={m.id} className="bg-card text-foreground font-semibold">
                                         {m.username} {m.id === user?.userId ? `(${t('me')})` : ''}
                                     </option>
                                 ))}
@@ -397,13 +401,19 @@ export default function BalanceDetailsPage() {
 
                 <div className="overflow-y-auto flex-grow">
                     {isLoading ? (
-                        <p className="p-8 text-center text-muted-foreground text-xs">{t('loadingData')}</p>
+                        <div className="p-16 text-center flex flex-col items-center justify-center gap-3">
+                            <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                            <p className="text-muted-foreground text-xs font-semibold">{t('loadingData')}</p>
+                        </div>
                     ) : viewMode === 'balance' ? (
                         /* BALANCE TAB */
                         otherMembers.length === 0 ? (
-                            <p className="p-8 text-center text-muted-foreground text-xs">{t('noOtherMembers')}</p>
+                            <div className="p-16 text-center flex flex-col items-center justify-center gap-2">
+                                <FiUsers className="w-8 h-8 text-muted-foreground/40" />
+                                <p className="text-muted-foreground text-xs font-medium">{t('noOtherMembers')}</p>
+                            </div>
                         ) : (
-                            <ul>
+                            <ul className="divide-y divide-card-border/60">
                                 {otherMembers.map((member) => {
                                     const p2pData = peerToPeerBalances.get(member.id);
                                     const netBalance = p2pData?.netBalance ?? 0;
@@ -411,51 +421,101 @@ export default function BalanceDetailsPage() {
                                     const isExpanded = expandedMemberId === member.id;
 
                                     return (
-                                        <li key={member.id} className="border-b border-card-border last:border-b-0 animate-fadeIn">
+                                        <li key={member.id} className="transition-colors animate-fadeIn">
                                             <button 
                                                 onClick={() => setExpandedMemberId(isExpanded ? null : member.id)}
-                                                className="w-full text-left p-4 flex justify-between items-center hover:bg-muted/50 transition-colors"
+                                                className={`w-full text-left p-4 sm:p-5 flex justify-between items-center transition-all ${
+                                                    isExpanded ? 'bg-muted/40' : 'hover:bg-muted/30'
+                                                }`}
                                             >
-                                                <span className="font-semibold text-card-foreground text-sm">{member.username}</span>
-                                                <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                                                    <span className={`text-xs font-bold ${balanceInfo.color}`}>{balanceInfo.text}</span>
-                                                    <FiChevronDown className={`text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                                <div className="flex items-center gap-3.5 min-w-0 pr-2">
+                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 flex items-center justify-center font-bold text-primary text-sm shadow-sm shrink-0">
+                                                        {member.username.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <span className="font-bold text-card-foreground text-sm sm:text-base tracking-tight block truncate">
+                                                            {member.username}
+                                                        </span>
+                                                        {member.role && (
+                                                            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                                                {member.role}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2.5 shrink-0">
+                                                    <span className={`text-xs font-bold px-3 py-1 rounded-full border shadow-sm ${balanceInfo.color}`}>
+                                                        {balanceInfo.text}
+                                                    </span>
+                                                    <div className={`p-1.5 rounded-full bg-muted text-muted-foreground transition-transform duration-300 ${isExpanded ? 'rotate-180 bg-primary/20 text-primary' : ''}`}>
+                                                        <FiChevronDown className="w-4 h-4" />
+                                                    </div>
                                                 </div>
                                             </button>
                                             {isExpanded && (
-                                                <div className="bg-muted/30 px-4 py-3 animate-fadeIn border-t border-border/50">
+                                                <div className="bg-muted/20 px-4 sm:px-6 pt-2 pb-5 animate-fadeIn border-t border-card-border/60">
                                                     {netBalance < -0.005 && activePerspectiveUserId === user?.userId && (
-                                                        <div className="mb-4 flex justify-end">
+                                                        <div className="my-4 p-4 rounded-xl bg-gradient-to-r from-success/20 via-success/10 to-transparent border border-success/40 flex items-center justify-between flex-wrap gap-3 shadow-sm">
+                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                <div className="p-2.5 rounded-xl bg-success text-success-foreground shrink-0 shadow-sm">
+                                                                    <FiCheckCircle className="w-5 h-5" />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-xs sm:text-sm font-extrabold text-foreground tracking-tight truncate">Outstanding debt</p>
+                                                                    <p className="text-[11px] text-muted-foreground truncate">Record a repayment to settle outstanding debts with {member.username}</p>
+                                                                </div>
+                                                            </div>
                                                             <button 
                                                                 onClick={() => handleSettleUp(member.id, Math.abs(netBalance))}
-                                                                className="bg-success text-success-foreground hover:bg-success/90 py-1 px-3 rounded text-xs font-bold transition-colors shadow-sm"
+                                                                className="bg-success text-success-foreground hover:opacity-90 py-2 px-4 rounded-xl text-xs font-extrabold tracking-wide transition-all shadow-md active:scale-95 flex items-center gap-1.5 shrink-0"
                                                             >
-                                                                {t('settleUpBtn', { amount: Math.abs(netBalance).toFixed(2), currency })}
+                                                                <FiDollarSign className="w-3.5 h-3.5" />
+                                                                <span>{t('settleUpBtn', { amount: Math.abs(netBalance).toFixed(2), currency })}</span>
                                                             </button>
                                                         </div>
                                                     )}
                                                     {p2pData?.transactions && p2pData.transactions.length > 0 ? (
-                                                        <ul className="space-y-2">
-                                                            {p2pData.transactions.map((tx, index) => (
-                                                                <li key={`${tx.id}-${index}`} className="flex justify-between items-center text-xs p-2 bg-background rounded border border-border/40">
-                                                                    <div>
-                                                                        <p className="font-semibold text-foreground">{tx.description}</p>
-                                                                        <p className="text-[10px] text-muted-foreground">
-                                                                            {tx.username} &bull; {new Date(tx.created_at).toLocaleString()}
-                                                                        </p>
-                                                                    </div>
-                                                                    <div className="flex items-center space-x-4 shrink-0">
-                                                                        <div className="text-right">
-                                                                            <div className={`font-bold ${tx.contribution >= 0 ? 'text-success' : 'text-danger'}`}>
-                                                                                {tx.contribution >= 0 ? '+' : ''}{tx.contribution.toFixed(2)} {currency}
+                                                        <div className="mt-3 space-y-2">
+                                                            <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1 pb-1">
+                                                                <span className="flex items-center gap-1.5">
+                                                                    <FiClock className="w-3.5 h-3.5" /> Mutual Activity Log
+                                                                </span>
+                                                                <span>Net Impact</span>
+                                                            </div>
+                                                            <div className="divide-y divide-card-border/60 bg-card/60 rounded-xl border border-card-border overflow-hidden shadow-sm">
+                                                                {p2pData.transactions.map((tx, index) => {
+                                                                    const isPositive = tx.contribution >= 0;
+                                                                    return (
+                                                                        <div key={`${tx.id}-${index}`} className="p-3 sm:p-3.5 flex items-center justify-between gap-3 hover:bg-muted/40 transition-colors">
+                                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                                <div className={`p-2 rounded-lg shrink-0 ${
+                                                                                    isPositive ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'
+                                                                                }`}>
+                                                                                    {isPositive ? <FiArrowDownLeft className="w-4 h-4" /> : <FiArrowUpRight className="w-4 h-4" />}
+                                                                                </div>
+                                                                                <div className="min-w-0">
+                                                                                    <p className="font-semibold text-foreground text-xs sm:text-sm truncate">{tx.description}</p>
+                                                                                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                                                                        {tx.username} &bull; {new Date(tx.created_at).toLocaleString()}
+                                                                                    </p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="text-right shrink-0">
+                                                                                <span className={`text-xs sm:text-sm font-bold font-mono px-2 py-1 rounded ${
+                                                                                    isPositive ? 'text-success bg-success/10' : 'text-danger bg-danger/10'
+                                                                                }`}>
+                                                                                    {isPositive ? '+' : ''}{tx.contribution.toFixed(2)} {currency}
+                                                                                </span>
                                                                             </div>
                                                                         </div>
-                                                                    </div>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
                                                     ) : (
-                                                        <p className="text-xs text-muted-foreground italic text-center py-2">No mutual transactions.</p>
+                                                        <div className="py-8 text-center bg-background/40 rounded-xl border border-dashed border-card-border mt-3">
+                                                            <p className="text-xs text-muted-foreground italic">No mutual transactions recorded yet.</p>
+                                                        </div>
                                                     )}
                                                 </div>
                                             )}
@@ -467,22 +527,38 @@ export default function BalanceDetailsPage() {
                     ) : (
                         /* HISTORY TAB */
                         filteredHistory.length === 0 ? (
-                            <p className="p-8 text-center text-muted-foreground text-xs">No transactions match your search filters.</p>
+                            <div className="p-16 text-center flex flex-col items-center justify-center gap-2">
+                                <FiClock className="w-8 h-8 text-muted-foreground/40" />
+                                <p className="text-muted-foreground text-xs font-medium">No transactions match your search filters.</p>
+                            </div>
                         ) : (
-                            <ul className="divide-y divide-border/60">
-                                {filteredHistory.map(entry => (
-                                    <li key={entry.id} className="p-4 flex justify-between items-center hover:bg-muted/20 transition-colors text-xs">
-                                        <div>
-                                            <p className="font-bold text-foreground text-sm">{entry.description}</p>
-                                            <p className="text-muted-foreground text-[11px] mt-0.5">
-                                                By {entry.username} &bull; {new Date(entry.created_at).toLocaleString()}
-                                            </p>
-                                        </div>
-                                        <div className={`text-sm font-bold ${parseFloat(entry.amount) < 0 ? 'text-danger' : 'text-success'}`}>
-                                            {parseFloat(entry.amount).toFixed(2)} {currency}
-                                        </div>
-                                    </li>
-                                ))}
+                            <ul className="divide-y divide-card-border/60">
+                                {filteredHistory.map(entry => {
+                                    const amt = parseFloat(entry.amount);
+                                    const isNegative = amt < 0;
+                                    return (
+                                        <li key={entry.id} className="p-4 sm:p-5 flex justify-between items-center hover:bg-muted/30 transition-colors gap-3">
+                                            <div className="flex items-center gap-3.5 min-w-0">
+                                                <div className={`p-2.5 rounded-xl shrink-0 ${
+                                                    isNegative ? 'bg-danger/15 text-danger' : 'bg-success/15 text-success'
+                                                }`}>
+                                                    {isNegative ? <FiArrowUpRight className="w-4 h-4" /> : <FiArrowDownLeft className="w-4 h-4" />}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-foreground text-xs sm:text-sm truncate">{entry.description}</p>
+                                                    <p className="text-muted-foreground text-[11px] mt-0.5 truncate">
+                                                        By <span className="font-semibold text-foreground/80">{entry.username}</span> &bull; {new Date(entry.created_at).toLocaleString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className={`text-xs sm:text-sm font-bold font-mono shrink-0 px-2.5 py-1 rounded-lg ${
+                                                isNegative ? 'text-danger bg-danger/10' : 'text-success bg-success/10'
+                                            }`}>
+                                                {isNegative ? '' : '+'}{amt.toFixed(2)} {currency}
+                                            </div>
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         )
                     )}
