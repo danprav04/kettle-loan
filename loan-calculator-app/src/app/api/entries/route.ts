@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { sendRoomNotification } from '@/lib/notifications';
+import { resolveRoomId } from '@/lib/room-resolver';
 
 export async function POST(req: Request) {
     try {
@@ -11,32 +12,53 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const { roomId, amount, description, splitWithUserIds, createdAt } = await req.json();
+        const body = await req.json();
+        const { roomId: rawRoomId, amount, description, splitWithUserIds, payerShares, beneficiaryShares, createdAt } = body;
+        const resolvedId = await resolveRoomId(db, rawRoomId);
+        if (!resolvedId) {
+            return NextResponse.json({ message: 'Room not found' }, { status: 404 });
+        }
 
-        // For expenses, splitWithUserIds will be an array of user IDs.
+        // Verify RBAC permissions
+        const memberRes = await db.query(
+            'SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2',
+            [resolvedId, user.userId]
+        );
+
+        if (memberRes.rows.length === 0) {
+            return NextResponse.json({ message: 'Forbidden: Not in room' }, { status: 403 });
+        }
+
+        const userRole = memberRes.rows[0].role;
+        if (userRole === 'observer' || userRole === 'passive') {
+            return NextResponse.json({
+                message: 'Forbidden: Observers and Passive members cannot log entries.'
+            }, { status: 403 });
+        }
+
         const finalSplitWith = Array.isArray(splitWithUserIds) ? JSON.stringify(splitWithUserIds) : null;
-        
-        // Use the client-provided timestamp if available, otherwise use the current time.
+        const finalPayerShares = Array.isArray(payerShares) ? JSON.stringify(payerShares) : null;
+        const finalBeneficiaryShares = Array.isArray(beneficiaryShares) ? JSON.stringify(beneficiaryShares) : null;
+        const createdByUserId = user.userId;
+        const legacyUserId = (Array.isArray(payerShares) && payerShares.length > 0) ? payerShares[0].userId : user.userId;
         const finalCreatedAt = createdAt ? new Date(createdAt) : new Date();
 
         await db.query(
-            'INSERT INTO entries (room_id, user_id, amount, description, split_with_user_ids, created_at) VALUES ($1, $2, $3, $4, $5, $6)',
-            [roomId, user.userId, amount, description, finalSplitWith, finalCreatedAt.toISOString()]
+            'INSERT INTO entries (room_id, user_id, amount, description, split_with_user_ids, payer_shares, beneficiary_shares, created_by_user_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+            [resolvedId, legacyUserId, amount, description, finalSplitWith, finalPayerShares, finalBeneficiaryShares, createdByUserId, finalCreatedAt.toISOString()]
         );
 
-        // Send Push Notification with localized messages
         const numAmount = parseFloat(amount);
         const isExpense = numAmount > 0;
         const formattedAmount = Math.abs(numAmount).toFixed(2);
         
-        // Trigger non-blocking notification
-        sendRoomNotification(roomId, user.userId, {
+        sendRoomNotification(String(resolvedId), user.userId, {
             type: 'newEntry',
             username: user.username,
             description,
             amount: formattedAmount,
             isExpense,
-            url: `/rooms/${roomId}`
+            url: `/rooms/${rawRoomId}`
         });
 
         return NextResponse.json({ message: 'Entry added successfully' });

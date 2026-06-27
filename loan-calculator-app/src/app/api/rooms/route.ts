@@ -34,11 +34,12 @@ export async function POST(req: Request) {
             }
             const roomId = roomResult.rows[0].id;
 
-            await db.query('INSERT INTO room_members (user_id, room_id) VALUES ($1, $2) ON CONFLICT (user_id, room_id) DO NOTHING', [user.userId, roomId]);
+            await db.query('INSERT INTO room_members (user_id, room_id, role) VALUES ($1, $2, \'active\') ON CONFLICT (user_id, room_id) DO NOTHING', [user.userId, roomId]);
             return NextResponse.json({ roomId });
 
         } else {
             // Intent is to CREATE a new room.
+            const currency = typeof body.currency === 'string' && body.currency.trim() ? body.currency.trim() : 'ILS';
             const MAX_RETRIES = 5;
             for (let i = 0; i < MAX_RETRIES; i++) {
                 const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -46,13 +47,13 @@ export async function POST(req: Request) {
                 try {
                     await client.query('BEGIN');
                     const roomResult = await client.query(
-                        'INSERT INTO rooms (code, creator_id) VALUES ($1, $2) RETURNING id',
-                        [newCode, user.userId]
+                        'INSERT INTO rooms (code, creator_id, currency) VALUES ($1, $2, $3) RETURNING id',
+                        [newCode, user.userId, currency]
                     );
                     const roomId = roomResult.rows[0].id;
 
                     await client.query(
-                        'INSERT INTO room_members (user_id, room_id) VALUES ($1, $2)',
+                        'INSERT INTO room_members (user_id, room_id, role) VALUES ($1, $2, \'admin\')',
                         [user.userId, roomId]
                     );
 

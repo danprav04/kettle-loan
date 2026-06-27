@@ -1,14 +1,15 @@
 // src/app/layout.tsx
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import IntlProvider from "@/components/IntlProvider";
 import ThemeProvider from "@/components/ThemeProvider";
 import SimplifiedLayoutProvider from "@/components/SimplifiedLayoutProvider";
 import SyncProvider from "@/components/SyncProvider";
-import UserProvider from "@/components/UserProvider"; // Import UserProvider
+import UserProvider from "@/components/UserProvider";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta" });
 
 export const metadata: Metadata = {
   title: "Loan Calculator",
@@ -43,7 +44,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Explicit PWA-related meta tags for robustness */}
         <meta name="application-name" content="LoanCalc" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -52,7 +52,7 @@ export default function RootLayout({
         <meta name="msapplication-tap-highlight" content="no" />
         <meta name="theme-color" content="#3b82f6" />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${jakarta.variable} font-sans antialiased text-foreground bg-background selection:bg-primary/20 selection:text-primary`}>
         <ThemeProvider>
           <IntlProvider>
             <UserProvider>

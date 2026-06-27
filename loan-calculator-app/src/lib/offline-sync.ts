@@ -2,12 +2,11 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'loan-calculator-db';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const OUTBOX_STORE = 'outbox';
 const ROOM_DATA_STORE = 'room-data';
 const ROOMS_LIST_STORE = 'rooms-list';
 
-// --- Type Definitions ---
 type HttpMethod = 'POST' | 'DELETE' | 'PUT';
 
 interface OutboxRequest {
@@ -22,6 +21,12 @@ interface OutboxRequest {
 interface Member {
     id: number;
     username: string;
+    role?: string;
+}
+
+interface Share {
+    userId: number;
+    percentage: number;
 }
 
 export interface Entry {
@@ -32,6 +37,9 @@ export interface Entry {
     username: string;
     user_id: number;
     split_with_user_ids: number[] | null;
+    payer_shares?: Share[] | null;
+    beneficiary_shares?: Share[] | null;
+    created_by_user_id?: number | null;
     offline_timestamp?: number;
 }
 
@@ -39,6 +47,8 @@ export interface LocalRoomData {
     id: string;
     name: string | null;
     code: string;
+    currency?: string;
+    currentUserRole?: string;
     entries: Entry[];
     balances: { [key: string]: number };
     currentUserBalance: number;
@@ -89,7 +99,6 @@ function getDb(): Promise<IDBPDatabase<OfflineDB>> {
     return dbPromise;
 }
 
-// --- Outbox & Sync Functions ---
 export async function addToOutbox(request: Omit<OutboxRequest, 'id' | 'timestamp'> & { body?: Record<string, unknown> }) {
     const db = await getDb();
     const outboxRequest: OutboxRequest = {
@@ -141,22 +150,36 @@ export async function getOutboxCount(): Promise<number> {
     return db.count(OUTBOX_STORE);
 }
 
-
-// --- Local Data Management ---
-
 const recalculateBalances = (entries: Entry[], members: Member[], currentUserId: number) => {
     const finalBalances: { [key: string]: number } = {};
     members.forEach(member => { finalBalances[member.id] = 0; });
 
+    const calcMembers = members.filter(m => m.role !== 'observer');
+
     entries.forEach(entry => {
         const amount = parseFloat(entry.amount);
+
+        if (entry.payer_shares && entry.beneficiary_shares && Array.isArray(entry.payer_shares) && Array.isArray(entry.beneficiary_shares)) {
+            entry.payer_shares.forEach(p => {
+                if (finalBalances[p.userId] !== undefined) {
+                    finalBalances[p.userId] += amount * (p.percentage / 100);
+                }
+            });
+            entry.beneficiary_shares.forEach(b => {
+                if (finalBalances[b.userId] !== undefined) {
+                    finalBalances[b.userId] -= amount * (b.percentage / 100);
+                }
+            });
+            return;
+        }
+
         const payerId = entry.user_id;
 
         if (amount > 0) { // Expense
             const participants = entry.split_with_user_ids;
             if (!participants || participants.length === 0) {
-                const share = amount / members.length;
-                members.forEach(member => {
+                const share = amount / (calcMembers.length || 1);
+                calcMembers.forEach(member => {
                     if (member.id === payerId) {
                         finalBalances[member.id] += (amount - share);
                     } else {
@@ -180,8 +203,8 @@ const recalculateBalances = (entries: Entry[], members: Member[], currentUserId:
 
             const participants = entry.split_with_user_ids;
             const lenders = participants && participants.length > 0 
-                ? members.filter(m => participants.includes(m.id))
-                : members.filter(m => m.id !== borrowerId);
+                ? calcMembers.filter(m => participants.includes(m.id))
+                : calcMembers.filter(m => m.id !== borrowerId);
 
             if (lenders.length > 0) {
                 const creditPerLender = loanAmount / lenders.length;
@@ -204,7 +227,6 @@ const recalculateBalances = (entries: Entry[], members: Member[], currentUserId:
 
     return { currentUserBalance, balances: otherUserBalances };
 };
-
 
 export async function saveRoomsList(rooms: LocalRoomListItem[]) {
     const db = await getDb();

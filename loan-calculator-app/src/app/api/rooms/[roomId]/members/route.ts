@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
+import { resolveRoomId } from '@/lib/room-resolver';
 
 export async function DELETE(
     req: NextRequest,
@@ -14,18 +15,17 @@ export async function DELETE(
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const { roomId } = await params;
-
-        if (!roomId || isNaN(parseInt(roomId, 10))) {
+        const { roomId: rawRoomId } = await params;
+        const resolvedId = await resolveRoomId(db, rawRoomId);
+        if (!resolvedId) {
             return NextResponse.json({ message: 'Invalid Room ID' }, { status: 400 });
         }
-        const numericRoomId = parseInt(roomId, 10);
         
         await client.query('BEGIN');
 
         const deleteResult = await client.query(
             'DELETE FROM room_members WHERE user_id = $1 AND room_id = $2',
-            [user.userId, numericRoomId]
+            [user.userId, resolvedId]
         );
 
         if (deleteResult.rowCount === 0) {
@@ -35,16 +35,16 @@ export async function DELETE(
 
         await client.query(
             'UPDATE rooms SET creator_id = NULL WHERE id = $1 AND creator_id = $2',
-            [numericRoomId, user.userId]
+            [resolvedId, user.userId]
         );
 
         const membersResult = await client.query(
             'SELECT 1 FROM room_members WHERE room_id = $1 LIMIT 1',
-            [numericRoomId]
+            [resolvedId]
         );
 
         if (membersResult.rows.length === 0) {
-            await client.query('DELETE FROM rooms WHERE id = $1', [numericRoomId]);
+            await client.query('DELETE FROM rooms WHERE id = $1', [resolvedId]);
         }
         
         await client.query('COMMIT');

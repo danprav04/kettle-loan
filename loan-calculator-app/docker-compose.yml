@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: loan_app_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: test
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./dstabse-schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: "BBP2WoLz_uq0qyfcoEbthsSzzCWYww-CLJ-WVtaIe6x7SK3KcPOK6ZQ9pIQEDjSNoaC2uza_iuFNSieql3h-sTA"
+    container_name: loan_app_web
+    environment:
+      POSTGRES_URL: "postgres://postgres:123@postgres:5432/test"
+      JWT_SECRET: "your-super-secret-and-long-jwt-key"
+      VAPID_PRIVATE_KEY: "pbWk1HDg8nfa3SRbybg6qtYd4ZFblFNlHzrYEEyqKJ8"
+      VAPID_SUBJECT: "mailto:contact@danprav.me"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
