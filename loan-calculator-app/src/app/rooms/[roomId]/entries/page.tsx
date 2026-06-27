@@ -332,7 +332,7 @@ export default function EntriesPage() {
                                                 <div className={`text-sm font-semibold ${entry.runningBalance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                                     {entry.runningBalance.toFixed(2)} {currency}
                                                 </div>
-                                                <div className="text-[10px] text-muted-foreground uppercase">My Balance</div>
+                                                <div className="text-[10px] text-muted-foreground uppercase">{t('myBalance')}</div>
                                             </div>
 
                                             {typeof entry.id === 'number' && (
@@ -340,7 +340,7 @@ export default function EntriesPage() {
                                                     <button
                                                         onClick={() => setEntryForHistory(entry.id)}
                                                         className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
-                                                        title="View edit history"
+                                                        title={t('viewEditHistory')}
                                                     >
                                                         <FiClock size={16} />
                                                     </button>
@@ -349,7 +349,7 @@ export default function EntriesPage() {
                                                             <button
                                                                 onClick={() => setEntryToEdit(entry)}
                                                                 className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
-                                                                title="Edit entry"
+                                                                title={t('editEntry')}
                                                             >
                                                                 <FiEdit3 size={16} />
                                                             </button>

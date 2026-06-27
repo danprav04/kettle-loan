@@ -310,6 +310,7 @@ export default function BalanceDetailsPage() {
                             className={`px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
                                 viewMode === 'history' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                             }`}
+                            style={{ display: 'none' }}
                         >
                             <FiClock /> {t('activityHistoryTab')}
                         </button>

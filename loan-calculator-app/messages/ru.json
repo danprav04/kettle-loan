@@ -34,6 +34,9 @@
   },
   "Room": {
     "balanceTitle": "Баланс",
+    "myBalance": "Мой баланс",
+    "viewEditHistory": "Посмотреть историю изменений",
+    "editEntry": "Редактировать запись",
     "newEntryTitle": "Новая запись",
     "simplifiedNewEntryTitle": "Записать новый долг",
     "detailed": "Подробно",

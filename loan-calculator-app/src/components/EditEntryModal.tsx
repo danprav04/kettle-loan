@@ -48,57 +48,63 @@ export default function EditEntryModal({
       setAmount(Math.abs(parseFloat(entry.amount) || 0).toString());
       setDescription(entry.description || '');
 
-      const isExp = parseFloat(entry.amount) >= 0;
-      if (isExp) {
-        setIsMultiParty(true);
+      setIsMultiParty(true);
 
-        if (Array.isArray(entry.payer_shares) && entry.payer_shares.length > 0) {
-          setPayerShares(entry.payer_shares.map((s) => ({
-            userId: (s as unknown as Record<string, number>).user_id || s.userId,
-            percentage: Number(s.percentage) || 0,
-          })));
-        } else {
-          setPayerShares([{ userId: entry.user_id, percentage: 100 }]);
-        }
+      if (Array.isArray(entry.payer_shares) && entry.payer_shares.length > 0) {
+        setPayerShares(entry.payer_shares.map((s) => ({
+          userId: (s as unknown as Record<string, number>).user_id || s.userId,
+          percentage: Number(s.percentage) || 0,
+        })));
+      } else {
+        setPayerShares([{ userId: entry.user_id, percentage: 100 }]);
+      }
 
-        if (Array.isArray(entry.beneficiary_shares) && entry.beneficiary_shares.length > 0) {
-          setBeneficiaryShares(entry.beneficiary_shares.map((s) => ({
-            userId: (s as unknown as Record<string, number>).user_id || s.userId,
-            percentage: Number(s.percentage) || 0,
-          })));
-        } else if (Array.isArray(entry.split_with_user_ids) && entry.split_with_user_ids.length > 0) {
-          const ids = entry.split_with_user_ids;
-          const count = ids.length + 1; // including creator/payer
-          const pct = Math.floor((100 / count) * 100) / 100;
-          const rem = Math.round((100 - pct * count) * 100) / 100;
-          const bShares: ShareItem[] = [
-            { userId: entry.user_id, percentage: Math.round((pct + rem) * 100) / 100 },
-            ...ids.map((id) => ({ userId: id, percentage: pct })),
-          ];
-          setBeneficiaryShares(bShares);
-          setSelectedMemberIds(new Set(ids));
-          setIncludeSelf(true);
-        } else {
-          const eligible = members.filter((m) => m.role !== 'observer');
-          const count = eligible.length || 1;
-          const pct = Math.floor((100 / count) * 100) / 100;
-          const rem = Math.round((100 - pct * count) * 100) / 100;
-          setBeneficiaryShares(eligible.map((m, idx) => ({
-            userId: m.id,
-            percentage: idx === 0 ? Math.round((pct + rem) * 100) / 100 : pct,
-          })));
-          setSelectedMemberIds(new Set(eligible.filter((m) => m.id !== entry.user_id).map((m) => m.id)));
-          setIncludeSelf(true);
-        }
+      if (Array.isArray(entry.beneficiary_shares) && entry.beneficiary_shares.length > 0) {
+        setBeneficiaryShares(entry.beneficiary_shares.map((s) => ({
+          userId: (s as unknown as Record<string, number>).user_id || s.userId,
+          percentage: Number(s.percentage) || 0,
+        })));
+      } else if (Array.isArray(entry.split_with_user_ids) && entry.split_with_user_ids.length > 0) {
+        const ids = entry.split_with_user_ids;
+        const payerId = entry.user_id;
+        const isPos = parseFloat(entry.amount) >= 0;
+        const hasSelf = isPos && ids.includes(payerId);
+        const splitOnly = isPos ? ids.filter((id) => id !== payerId) : ids;
+        const allPartIds = hasSelf ? [payerId, ...splitOnly] : splitOnly;
+        const count = allPartIds.length || 1;
+        const pct = Math.floor((100 / count) * 100) / 100;
+        const rem = Math.round((100 - pct * count) * 100) / 100;
+        const bShares: ShareItem[] = allPartIds.map((id, idx) => ({
+          userId: id,
+          percentage: idx === 0 ? Math.round((pct + rem) * 100) / 100 : pct,
+        }));
+        setBeneficiaryShares(bShares);
+        setSelectedMemberIds(new Set(splitOnly));
+        setIncludeSelf(hasSelf);
+      } else {
+        const eligible = members.filter((m) => m.role !== 'observer');
+        const payerId = entry.user_id;
+        const isPos = parseFloat(entry.amount) >= 0;
+        const splitOnly = eligible.filter((m) => m.id !== payerId).map((m) => m.id);
+        const allPartIds = isPos ? [payerId, ...splitOnly] : splitOnly;
+        const count = allPartIds.length || 1;
+        const pct = Math.floor((100 / count) * 100) / 100;
+        const rem = Math.round((100 - pct * count) * 100) / 100;
+        setBeneficiaryShares(allPartIds.map((id, idx) => ({
+          userId: id,
+          percentage: idx === 0 ? Math.round((pct + rem) * 100) / 100 : pct,
+        })));
+        setSelectedMemberIds(new Set(splitOnly));
+        setIncludeSelf(isPos);
       }
     }
   }, [entry, members]);
 
   if (!isOpen || !entry) return null;
 
-  const isExpense = parseFloat(entry.amount) >= 0;
+  const isPositive = parseFloat(entry.amount) >= 0;
   const numAmount = parseFloat(amount) || 0;
-  const finalAmount = isExpense ? numAmount : -numAmount;
+  const finalAmount = isPositive ? numAmount : -numAmount;
 
   const eligibleMembers = members.filter((m) => m.role !== 'observer');
   const otherMembers = eligibleMembers.filter((m) => m.id !== (currentUserId || entry.user_id));
@@ -120,31 +126,31 @@ export default function EditEntryModal({
       let payloadBeneficiaryShares: ShareItem[] | undefined = undefined;
       let payloadSplitWith: number[] | undefined = undefined;
 
-      if (isExpense) {
-        if (isMultiParty) {
-          const sumP = payerShares.reduce((a, b) => a + b.percentage, 0);
-          const sumB = beneficiaryShares.reduce((a, b) => a + b.percentage, 0);
-          if (Math.abs(sumP - 100) > 0.1 || Math.abs(sumB - 100) > 0.1) {
-            throw new Error('Split totals must equal 100% (Sum)');
-          }
-          payloadPayerShares = payerShares;
-          payloadBeneficiaryShares = beneficiaryShares;
-        } else {
-          const splitIds = Array.from(selectedMemberIds);
-          payloadSplitWith = splitIds;
-          const allPartIds = includeSelf ? [currentUserId || entry.user_id, ...splitIds] : splitIds;
-          if (allPartIds.length === 0) {
-            throw new Error('Please select at least one participant');
-          }
-          const count = allPartIds.length;
-          const basePct = Math.floor((100 / count) * 100) / 100;
-          const rem = Math.round((100 - basePct * count) * 100) / 100;
-          payloadPayerShares = [{ userId: currentUserId || entry.user_id, percentage: 100 }];
-          payloadBeneficiaryShares = allPartIds.map((id, idx) => ({
-            userId: id,
-            percentage: idx === 0 ? Math.round((basePct + rem) * 100) / 100 : basePct,
-          }));
+      if (isMultiParty) {
+        const sumP = payerShares.reduce((a, b) => a + b.percentage, 0);
+        const sumB = beneficiaryShares.reduce((a, b) => a + b.percentage, 0);
+        if (Math.abs(sumP - 100) > 0.1 || Math.abs(sumB - 100) > 0.1) {
+          throw new Error('Split totals must equal 100% (Sum)');
         }
+        payloadPayerShares = payerShares;
+        payloadBeneficiaryShares = beneficiaryShares;
+        payloadSplitWith = beneficiaryShares.map((b) => b.userId);
+      } else {
+        const splitIds = Array.from(selectedMemberIds);
+        const payerId = entry.user_id;
+        const allPartIds = isPositive && includeSelf ? [payerId, ...splitIds] : splitIds;
+        if (allPartIds.length === 0) {
+          throw new Error('Please select at least one participant');
+        }
+        payloadSplitWith = allPartIds;
+        const count = allPartIds.length;
+        const basePct = Math.floor((100 / count) * 100) / 100;
+        const rem = Math.round((100 - basePct * count) * 100) / 100;
+        payloadPayerShares = [{ userId: payerId, percentage: 100 }];
+        payloadBeneficiaryShares = allPartIds.map((id, idx) => ({
+          userId: id,
+          percentage: idx === 0 ? Math.round((basePct + rem) * 100) / 100 : basePct,
+        }));
       }
 
       await handleApi({
@@ -212,7 +218,7 @@ export default function EditEntryModal({
               </div>
             </div>
 
-            {isExpense && members.length > 1 && (
+            {members.length > 1 && (
               <div className="pt-2 space-y-3 border-t border-white/5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('editSplitDetails')}</label>
@@ -259,9 +265,9 @@ export default function EditEntryModal({
                   </div>
                 ) : (
                   <div className="bg-card/40 p-4 rounded-2xl border border-white/5 space-y-2">
-                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">{t('splitWith')}</span>
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">{isPositive ? t('splitWith') : t('paidForMeBy')}</span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
-                      {currentUserId && (
+                      {isPositive && currentUserId && (
                         <div
                           onClick={() => setIncludeSelf(!includeSelf)}
                           className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer ${

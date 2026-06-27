@@ -34,6 +34,9 @@
   },
   "Room": {
     "balanceTitle": "Balance",
+    "myBalance": "My Balance",
+    "viewEditHistory": "View edit history",
+    "editEntry": "Edit entry",
     "newEntryTitle": "New Entry",
     "simplifiedNewEntryTitle": "Log a New Loan",
     "detailed": "Detailed",
