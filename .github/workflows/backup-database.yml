@@ -3,9 +3,6 @@ name: Create and Store Database Backup
 on:
   schedule:
     - cron: '15 20 * * *' # Runs at 20:15 UTC (23:15 local time) every day, which is two hours after the current time of 21:15.
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
