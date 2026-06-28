@@ -390,22 +390,29 @@ export default function RoomPage() {
                                 </div>
                             ) : (
                                 <div>
-                                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                                    <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2 flex-wrap">
                                         <h2 className="text-lg sm:text-xl font-semibold text-card-foreground">
                                             {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
                                         </h2>
 
                                         {!isSimplified && otherMembers.length > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsMultiPartyMode(!isMultiPartyMode)}
-                                                className={`text-xs px-3 py-1.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm ${
-                                                    isMultiPartyMode ? 'bg-primary text-primary-foreground border border-primary shadow-primary/20' : 'bg-muted/60 text-muted-foreground hover:bg-muted border border-border/60 hover:text-foreground'
-                                                }`}
-                                            >
-                                                <FiSliders className="text-[12px]" />
-                                                <span>{isMultiPartyMode ? t('advancedSplit') : t('simpleSplit')}</span>
-                                            </button>
+                                            <div className="flex rounded-xl bg-muted p-1 border border-border/40">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsMultiPartyMode(false)}
+                                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all duration-300 ${!isMultiPartyMode ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                                >
+                                                    {t('simpleSplit')}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsMultiPartyMode(true)}
+                                                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all duration-300 flex items-center gap-1.5 ${isMultiPartyMode ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                                >
+                                                    <FiSliders className="text-[12px]" />
+                                                    <span>{t('advancedSplit')}</span>
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
 
