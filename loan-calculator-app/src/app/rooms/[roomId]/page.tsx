@@ -331,7 +331,7 @@ export default function RoomPage() {
                                             {roomName || t('roomTitle', { code: roomCode })}
                                         </h1>
                                         {currentUserRole === 'admin' && (
-                                            <button onClick={handleStartEditingName} className="p-1 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Edit room name">
+                                            <button onClick={handleStartEditingName} className="hidden p-1 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Edit room name">
                                                 <FiEdit />
                                             </button>
                                         )}

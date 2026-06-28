@@ -98,7 +98,7 @@ export default function StatsPage() {
                 }
                 if (payerData) payerData.paid += amount;
 
-                const participants = entry.split_with_user_ids ?? members.map(m => m.id);
+                const participants = (entry.split_with_user_ids && entry.split_with_user_ids.length > 0) ? entry.split_with_user_ids : members.map(m => m.id);
                 if (participants.length > 0) {
                     const share = amount / participants.length;
                     participants.forEach(pId => {
