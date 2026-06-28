@@ -160,15 +160,14 @@ const recalculateBalances = (entries: Entry[], members: Member[], currentUserId:
         const amount = parseFloat(entry.amount);
 
         if (entry.payer_shares && entry.beneficiary_shares && Array.isArray(entry.payer_shares) && Array.isArray(entry.beneficiary_shares)) {
-            const absAmount = Math.abs(amount);
             entry.payer_shares.forEach(p => {
                 if (finalBalances[p.userId] !== undefined) {
-                    finalBalances[p.userId] += absAmount * (p.percentage / 100);
+                    finalBalances[p.userId] += amount * (p.percentage / 100);
                 }
             });
             entry.beneficiary_shares.forEach(b => {
                 if (finalBalances[b.userId] !== undefined) {
-                    finalBalances[b.userId] -= absAmount * (b.percentage / 100);
+                    finalBalances[b.userId] -= amount * (b.percentage / 100);
                 }
             });
             return;

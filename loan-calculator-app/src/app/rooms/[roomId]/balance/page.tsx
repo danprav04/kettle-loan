@@ -165,19 +165,18 @@ export default function BalanceDetailsPage() {
             const amount = parseFloat(entry.amount);
 
             if (entry.payer_shares && entry.beneficiary_shares && Array.isArray(entry.payer_shares) && Array.isArray(entry.beneficiary_shares)) {
-                const absAmount = Math.abs(amount);
                 const myPayer = entry.payer_shares.find(p => p.userId === currentUserId);
                 const myBen = entry.beneficiary_shares.find(b => b.userId === currentUserId);
-                const myPaid = myPayer ? absAmount * (myPayer.percentage / 100) : 0;
-                const myOwed = myBen ? absAmount * (myBen.percentage / 100) : 0;
+                const myPaid = myPayer ? amount * (myPayer.percentage / 100) : 0;
+                const myOwed = myBen ? amount * (myBen.percentage / 100) : 0;
                 const netMe = myPaid - myOwed;
 
                 otherMembers.forEach(other => {
                     if (breakdown.has(other.id)) {
                         const oPayer = entry.payer_shares!.find(p => p.userId === other.id);
                         const oBen = entry.beneficiary_shares!.find(b => b.userId === other.id);
-                        const oPaid = oPayer ? absAmount * (oPayer.percentage / 100) : 0;
-                        const oOwed = oBen ? absAmount * (oBen.percentage / 100) : 0;
+                        const oPaid = oPayer ? amount * (oPayer.percentage / 100) : 0;
+                        const oOwed = oBen ? amount * (oBen.percentage / 100) : 0;
                         const netOther = oPaid - oOwed;
 
                         if (Math.abs(netOther) > 0.001 || Math.abs(netMe) > 0.001) {
