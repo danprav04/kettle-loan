@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
-import { getRoomData, Entry, addLocalEntry } from '@/lib/offline-sync';
+import { getRoomData, Entry, addLocalEntry, saveRoomData } from '@/lib/offline-sync';
 import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
 import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign, FiArrowDownLeft, FiArrowUpRight, FiCheckCircle, FiUsers, FiActivity } from 'react-icons/fi';
@@ -82,6 +82,7 @@ export default function BalanceDetailsPage() {
                 });
                 if (res.ok) {
                     const data = await res.json();
+                    await saveRoomData(roomId, data);
                     setEntries(data.entries);
                     setMembers(data.members);
                     if (data.currency) setCurrency(data.currency);
@@ -496,8 +497,13 @@ export default function BalanceDetailsPage() {
                                                                                 </div>
                                                                                 <div className="min-w-0">
                                                                                     <p className="font-semibold text-foreground text-xs sm:text-sm truncate">{tx.description}</p>
-                                                                                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                                                                                        {tx.username} &bull; {new Date(tx.created_at).toLocaleString()}
+                                                                                    <p className="text-[11px] text-muted-foreground flex items-center flex-wrap gap-y-1 mt-0.5">
+                                                                                        {(tx.pending_sync || tx.offline_timestamp || typeof tx.id === 'string') && (
+                                                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30 rounded-full me-1.5 shrink-0">
+                                                                                                <FiClock className="w-2.5 h-2.5" /> {t('unsynchronized')}
+                                                                                            </span>
+                                                                                        )}
+                                                                                        <span>{tx.username} &bull; {new Date(tx.created_at).toLocaleString()}</span>
                                                                                     </p>
                                                                                 </div>
                                                                             </div>
@@ -547,8 +553,13 @@ export default function BalanceDetailsPage() {
                                                 </div>
                                                 <div className="min-w-0">
                                                     <p className="font-bold text-foreground text-xs sm:text-sm truncate">{entry.description}</p>
-                                                    <p className="text-muted-foreground text-[11px] mt-0.5 truncate">
-                                                        {t('byAuthor', { author: entry.username })} &bull; {new Date(entry.created_at).toLocaleString()}
+                                                    <p className="text-muted-foreground text-[11px] mt-0.5 flex items-center flex-wrap gap-y-1">
+                                                        {(entry.pending_sync || entry.offline_timestamp || typeof entry.id === 'string') && (
+                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30 rounded-full me-1.5 shrink-0">
+                                                                <FiClock className="w-2.5 h-2.5" /> {t('unsynchronized')}
+                                                            </span>
+                                                        )}
+                                                        <span>{t('byAuthor', { author: entry.username })} &bull; {new Date(entry.created_at).toLocaleString()}</span>
                                                     </p>
                                                 </div>
                                             </div>

@@ -2,10 +2,11 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'loan-calculator-db';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const OUTBOX_STORE = 'outbox';
 const ROOM_DATA_STORE = 'room-data';
 const ROOMS_LIST_STORE = 'rooms-list';
+const ENTRY_EDITS_STORE = 'entry-edits';
 
 type HttpMethod = 'POST' | 'DELETE' | 'PUT';
 
@@ -41,6 +42,7 @@ export interface Entry {
     beneficiary_shares?: Share[] | null;
     created_by_user_id?: number | null;
     offline_timestamp?: number;
+    pending_sync?: boolean;
 }
 
 export interface LocalRoomData {
@@ -76,6 +78,10 @@ interface OfflineDB extends DBSchema {
       key: 'user-rooms';
       value: { rooms: LocalRoomListItem[] };
   };
+  [ENTRY_EDITS_STORE]: {
+      key: string;
+      value: unknown[];
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<OfflineDB>> | null = null;
@@ -92,6 +98,9 @@ function getDb(): Promise<IDBPDatabase<OfflineDB>> {
                 }
                 if (!db.objectStoreNames.contains(ROOMS_LIST_STORE)) {
                     db.createObjectStore(ROOMS_LIST_STORE);
+                }
+                if (!db.objectStoreNames.contains(ENTRY_EDITS_STORE)) {
+                    db.createObjectStore(ENTRY_EDITS_STORE);
                 }
             },
         });
@@ -294,6 +303,7 @@ export async function addLocalEntry(roomId: string, newEntry: Entry) {
     const roomData = await tx.store.get(roomId);
 
     if (roomData) {
+        newEntry.pending_sync = true;
         roomData.entries.unshift(newEntry);
         
         if (roomData.members && roomData.currentUserId) {
@@ -339,7 +349,7 @@ export async function updateLocalEntry(roomId: string, entryId: number | string,
     if (roomData) {
         const index = roomData.entries.findIndex(e => e.id === entryId);
         if (index !== -1) {
-            roomData.entries[index] = { ...roomData.entries[index], ...updatedData };
+            roomData.entries[index] = { ...roomData.entries[index], ...updatedData, pending_sync: true };
 
             if (roomData.members && roomData.currentUserId) {
                 const { currentUserBalance, balances } = recalculateBalances(roomData.entries, roomData.members, roomData.currentUserId);
@@ -367,4 +377,15 @@ export async function clearDatabaseForTesting() {
     await db.clear(OUTBOX_STORE);
     await db.clear(ROOM_DATA_STORE);
     await db.clear(ROOMS_LIST_STORE);
+    await db.clear(ENTRY_EDITS_STORE);
+}
+
+export async function saveEntryEdits(entryId: string | number, edits: unknown[]) {
+    const db = await getDb();
+    await db.put(ENTRY_EDITS_STORE, edits, entryId.toString());
+}
+
+export async function getEntryEdits(entryId: string | number): Promise<unknown[] | undefined> {
+    const db = await getDb();
+    return db.get(ENTRY_EDITS_STORE, entryId.toString());
 }

@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
-import { getRoomData, Entry, deleteLocalEntry } from '@/lib/offline-sync';
+import { getRoomData, Entry, deleteLocalEntry, saveRoomData } from '@/lib/offline-sync';
 import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
@@ -127,6 +127,7 @@ export default function EntriesPage() {
                 });
                 if (res.ok) {
                     const data = await res.json();
+                    await saveRoomData(roomId, data);
                     setEntries(data.entries);
                     setMembers(data.members);
                     if (data.currency) setCurrency(data.currency);
@@ -315,9 +316,11 @@ export default function EntriesPage() {
                                                     {t('loggedOnBehalfBy', { name: recorderName || `User #${entry.created_by_user_id}` })}
                                                 </div>
                                             )}
-                                            <p className="text-xs text-muted-foreground flex items-center mt-1.5">
-                                                {entry.offline_timestamp && (
-                                                    <FiClock className="me-1 text-amber-500" title={`Created offline at ${new Date(entry.offline_timestamp).toLocaleTimeString()}`} />
+                                            <p className="text-xs text-muted-foreground flex items-center mt-1.5 flex-wrap gap-y-1">
+                                                {(entry.pending_sync || entry.offline_timestamp || typeof entry.id === 'string') && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30 rounded-full me-2 shrink-0">
+                                                        <FiClock className="w-3 h-3" /> {t('unsynchronized')}
+                                                    </span>
                                                 )}
                                                 <span>{entry.username} &bull; {new Date(entry.created_at).toLocaleString()}</span>
                                             </p>

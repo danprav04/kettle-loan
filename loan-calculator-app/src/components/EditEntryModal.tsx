@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { handleApi } from '@/lib/api';
-import { Entry, updateLocalEntry } from '@/lib/offline-sync';
+import { Entry, updateLocalEntry, getEntryEdits, saveEntryEdits } from '@/lib/offline-sync';
 import PayerBeneficiarySelector, { ShareItem } from './PayerBeneficiarySelector';
 
 interface Member {
@@ -163,6 +163,21 @@ export default function EditEntryModal({
           beneficiary_shares: payloadBeneficiaryShares,
           split_with_user_ids: payloadSplitWith,
         });
+
+        const existingEdits = (await getEntryEdits(entry.id)) || [];
+        const editorUsername = members.find(m => m.id === currentUserId)?.username || 'Me';
+        const newEdit = {
+          id: Date.now(),
+          entry_id: typeof entry.id === 'number' ? entry.id : 0,
+          edited_by_user_id: currentUserId || 0,
+          edited_by_username: editorUsername,
+          old_amount: entry.amount,
+          new_amount: finalAmount.toString(),
+          old_description: entry.description,
+          new_description: description.trim(),
+          edited_at: new Date().toISOString(),
+        };
+        await saveEntryEdits(entry.id, [newEdit, ...existingEdits]);
       }
 
       await handleApi({
