@@ -33,6 +33,7 @@
     "offlineRoomsPrompt": "Connect to the internet once to download your rooms for offline use."
   },
   "Room": {
+    "unsynchronized": "Unsynchronized",
     "balanceTitle": "Balance",
     "myBalance": "My Balance",
     "viewEditHistory": "View edit history",

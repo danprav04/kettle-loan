@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { FiClock, FiUser, FiArrowRight, FiX } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
+import { saveEntryEdits, getEntryEdits } from '@/lib/offline-sync';
 
 interface EditRecord {
   id: number;
@@ -31,23 +32,42 @@ export default function EntryEditsModal({ isOpen, onClose, entryId, currency }: 
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isOpen || !entryId || typeof entryId !== 'number') return;
+    if (!isOpen || !entryId) return;
     setIsLoading(true);
     setError('');
 
-    handleApi({
-      method: 'GET',
-      url: `/api/entries/${entryId}/edits`,
-    })
-      .then((data: unknown) => {
-        if (Array.isArray(data)) {
-          setEdits(data as EditRecord[]);
-        } else {
-          setEdits([]);
-        }
+    getEntryEdits(entryId).then((cached) => {
+      if (Array.isArray(cached) && cached.length > 0) {
+        setEdits(cached as EditRecord[]);
+        setIsLoading(false);
+      }
+    });
+
+    if (navigator.onLine && typeof entryId === 'number') {
+      handleApi({
+        method: 'GET',
+        url: `/api/entries/${entryId}/edits`,
       })
-      .catch(() => setError(t('error')))
-      .finally(() => setIsLoading(false));
+        .then(async (data: unknown) => {
+          if (Array.isArray(data)) {
+            await saveEntryEdits(entryId, data);
+            setEdits(data as EditRecord[]);
+          } else {
+            setEdits([]);
+          }
+        })
+        .catch(() => {
+          getEntryEdits(entryId).then((cached) => {
+            if (!cached || cached.length === 0) setError(t('error'));
+          });
+        })
+        .finally(() => setIsLoading(false));
+    } else {
+      getEntryEdits(entryId).then((cached) => {
+        if (Array.isArray(cached)) setEdits(cached as EditRecord[]);
+        setIsLoading(false);
+      });
+    }
   }, [isOpen, entryId, t]);
 
   if (!isOpen) return null;

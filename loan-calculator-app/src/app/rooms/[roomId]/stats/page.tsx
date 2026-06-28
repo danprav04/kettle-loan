@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import * as XLSX from 'xlsx';
 import { useSync } from '@/components/SyncProvider';
-import { getRoomData, Entry } from '@/lib/offline-sync';
+import { getRoomData, Entry, saveRoomData } from '@/lib/offline-sync';
 import { useUser } from '@/components/UserProvider';
 import { FiDownload, FiFileText, FiGrid, FiBarChart2 } from 'react-icons/fi';
 
@@ -58,6 +58,7 @@ export default function StatsPage() {
                 const res = await fetch(`/api/rooms/${roomId}`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (res.ok) {
                     const data = await res.json();
+                    await saveRoomData(roomId, data);
                     setEntries(data.entries);
                     setMembers(data.members);
                     setRoomCode(data.code);

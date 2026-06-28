@@ -33,6 +33,7 @@
     "offlineRoomsPrompt": "התחבר לאינטרנט פעם אחת כדי להוריד את החדרים שלך לשימוש לא מקוון."
   },
   "Room": {
+    "unsynchronized": "לא מסונכרן",
     "balanceTitle": "מאזן",
     "myBalance": "היתרה שלי",
     "viewEditHistory": "הצג היסטוריית שינויים",
