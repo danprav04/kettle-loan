@@ -176,7 +176,7 @@ export default function EntriesPage() {
             } else {
                 const payerId = entry.user_id;
                 if (amount > 0) { // Expense
-                    const participants = entry.split_with_user_ids ?? calcMembers.map(m => m.id);
+                    const participants = (entry.split_with_user_ids && entry.split_with_user_ids.length > 0) ? entry.split_with_user_ids : calcMembers.map(m => m.id);
                     if (participants.length > 0) {
                         const share = amount / participants.length;
                         runningBalances[payerId] += amount;
@@ -395,6 +395,7 @@ export default function EntriesPage() {
                 currency={currency}
                 members={members}
                 currentUserId={user?.userId || null}
+                roomId={roomId}
                 onSuccess={() => fetchEntries()}
             />
 

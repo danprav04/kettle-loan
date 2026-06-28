@@ -1,0 +1,198 @@
+import 'fake-indexeddb/auto';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+globalThis.window = {
+    indexedDB: globalThis.indexedDB,
+    dispatchEvent: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+} as any;
+
+import {
+    addToOutbox,
+    syncOutbox,
+    getOutboxCount,
+    saveRoomData,
+    getRoomData,
+    addLocalEntry,
+    deleteLocalEntry,
+    updateLocalEntry,
+    deleteRoomData,
+    clearDatabaseForTesting,
+    recalculateBalances,
+    Entry
+} from '../lib/offline-sync';
+
+describe('offline-sync unit tests', () => {
+    beforeEach(async () => {
+        await clearDatabaseForTesting();
+        vi.restoreAllMocks();
+    });
+
+    describe('Outbox Queue Management', () => {
+        it('should add requests to outbox and increment count', async () => {
+            expect(await getOutboxCount()).toBe(0);
+            await addToOutbox({
+                url: '/api/entries',
+                method: 'POST',
+                token: 'test-token',
+                body: { amount: 100 }
+            });
+            expect(await getOutboxCount()).toBe(1);
+        });
+
+        it('should sync outbox requests successfully when network returns 200 OK', async () => {
+            await addToOutbox({
+                url: '/api/entries',
+                method: 'POST',
+                token: 'test-token',
+                body: { amount: 100 }
+            });
+            expect(await getOutboxCount()).toBe(1);
+
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: true,
+                status: 200
+            });
+
+            const synced = await syncOutbox();
+            expect(synced).toBe(true);
+            expect(await getOutboxCount()).toBe(0);
+        });
+
+        it('should preserve queued outbox request when network returns 401 Unauthorized', async () => {
+            await addToOutbox({
+                url: '/api/entries',
+                method: 'POST',
+                token: 'expired-token',
+                body: { amount: 100 }
+            });
+            expect(await getOutboxCount()).toBe(1);
+
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: false,
+                status: 401
+            });
+
+            const synced = await syncOutbox();
+            expect(synced).toBe(false);
+            expect(await getOutboxCount()).toBe(1);
+        });
+    });
+
+    describe('Room Data Caching & Mutations', () => {
+        const mockMembers = [
+            { id: 1, username: 'Alice', role: 'admin' },
+            { id: 2, username: 'Bob', role: 'active' }
+        ];
+
+        const sampleEntry: Entry = {
+            id: 101,
+            amount: '100',
+            description: 'Dinner',
+            created_at: new Date().toISOString(),
+            username: 'Alice',
+            user_id: 1,
+            split_with_user_ids: [1, 2]
+        };
+
+        beforeEach(async () => {
+            await saveRoomData('room-1', {
+                name: 'Test Room',
+                code: 'ABC',
+                entries: [sampleEntry],
+                balances: { 'Bob': -50 },
+                currentUserBalance: 50,
+                members: mockMembers,
+                currentUserId: 1
+            });
+        });
+
+        it('should add local entry and recalculate balance', async () => {
+            const newEntry: Entry = {
+                id: 'temp-1',
+                amount: '40',
+                description: 'Snacks',
+                created_at: new Date().toISOString(),
+                username: 'Bob',
+                user_id: 2,
+                split_with_user_ids: [1, 2]
+            };
+
+            await addLocalEntry('room-1', newEntry);
+            const data = await getRoomData('room-1');
+            expect(data?.entries.length).toBe(2);
+            expect(data?.currentUserBalance).toBe(30);
+            expect(data?.balances['Bob']).toBe(-30);
+        });
+
+        it('should update local entry and recalculate balance', async () => {
+            await updateLocalEntry('room-1', 101, { amount: '200' });
+            const data = await getRoomData('room-1');
+            expect(data?.entries[0].amount).toBe('200');
+            expect(data?.currentUserBalance).toBe(100);
+            expect(data?.balances['Bob']).toBe(-100);
+        });
+
+        it('should delete local entry and recalculate balance', async () => {
+            await deleteLocalEntry('room-1', 101);
+            const data = await getRoomData('room-1');
+            expect(data?.entries.length).toBe(0);
+            expect(data?.currentUserBalance).toBe(0);
+            expect(data?.balances['Bob']).toBe(0);
+        });
+
+        it('should delete room data when leaving room', async () => {
+            expect(await getRoomData('room-1')).toBeDefined();
+            await deleteRoomData('room-1');
+            expect(await getRoomData('room-1')).toBeUndefined();
+        });
+    });
+
+    describe('recalculateBalances Math Alignment', () => {
+        const members = [
+            { id: 1, username: 'Alice', role: 'admin' },
+            { id: 2, username: 'Bob', role: 'active' },
+            { id: 3, username: 'Charlie', role: 'active' }
+        ];
+
+        it('should calculate balance for expense split with empty array as split equally among all', () => {
+            const entry: Entry = {
+                id: 1,
+                amount: '90',
+                description: 'Groceries',
+                created_at: new Date().toISOString(),
+                username: 'Alice',
+                user_id: 1,
+                split_with_user_ids: []
+            };
+
+            const result = recalculateBalances([entry], members, 1);
+            expect(result.currentUserBalance).toBe(60);
+            expect(result.balances['Bob']).toBe(-30);
+            expect(result.balances['Charlie']).toBe(-30);
+        });
+
+        it('should calculate balance correctly for custom payer and beneficiary shares', () => {
+            const entry: Entry = {
+                id: 2,
+                amount: '100',
+                description: 'Custom Split',
+                created_at: new Date().toISOString(),
+                username: 'Alice',
+                user_id: 1,
+                split_with_user_ids: null,
+                payer_shares: [{ userId: 1, percentage: 100 }],
+                beneficiary_shares: [
+                    { userId: 1, percentage: 20 },
+                    { userId: 2, percentage: 80 }
+                ]
+            };
+
+            const result = recalculateBalances([entry], members, 1);
+            expect(result.currentUserBalance).toBe(80);
+            expect(result.balances['Bob']).toBe(-80);
+            expect(result.balances['Charlie']).toBe(0);
+        });
+    });
+});

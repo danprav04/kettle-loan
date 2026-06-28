@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { handleApi } from '@/lib/api';
-import { Entry } from '@/lib/offline-sync';
+import { Entry, updateLocalEntry } from '@/lib/offline-sync';
 import PayerBeneficiarySelector, { ShareItem } from './PayerBeneficiarySelector';
 
 interface Member {
@@ -19,6 +19,7 @@ interface EditEntryModalProps {
   currency: string;
   members?: Member[];
   currentUserId?: number | null;
+  roomId?: string;
   onSuccess: () => void;
 }
 
@@ -29,6 +30,7 @@ export default function EditEntryModal({
   currency,
   members = [],
   currentUserId = null,
+  roomId,
   onSuccess,
 }: EditEntryModalProps) {
   const t = useTranslations('Room');
@@ -151,6 +153,16 @@ export default function EditEntryModal({
           userId: id,
           percentage: idx === 0 ? Math.round((basePct + rem) * 100) / 100 : basePct,
         }));
+      }
+
+      if (roomId && entry) {
+        await updateLocalEntry(roomId, entry.id, {
+          amount: finalAmount.toString(),
+          description: description.trim(),
+          payer_shares: payloadPayerShares,
+          beneficiary_shares: payloadBeneficiaryShares,
+          split_with_user_ids: payloadSplitWith,
+        });
       }
 
       await handleApi({

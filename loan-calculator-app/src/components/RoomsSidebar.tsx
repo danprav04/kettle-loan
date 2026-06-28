@@ -15,7 +15,7 @@ import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import ConfirmationDialog from './ConfirmationDialog';
 import { useSync } from './SyncProvider';
 import { handleApi } from '@/lib/api';
-import { saveRoomsList, getRoomsList } from '@/lib/offline-sync';
+import { saveRoomsList, getRoomsList, deleteRoomData } from '@/lib/offline-sync';
 import PushSubscriptionToggle from './PushSubscriptionToggle';
 
 interface Room {
@@ -156,6 +156,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
 
         try {
             await saveRoomsList(rooms.filter(r => r.id !== selectedRoomToLeave!.id));
+            await deleteRoomData(selectedRoomToLeave!.id.toString());
             const result = await handleApi({ method: 'DELETE', url: `/api/rooms/${selectedRoomToLeave.id}/members` });
             if (result?.optimistic) {
                 setNotification(tNotif('requestQueued'));
