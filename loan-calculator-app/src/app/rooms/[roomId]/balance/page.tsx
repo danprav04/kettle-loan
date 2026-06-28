@@ -128,7 +128,8 @@ export default function BalanceDetailsPage() {
                     amount: finalAmount, 
                     description, 
                     splitWithUserIds: [memberId],
-                    createdAt: optimisticEntry.created_at
+                    createdAt: optimisticEntry.created_at,
+                    clientTempId: optimisticEntry.id
                 },
             });
             if (isOnline) {

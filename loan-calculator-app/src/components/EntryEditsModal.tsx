@@ -8,7 +8,7 @@ import { saveEntryEdits, getEntryEdits } from '@/lib/offline-sync';
 
 interface EditRecord {
   id: number;
-  entry_id: number;
+  entry_id: number | string;
   edited_by_user_id: number;
   edited_by_username: string;
   old_amount: string;
