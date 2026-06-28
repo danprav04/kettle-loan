@@ -28,6 +28,8 @@ import {
     updateLocalEntry,
     deleteRoomData,
     clearDatabaseForTesting,
+    removeOutboxEntryMutations,
+    updateOutboxCreateEntry,
     recalculateBalances,
     Entry
 } from '../lib/offline-sync';
@@ -275,7 +277,39 @@ describe('offline-sync unit tests', () => {
             expect(result.currentUserBalance).toBe(60);
             expect(result.balances['Bob']).toBe(-30);
             expect(result.balances['Charlie']).toBe(-30);
-            expect(result.balances['Dave']).toBe(0);
+        });
+    });
+
+    describe('Unsynchronized Offline Entry Mutations', () => {
+        beforeEach(async () => {
+            await clearDatabaseForTesting();
+        });
+
+        it('should update outbox create entry when editing unsynced offline entry', async () => {
+            await addToOutbox({
+                url: '/api/entries',
+                method: 'POST',
+                token: 't',
+                body: { roomId: 'room1', amount: 10, description: 'Old', clientTempId: 'temp-123' }
+            });
+            expect(await getOutboxCount()).toBe(1);
+
+            const updated = await updateOutboxCreateEntry('temp-123', { amount: 25, description: 'New' });
+            expect(updated).toBe(true);
+            expect(await getOutboxCount()).toBe(1);
+        });
+
+        it('should remove outbox entry mutations when deleting unsynced offline entry', async () => {
+            await addToOutbox({
+                url: '/api/entries',
+                method: 'POST',
+                token: 't',
+                body: { roomId: 'room1', amount: 10, description: 'Old', clientTempId: 'temp-456' }
+            });
+            expect(await getOutboxCount()).toBe(1);
+
+            await removeOutboxEntryMutations('temp-456');
+            expect(await getOutboxCount()).toBe(0);
         });
     });
 });

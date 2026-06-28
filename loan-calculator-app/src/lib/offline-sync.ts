@@ -389,3 +389,35 @@ export async function getEntryEdits(entryId: string | number): Promise<unknown[]
     const db = await getDb();
     return db.get(ENTRY_EDITS_STORE, entryId.toString());
 }
+
+export async function removeOutboxEntryMutations(entryId: string | number) {
+    const db = await getDb();
+    const requests = await db.getAll(OUTBOX_STORE);
+    const strId = entryId.toString();
+    for (const req of requests) {
+        const bodyObj = req.body as Record<string, unknown> | null;
+        if (
+            req.url === `/api/entries/${strId}` ||
+            (bodyObj && bodyObj.clientTempId === strId)
+        ) {
+            await db.delete(OUTBOX_STORE, req.id);
+        }
+    }
+    window.dispatchEvent(new Event('outboxchange'));
+}
+
+export async function updateOutboxCreateEntry(clientTempId: string | number, updatedPayload: Record<string, unknown>): Promise<boolean> {
+    const db = await getDb();
+    const requests = await db.getAll(OUTBOX_STORE);
+    const strId = clientTempId.toString();
+    for (const req of requests) {
+        const bodyObj = req.body as Record<string, unknown> | null;
+        if (req.method === 'POST' && req.url === '/api/entries' && bodyObj && bodyObj.clientTempId === strId) {
+            req.body = { ...bodyObj, ...updatedPayload };
+            await db.put(OUTBOX_STORE, req);
+            window.dispatchEvent(new Event('outboxchange'));
+            return true;
+        }
+    }
+    return false;
+}

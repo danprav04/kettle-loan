@@ -269,7 +269,8 @@ export default function RoomPage() {
                     splitWithUserIds: finalSplitWithIds,
                     payerShares: finalPayerShares,
                     beneficiaryShares: finalBeneficiaryShares,
-                    createdAt: optimisticEntry.created_at
+                    createdAt: optimisticEntry.created_at,
+                    clientTempId: optimisticEntry.id
                 },
             });
 

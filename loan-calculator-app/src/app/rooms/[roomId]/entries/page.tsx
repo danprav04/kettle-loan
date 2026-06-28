@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
-import { getRoomData, Entry, deleteLocalEntry, saveRoomData } from '@/lib/offline-sync';
+import { getRoomData, Entry, deleteLocalEntry, saveRoomData, removeOutboxEntryMutations } from '@/lib/offline-sync';
 import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
@@ -229,16 +229,12 @@ export default function EntriesPage() {
     }, [notification]);
 
     const openConfirmDialog = (entry: Entry) => {
-        if (typeof entry.id !== 'number') {
-            setNotification(t('deleteEntrySyncing'));
-            return;
-        }
         setEntryToDelete(entry);
         setIsConfirmOpen(true);
     };
 
     const handleDeleteEntry = async () => {
-        if (!entryToDelete || typeof entryToDelete.id !== 'number') return;
+        if (!entryToDelete) return;
 
         const originalEntries = [...entries];
         setEntries(prev => prev.filter(e => e.id !== entryToDelete.id));
@@ -246,14 +242,17 @@ export default function EntriesPage() {
 
         try {
             await deleteLocalEntry(roomId, entryToDelete.id);
+            await removeOutboxEntryMutations(entryToDelete.id);
 
-            const result = await handleApi({
-                method: 'DELETE',
-                url: `/api/entries/${entryToDelete.id}`,
-            });
+            if (typeof entryToDelete.id === 'number') {
+                const result = await handleApi({
+                    method: 'DELETE',
+                    url: `/api/entries/${entryToDelete.id}`,
+                });
 
-            if (result?.optimistic) {
-                setNotification(tNotif('requestQueued'));
+                if (result?.optimistic) {
+                    setNotification(tNotif('requestQueued'));
+                }
             }
 
             setEntryToDelete(null);
@@ -338,35 +337,33 @@ export default function EntriesPage() {
                                                 <div className="text-[10px] text-muted-foreground uppercase">{t('myBalance')}</div>
                                             </div>
 
-                                            {typeof entry.id === 'number' && (
-                                                <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={() => setEntryForHistory(entry.id)}
-                                                        className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
-                                                        title={t('viewEditHistory')}
-                                                    >
-                                                        <FiClock size={16} />
-                                                    </button>
-                                                    {canModify(entry) && (
-                                                        <>
-                                                            <button
-                                                                onClick={() => setEntryToEdit(entry)}
-                                                                className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
-                                                                title={t('editEntry')}
-                                                            >
-                                                                <FiEdit3 size={16} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => openConfirmDialog(entry)}
-                                                                className="text-muted-foreground hover:text-danger p-1.5 rounded hover:bg-danger/10 transition-colors"
-                                                                title={t('deleteEntry')}
-                                                            >
-                                                                <FiTrash2 size={16} />
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            )}
+                                            <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => setEntryForHistory(entry.id)}
+                                                    className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
+                                                    title={t('viewEditHistory')}
+                                                >
+                                                    <FiClock size={16} />
+                                                </button>
+                                                {canModify(entry) && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => setEntryToEdit(entry)}
+                                                            className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
+                                                            title={t('editEntry')}
+                                                        >
+                                                            <FiEdit3 size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => openConfirmDialog(entry)}
+                                                            className="text-muted-foreground hover:text-danger p-1.5 rounded hover:bg-danger/10 transition-colors"
+                                                            title={t('deleteEntry')}
+                                                        >
+                                                            <FiTrash2 size={16} />
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
                                     </li>
                                 );

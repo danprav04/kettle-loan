@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { handleApi } from '@/lib/api';
-import { Entry, updateLocalEntry, getEntryEdits, saveEntryEdits } from '@/lib/offline-sync';
+import { Entry, updateLocalEntry, getEntryEdits, saveEntryEdits, updateOutboxCreateEntry } from '@/lib/offline-sync';
 import PayerBeneficiarySelector, { ShareItem } from './PayerBeneficiarySelector';
 
 interface Member {
@@ -168,7 +168,7 @@ export default function EditEntryModal({
         const editorUsername = members.find(m => m.id === currentUserId)?.username || 'Me';
         const newEdit = {
           id: Date.now(),
-          entry_id: typeof entry.id === 'number' ? entry.id : 0,
+          entry_id: entry.id,
           edited_by_user_id: currentUserId || 0,
           edited_by_username: editorUsername,
           old_amount: entry.amount,
@@ -180,17 +180,31 @@ export default function EditEntryModal({
         await saveEntryEdits(entry.id, [newEdit, ...existingEdits]);
       }
 
-      await handleApi({
-        url: `/api/entries/${entry.id}`,
-        method: 'PUT',
-        body: {
+      const isUnsyncedOffline = typeof entry?.id === 'string';
+      let didUpdateOutboxCreate = false;
+      if (isUnsyncedOffline && entry) {
+        didUpdateOutboxCreate = await updateOutboxCreateEntry(entry.id, {
           amount: finalAmount,
           description: description.trim(),
           payerShares: payloadPayerShares,
           beneficiaryShares: payloadBeneficiaryShares,
           splitWithUserIds: payloadSplitWith,
-        },
-      });
+        });
+      }
+
+      if (!didUpdateOutboxCreate && entry) {
+        await handleApi({
+          url: `/api/entries/${entry.id}`,
+          method: 'PUT',
+          body: {
+            amount: finalAmount,
+            description: description.trim(),
+            payerShares: payloadPayerShares,
+            beneficiaryShares: payloadBeneficiaryShares,
+            splitWithUserIds: payloadSplitWith,
+          },
+        });
+      }
 
       onSuccess();
       onClose();
