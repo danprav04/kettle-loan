@@ -236,7 +236,7 @@ export default function RoomPage() {
             finalSplitWithIds = loanPaidByUserIds.size > 0 ? Array.from(loanPaidByUserIds) : null;
         }
 
-        const finalAmount = entryType === 'loan' ? -parsedAmount : parsedAmount;
+        const finalAmount = isMultiPartyMode ? parsedAmount : (entryType === 'loan' ? -parsedAmount : parsedAmount);
 
         const optimisticEntry: Entry = {
             id: `temp-${Date.now()}`,

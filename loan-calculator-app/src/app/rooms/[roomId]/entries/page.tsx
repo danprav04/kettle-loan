@@ -163,14 +163,15 @@ export default function EntriesPage() {
             const amount = parseFloat(entry.amount);
 
             if (entry.payer_shares && entry.beneficiary_shares && Array.isArray(entry.payer_shares) && Array.isArray(entry.beneficiary_shares)) {
+                const absAmount = Math.abs(amount);
                 entry.payer_shares.forEach(p => {
                     if (runningBalances[p.userId] !== undefined) {
-                        runningBalances[p.userId] += amount * (p.percentage / 100);
+                        runningBalances[p.userId] += absAmount * (p.percentage / 100);
                     }
                 });
                 entry.beneficiary_shares.forEach(b => {
                     if (runningBalances[b.userId] !== undefined) {
-                        runningBalances[b.userId] -= amount * (b.percentage / 100);
+                        runningBalances[b.userId] -= absAmount * (b.percentage / 100);
                     }
                 });
             } else {

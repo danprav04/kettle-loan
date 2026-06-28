@@ -104,7 +104,7 @@ export default function EditEntryModal({
 
   const isPositive = parseFloat(entry.amount) >= 0;
   const numAmount = parseFloat(amount) || 0;
-  const finalAmount = isPositive ? numAmount : -numAmount;
+  const finalAmount = isMultiParty ? numAmount : (isPositive ? numAmount : -numAmount);
 
   const eligibleMembers = members.filter((m) => m.role !== 'observer');
   const otherMembers = eligibleMembers.filter((m) => m.id !== (currentUserId || entry.user_id));
