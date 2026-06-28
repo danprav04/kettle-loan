@@ -180,6 +180,9 @@ export default function EditEntryModal({
       onSuccess();
       onClose();
     } catch (err: unknown) {
+      if (roomId && entry) {
+        await updateLocalEntry(roomId, entry.id, entry);
+      }
       setError(err instanceof Error ? err.message : 'Failed to save edits');
     } finally {
       setIsLoading(false);

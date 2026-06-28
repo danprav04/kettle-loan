@@ -78,10 +78,12 @@ export default function UserProvider({ children }: { children: ReactNode }) {
         };
 
         window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('auth_expired', logout);
         return () => {
             window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('auth_expired', logout);
         };
-    }, [checkUser]);
+    }, [checkUser, logout]);
     
     // Re-check user on route changes
     useEffect(() => {

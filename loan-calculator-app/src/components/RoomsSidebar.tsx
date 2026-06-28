@@ -156,8 +156,8 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
 
         try {
             await saveRoomsList(rooms.filter(r => r.id !== selectedRoomToLeave!.id));
-            await deleteRoomData(selectedRoomToLeave!.id.toString());
             const result = await handleApi({ method: 'DELETE', url: `/api/rooms/${selectedRoomToLeave.id}/members` });
+            await deleteRoomData(selectedRoomToLeave!.id.toString());
             if (result?.optimistic) {
                 setNotification(tNotif('requestQueued'));
             }

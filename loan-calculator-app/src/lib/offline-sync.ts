@@ -315,18 +315,18 @@ export async function deleteLocalEntry(roomId: string, entryId: number | string)
 
     if (roomData) {
         const entryExists = roomData.entries.some(e => e.id === entryId);
-        if (!entryExists) return;
+        if (entryExists) {
+            roomData.entries = roomData.entries.filter(e => e.id !== entryId);
 
-        roomData.entries = roomData.entries.filter(e => e.id !== entryId);
+            if (roomData.members && roomData.currentUserId) {
+                const { currentUserBalance, balances } = recalculateBalances(roomData.entries, roomData.members, roomData.currentUserId);
+                roomData.currentUserBalance = currentUserBalance;
+                roomData.balances = balances;
+            }
 
-        if (roomData.members && roomData.currentUserId) {
-            const { currentUserBalance, balances } = recalculateBalances(roomData.entries, roomData.members, roomData.currentUserId);
-            roomData.currentUserBalance = currentUserBalance;
-            roomData.balances = balances;
+            roomData.lastUpdated = Date.now();
+            await tx.store.put(roomData);
         }
-
-        roomData.lastUpdated = Date.now();
-        await tx.store.put(roomData);
     }
     await tx.done;
 }
@@ -338,18 +338,18 @@ export async function updateLocalEntry(roomId: string, entryId: number | string,
 
     if (roomData) {
         const index = roomData.entries.findIndex(e => e.id === entryId);
-        if (index === -1) return;
+        if (index !== -1) {
+            roomData.entries[index] = { ...roomData.entries[index], ...updatedData };
 
-        roomData.entries[index] = { ...roomData.entries[index], ...updatedData };
+            if (roomData.members && roomData.currentUserId) {
+                const { currentUserBalance, balances } = recalculateBalances(roomData.entries, roomData.members, roomData.currentUserId);
+                roomData.currentUserBalance = currentUserBalance;
+                roomData.balances = balances;
+            }
 
-        if (roomData.members && roomData.currentUserId) {
-            const { currentUserBalance, balances } = recalculateBalances(roomData.entries, roomData.members, roomData.currentUserId);
-            roomData.currentUserBalance = currentUserBalance;
-            roomData.balances = balances;
+            roomData.lastUpdated = Date.now();
+            await tx.store.put(roomData);
         }
-
-        roomData.lastUpdated = Date.now();
-        await tx.store.put(roomData);
     }
     await tx.done;
 }
@@ -360,6 +360,9 @@ export async function deleteRoomData(roomId: string) {
 }
 
 export async function clearDatabaseForTesting() {
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('clearDatabaseForTesting cannot be called in production');
+    }
     const db = await getDb();
     await db.clear(OUTBOX_STORE);
     await db.clear(ROOM_DATA_STORE);
