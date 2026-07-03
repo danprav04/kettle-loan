@@ -190,7 +190,6 @@ export default function EntriesPage() {
                 } else if (amount < 0) { // Loan
                     const loanAmount = Math.abs(amount);
                     const borrowerId = payerId;
-                    runningBalances[borrowerId] -= loanAmount;
 
                     const participants = entry.split_with_user_ids;
                     const lenders = participants && participants.length > 0
@@ -198,6 +197,7 @@ export default function EntriesPage() {
                         : [];
 
                     if (lenders.length > 0) {
+                        runningBalances[borrowerId] -= loanAmount;
                         const creditPerLender = loanAmount / lenders.length;
                         lenders.forEach(lender => {
                             if (runningBalances[lender.id] !== undefined) {

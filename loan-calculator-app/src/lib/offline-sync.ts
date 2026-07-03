@@ -203,7 +203,6 @@ export const recalculateBalances = (entries: Entry[], members: Member[], current
         } else if (amount < 0) { // Loan
             const loanAmount = Math.abs(amount);
             const borrowerId = payerId;
-            finalBalances[borrowerId] -= loanAmount;
 
             const participants = entry.split_with_user_ids;
             const lenders = participants && participants.length > 0 
@@ -211,6 +210,7 @@ export const recalculateBalances = (entries: Entry[], members: Member[], current
                 : [];
 
             if (lenders.length > 0) {
+                finalBalances[borrowerId] -= loanAmount;
                 const creditPerLender = loanAmount / lenders.length;
                 lenders.forEach(lender => {
                     if(finalBalances[lender.id] !== undefined) {

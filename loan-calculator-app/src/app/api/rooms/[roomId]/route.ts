@@ -116,8 +116,6 @@ export async function GET(
             } else if (amount < 0) { // This is a Loan
                 const loanAmount = Math.abs(amount);
                 const borrowerId = payerId;
-                
-                finalBalances[borrowerId] -= loanAmount;
 
                 const participants = entry.split_with_user_ids;
                 const lenders = participants && participants.length > 0
@@ -125,6 +123,7 @@ export async function GET(
                     : [];
 
                 if (lenders.length > 0) {
+                    finalBalances[borrowerId] -= loanAmount;
                     const creditPerLender = loanAmount / lenders.length;
                     lenders.forEach(lender => {
                         finalBalances[lender.id] += creditPerLender;
