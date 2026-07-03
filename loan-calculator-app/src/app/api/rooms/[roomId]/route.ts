@@ -101,16 +101,7 @@ export async function GET(
             if (amount > 0) { // This is an Expense
                 const participants = entry.split_with_user_ids;
 
-                if (!participants || participants.length === 0) {
-                    const share = amount / (calcMembers.length || 1);
-                    calcMembers.forEach(member => {
-                        if (member.id === payerId) {
-                            finalBalances[member.id] += (amount - share);
-                        } else {
-                            finalBalances[member.id] -= share;
-                        }
-                    });
-                } else {
+                if (participants && participants.length > 0) {
                     const numParticipants = participants.length;
                     const share = amount / numParticipants;
 
@@ -131,7 +122,7 @@ export async function GET(
                 const participants = entry.split_with_user_ids;
                 const lenders = participants && participants.length > 0
                     ? calcMembers.filter(m => participants.includes(m.id))
-                    : calcMembers.filter(m => m.id !== borrowerId);
+                    : [];
 
                 if (lenders.length > 0) {
                     const creditPerLender = loanAmount / lenders.length;

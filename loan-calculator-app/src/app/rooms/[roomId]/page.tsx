@@ -232,8 +232,13 @@ export default function RoomPage() {
             const participants = new Set<number>(selectedMemberIds);
             if (includeSelfInSplit && currentUserId) participants.add(currentUserId);
             finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.filter(m => m.role !== 'observer').map((m: Member) => m.id);
-        } else if (entryType === 'loan' && !isSimplified) {
-            finalSplitWithIds = loanPaidByUserIds.size > 0 ? Array.from(loanPaidByUserIds) : null;
+        } else if (entryType === 'loan') {
+            if (!isSimplified && loanPaidByUserIds.size > 0) {
+                finalSplitWithIds = Array.from(loanPaidByUserIds);
+            } else {
+                const otherEligible = members.filter(m => m.role !== 'observer' && m.id !== currentUserId).map((m: Member) => m.id);
+                finalSplitWithIds = otherEligible.length > 0 ? otherEligible : (currentUserId ? [currentUserId] : []);
+            }
         }
 
         const finalAmount = isMultiPartyMode ? parsedAmount : (entryType === 'loan' ? -parsedAmount : parsedAmount);

@@ -119,10 +119,27 @@ export async function PUT(
         const body = await req.json();
         const { amount, description, payerShares, beneficiaryShares, splitWithUserIds } = body;
 
-        const finalSplitWith = Array.isArray(splitWithUserIds) ? JSON.stringify(splitWithUserIds) : null;
+        const legacyUserId = (Array.isArray(payerShares) && payerShares.length > 0) ? payerShares[0].userId : oldEntry.user_id;
+        const numAmount = parseFloat(amount);
+
+        let resolvedSplitWith = splitWithUserIds;
+        if ((!Array.isArray(resolvedSplitWith) || resolvedSplitWith.length === 0) && (!Array.isArray(payerShares) || payerShares.length === 0)) {
+            const membersRes = await db.query(
+                'SELECT user_id FROM room_members WHERE room_id = $1 AND role != \'observer\'',
+                [oldEntry.room_id]
+            );
+            const allEligibleIds = membersRes.rows.map(r => r.user_id);
+            if (numAmount > 0) {
+                resolvedSplitWith = allEligibleIds;
+            } else if (numAmount < 0) {
+                const otherIds = allEligibleIds.filter(id => id !== legacyUserId);
+                resolvedSplitWith = otherIds.length > 0 ? otherIds : [legacyUserId];
+            }
+        }
+
+        const finalSplitWith = (Array.isArray(resolvedSplitWith) && resolvedSplitWith.length > 0) ? JSON.stringify(resolvedSplitWith) : null;
         const finalPayerShares = Array.isArray(payerShares) ? JSON.stringify(payerShares) : null;
         const finalBeneficiaryShares = Array.isArray(beneficiaryShares) ? JSON.stringify(beneficiaryShares) : null;
-        const legacyUserId = (Array.isArray(payerShares) && payerShares.length > 0) ? payerShares[0].userId : oldEntry.user_id;
 
         // Record audit log
         await db.query(`

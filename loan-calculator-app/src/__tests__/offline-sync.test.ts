@@ -205,7 +205,7 @@ describe('offline-sync unit tests', () => {
             { id: 3, username: 'Charlie', role: 'active' }
         ];
 
-        it('should calculate balance for expense split with empty array as split equally among all', () => {
+        it('should calculate balance for expense split when split_with_user_ids explicitly includes all participants', () => {
             const entry: Entry = {
                 id: 1,
                 amount: '90',
@@ -213,7 +213,7 @@ describe('offline-sync unit tests', () => {
                 created_at: new Date().toISOString(),
                 username: 'Alice',
                 user_id: 1,
-                split_with_user_ids: []
+                split_with_user_ids: [1, 2, 3]
             };
 
             const result = recalculateBalances([entry], members, 1);
@@ -259,7 +259,7 @@ describe('offline-sync unit tests', () => {
             expect(result.balances['Bob']).toBe(100);
         });
 
-        it('should exclude observer members from balance calculation', () => {
+        it('should exclude observer members when explicitly split among non-observers', () => {
             const membersWithObserver = [
                 ...members,
                 { id: 4, username: 'Dave', role: 'observer' }
@@ -271,7 +271,7 @@ describe('offline-sync unit tests', () => {
                 created_at: new Date().toISOString(),
                 username: 'Alice',
                 user_id: 1,
-                split_with_user_ids: null
+                split_with_user_ids: [1, 2, 3]
             };
             const result = recalculateBalances([entry], membersWithObserver, 1);
             expect(result.currentUserBalance).toBe(60);

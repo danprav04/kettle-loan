@@ -46,9 +46,9 @@ const getEntryDetails = (entry: Entry, memberMap: Map<number, string>, allMember
         const payerText = entry.user_id === currentUser?.userId ? t('entryParticipantYou') : actorUsername;
         let participantsText: string;
 
-        const participants = entry.split_with_user_ids;
+        const participants = entry.split_with_user_ids || [];
         const calcMembersCount = allMembers.filter(m => m.role !== 'observer').length || allMembers.length;
-        const isForAll = !participants || participants.length === 0 || participants.length === calcMembersCount;
+        const isForAll = participants.length > 0 && participants.length === calcMembersCount;
 
         if (isForAll) {
             participantsText = t('entryParticipantEveryone');
@@ -177,8 +177,8 @@ export default function EntriesPage() {
             } else {
                 const payerId = entry.user_id;
                 if (amount > 0) { // Expense
-                    const participants = (entry.split_with_user_ids && entry.split_with_user_ids.length > 0) ? entry.split_with_user_ids : calcMembers.map(m => m.id);
-                    if (participants.length > 0) {
+                    const participants = entry.split_with_user_ids;
+                    if (participants && participants.length > 0) {
                         const share = amount / participants.length;
                         runningBalances[payerId] += amount;
                         participants.forEach(pId => {
@@ -195,7 +195,7 @@ export default function EntriesPage() {
                     const participants = entry.split_with_user_ids;
                     const lenders = participants && participants.length > 0
                         ? calcMembers.filter(m => participants.includes(m.id))
-                        : calcMembers.filter(m => m.id !== borrowerId);
+                        : [];
 
                     if (lenders.length > 0) {
                         const creditPerLender = loanAmount / lenders.length;

@@ -197,8 +197,8 @@ export default function BalanceDetailsPage() {
             const payerId = entry.user_id;
 
             if (amount > 0) { // Expense
-                const participants = entry.split_with_user_ids ?? calcMembers.map(m => m.id);
-                if (participants.length === 0) continue;
+                const participants = entry.split_with_user_ids;
+                if (!participants || participants.length === 0) continue;
                 const share = amount / participants.length;
 
                 if (payerId === currentUserId) {
@@ -222,7 +222,7 @@ export default function BalanceDetailsPage() {
                 const participants = entry.split_with_user_ids;
                 const lenders = participants && participants.length > 0
                     ? calcMembers.filter(m => participants.includes(m.id))
-                    : calcMembers.filter(m => m.id !== borrowerId);
+                    : [];
 
                 if (lenders.length === 0) continue;
                 const creditPerLender = loanAmount / lenders.length;

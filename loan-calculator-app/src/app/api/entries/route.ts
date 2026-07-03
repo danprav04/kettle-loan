@@ -36,11 +36,28 @@ export async function POST(req: Request) {
             }, { status: 403 });
         }
 
-        const finalSplitWith = Array.isArray(splitWithUserIds) ? JSON.stringify(splitWithUserIds) : null;
-        const finalPayerShares = Array.isArray(payerShares) ? JSON.stringify(payerShares) : null;
-        const finalBeneficiaryShares = Array.isArray(beneficiaryShares) ? JSON.stringify(beneficiaryShares) : null;
         const createdByUserId = user.userId;
         const legacyUserId = (Array.isArray(payerShares) && payerShares.length > 0) ? payerShares[0].userId : user.userId;
+        const numAmount = parseFloat(amount);
+
+        let resolvedSplitWith = splitWithUserIds;
+        if ((!Array.isArray(resolvedSplitWith) || resolvedSplitWith.length === 0) && (!Array.isArray(payerShares) || payerShares.length === 0)) {
+            const membersRes = await db.query(
+                'SELECT user_id FROM room_members WHERE room_id = $1 AND role != \'observer\'',
+                [resolvedId]
+            );
+            const allEligibleIds = membersRes.rows.map(r => r.user_id);
+            if (numAmount > 0) {
+                resolvedSplitWith = allEligibleIds;
+            } else if (numAmount < 0) {
+                const otherIds = allEligibleIds.filter(id => id !== legacyUserId);
+                resolvedSplitWith = otherIds.length > 0 ? otherIds : [legacyUserId];
+            }
+        }
+
+        const finalSplitWith = (Array.isArray(resolvedSplitWith) && resolvedSplitWith.length > 0) ? JSON.stringify(resolvedSplitWith) : null;
+        const finalPayerShares = Array.isArray(payerShares) ? JSON.stringify(payerShares) : null;
+        const finalBeneficiaryShares = Array.isArray(beneficiaryShares) ? JSON.stringify(beneficiaryShares) : null;
         const finalCreatedAt = createdAt ? new Date(createdAt) : new Date();
 
         await db.query(
@@ -48,7 +65,6 @@ export async function POST(req: Request) {
             [resolvedId, legacyUserId, amount, description, finalSplitWith, finalPayerShares, finalBeneficiaryShares, createdByUserId, finalCreatedAt.toISOString()]
         );
 
-        const numAmount = parseFloat(amount);
         const isExpense = numAmount > 0;
         const formattedAmount = Math.abs(numAmount).toFixed(2);
         

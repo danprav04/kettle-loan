@@ -13,6 +13,7 @@ import { FiDownload, FiFileText, FiGrid, FiBarChart2 } from 'react-icons/fi';
 interface Member {
     id: number;
     username: string;
+    role?: string;
 }
 
 interface RoomStats {
@@ -99,8 +100,8 @@ export default function StatsPage() {
                 }
                 if (payerData) payerData.paid += amount;
 
-                const participants = (entry.split_with_user_ids && entry.split_with_user_ids.length > 0) ? entry.split_with_user_ids : members.map(m => m.id);
-                if (participants.length > 0) {
+                const participants = entry.split_with_user_ids;
+                if (participants && participants.length > 0) {
                     const share = amount / participants.length;
                     participants.forEach(pId => {
                         const pData = memberContributions.get(pId);
@@ -134,8 +135,8 @@ export default function StatsPage() {
             const type = amount > 0 ? 'Expense' : 'Loan';
             let participantsText = '';
             
-            const pIds = entry.split_with_user_ids;
-            const isForAll = !pIds || pIds.length === 0 || pIds.length === members.length;
+            const pIds = entry.split_with_user_ids || [];
+            const isForAll = pIds.length > 0 && pIds.length === members.filter(m => m.role !== 'observer').length;
             if(isForAll) {
                  participantsText = tRoom('entryParticipantEveryone');
             } else {
