@@ -26,6 +26,7 @@ interface AdminPanelProps {
   members: Member[];
   currentUserId: number;
   onRefresh: () => void;
+  memberBalances?: { [userId: number]: number };
 }
 
 const PERMISSION_KEYS: (keyof MemberPermissions)[] = ['canAdmin', 'canAddEntries', 'canParticipate', 'canView'];
@@ -68,6 +69,43 @@ function getPermissionSummaryPills(perms: MemberPermissions) {
   return pills;
 }
 
+function getDisabledReason(
+  member: Member,
+  key: keyof MemberPermissions,
+  perms: MemberPermissions,
+  totalAdminsCount: number,
+  memberBalance: number,
+  isSelf: boolean,
+  t: (key: string, values?: any) => string
+): string | null {
+  const isEnabled = perms[key];
+
+  if (isEnabled) {
+    if (key === 'canAdmin') {
+      if (isSelf) {
+        return t('reasonSelfLockout');
+      }
+      if (totalAdminsCount <= 1) {
+        return t('reasonLastAdmin');
+      }
+    }
+
+    if (key === 'canView') {
+      if (perms.canAdmin || perms.canAddEntries) {
+        return t('reasonViewRequired');
+      }
+    }
+
+    if (key === 'canParticipate') {
+      if (Math.abs(memberBalance) > 0.01) {
+        return t('reasonActiveBalance', { balance: memberBalance.toFixed(2) });
+      }
+    }
+  }
+
+  return null;
+}
+
 export default function AdminPanel({
   isOpen,
   onClose,
@@ -77,6 +115,7 @@ export default function AdminPanel({
   members,
   currentUserId,
   onRefresh,
+  memberBalances,
 }: AdminPanelProps) {
   const t = useTranslations('Room');
   const [editName, setEditName] = useState(roomName);
@@ -86,15 +125,41 @@ export default function AdminPanel({
   const [success, setSuccess] = useState('');
   const [expandedMemberId, setExpandedMemberId] = useState<number | null>(null);
   const [savingMemberId, setSavingMemberId] = useState<number | null>(null);
+  const [balances, setBalances] = useState<{ [userId: number]: number }>(memberBalances || {});
 
   React.useEffect(() => {
     if (isOpen) {
       setEditName(roomName || '');
       setEditCurrency(currency || 'ILS');
+      if (memberBalances) {
+        setBalances(memberBalances);
+      } else {
+        handleApi({ url: `/api/rooms/${roomId}/entries`, method: 'GET' })
+          .then((res) => {
+            const entriesList = Array.isArray(res) ? res : res?.entries || [];
+            import('@/lib/offline-sync').then(({ calculateAllMemberBalances }) => {
+              setBalances(calculateAllMemberBalances(entriesList, members as any));
+            });
+          })
+          .catch(() => {});
+      }
     }
-  }, [isOpen, roomName, currency]);
+  }, [isOpen, roomName, currency, roomId, memberBalances, members]);
 
   if (!isOpen) return null;
+
+  const adminCount = members.filter(m => getPermissions(m).canAdmin).length;
+
+  const getPresetDisabledReason = (member: Member, preset: MemberPermissions, memberBalance: number, isSelf: boolean) => {
+    const currentPerms = getPermissions(member);
+    for (const key of PERMISSION_KEYS) {
+      if (currentPerms[key] && !preset[key]) {
+        const reason = getDisabledReason(member, key, currentPerms, adminCount, memberBalance, isSelf, t);
+        if (reason) return reason;
+      }
+    }
+    return null;
+  };
 
   const handleSaveRoomSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,15 +191,22 @@ export default function AdminPanel({
     if (!member) return;
 
     const currentPerms = getPermissions(member);
-    const newPerms = { ...currentPerms, [permKey]: newValue };
+    const memberBalance = balances[memberId] || 0;
+    const isSelf = memberId === currentUserId;
 
-    // Last admin safeguard
-    if (permKey === 'canAdmin' && !newValue) {
-      const adminCount = members.filter(m => getPermissions(m).canAdmin).length;
-      if (adminCount <= 1) {
-        setError(t('lastAdminWarning'));
+    if (!newValue && currentPerms[permKey]) {
+      const disabledReason = getDisabledReason(member, permKey, currentPerms, adminCount, memberBalance, isSelf, t);
+      if (disabledReason) {
+        setError(disabledReason);
         return;
       }
+    }
+
+    const newPerms = { ...currentPerms, [permKey]: newValue };
+
+    // Cascading: enabling Admin or Add Entries ensures View is enabled
+    if (newValue && (permKey === 'canAdmin' || permKey === 'canAddEntries')) {
+      newPerms.canView = true;
     }
 
     setSavingMemberId(memberId);
@@ -158,16 +230,15 @@ export default function AdminPanel({
     setError('');
     setSuccess('');
 
-    // Last admin safeguard
-    if (!preset.canAdmin) {
-      const member = members.find(m => m.id === memberId);
-      if (member && getPermissions(member).canAdmin) {
-        const adminCount = members.filter(m => getPermissions(m).canAdmin).length;
-        if (adminCount <= 1) {
-          setError(t('lastAdminWarning'));
-          return;
-        }
-      }
+    const member = members.find(m => m.id === memberId);
+    if (!member) return;
+
+    const memberBalance = balances[memberId] || 0;
+    const isSelf = memberId === currentUserId;
+    const presetReason = getPresetDisabledReason(member, preset, memberBalance, isSelf);
+    if (presetReason) {
+      setError(presetReason);
+      return;
     }
 
     setSavingMemberId(memberId);
@@ -327,16 +398,27 @@ export default function AdminPanel({
                         {!isSelf && (
                           <div className="flex items-center gap-1.5 mb-3.5 flex-wrap">
                             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t('quick')}</span>
-                            {PRESETS.map((preset) => (
-                              <button
-                                key={preset.key}
-                                onClick={() => handleApplyPreset(member.id, preset.permissions)}
-                                disabled={isSaving}
-                                className="text-[10px] px-2.5 py-1 rounded-lg border border-white/10 bg-card hover:bg-white/5 text-muted-foreground hover:text-foreground font-semibold transition-all disabled:opacity-40"
-                              >
-                                {t(preset.key)}
-                              </button>
-                            ))}
+                            {PRESETS.map((preset) => {
+                              const memberBalance = balances[member.id] || 0;
+                              const presetReason = getPresetDisabledReason(member, preset.permissions, memberBalance, isSelf);
+                              const isPresetDisabled = isSaving || !!presetReason;
+
+                              return (
+                                <button
+                                  key={preset.key}
+                                  onClick={() => handleApplyPreset(member.id, preset.permissions)}
+                                  disabled={isPresetDisabled}
+                                  title={presetReason || ''}
+                                  className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all font-semibold ${
+                                    presetReason
+                                      ? 'border-white/5 bg-transparent text-muted-foreground/40 cursor-not-allowed'
+                                      : 'border-white/10 bg-card hover:bg-white/5 text-muted-foreground hover:text-foreground'
+                                  }`}
+                                >
+                                  {t(preset.key)}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
 
@@ -344,7 +426,11 @@ export default function AdminPanel({
                         <div className="space-y-1.5">
                           {PERMISSION_KEYS.map((key) => {
                             const isEnabled = perms[key];
-                            const isDisabled = isSelf && key === 'canAdmin';
+                            const memberBalance = balances[member.id] || 0;
+                            const disabledReason = isEnabled
+                              ? getDisabledReason(member, key, perms, adminCount, memberBalance, isSelf, t)
+                              : null;
+                            const isDisabled = disabledReason !== null;
                             const colors = PERMISSION_COLORS[key];
 
                             return (
@@ -354,13 +440,18 @@ export default function AdminPanel({
                                   isEnabled
                                     ? 'bg-white/[0.03] border-white/10'
                                     : 'bg-transparent border-white/5'
-                                } ${isDisabled ? 'opacity-50' : ''}`}
+                                } ${isDisabled ? 'opacity-70' : ''}`}
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
                                   <span className="text-sm shrink-0">{PERMISSION_ICONS[key]}</span>
                                   <div className="min-w-0">
                                     <div className="text-xs font-semibold text-foreground">{t(permI18nKey[key])}</div>
                                     <div className="text-[10px] text-muted-foreground leading-tight truncate">{t(permDescI18nKey[key])}</div>
+                                    {isDisabled && (
+                                      <div className="text-[10px] text-amber-400 font-semibold mt-1 flex items-center gap-1 leading-tight">
+                                        <span>🔒</span> {disabledReason}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
 
@@ -370,8 +461,8 @@ export default function AdminPanel({
                                   disabled={isDisabled || isSaving}
                                   className={`relative w-10 h-[22px] rounded-full transition-all duration-300 shrink-0 ${
                                     isEnabled ? colors.on : colors.off
-                                  } ${isDisabled || isSaving ? 'cursor-not-allowed' : 'cursor-pointer hover:opacity-90'}`}
-                                  title={isDisabled ? t('lastAdminWarning') : ''}
+                                  } ${isDisabled || isSaving ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:opacity-90'}`}
+                                  title={disabledReason || ''}
                                 >
                                   <span
                                     className={`absolute top-[3px] w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${

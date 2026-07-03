@@ -173,8 +173,8 @@ export async function getOutboxCount(): Promise<number> {
     return db.count(OUTBOX_STORE);
 }
 
-export const recalculateBalances = (entries: Entry[], members: Member[], currentUserId: number) => {
-    const finalBalances: { [key: string]: number } = {};
+export const calculateAllMemberBalances = (entries: Entry[], members: Member[]): { [userId: number]: number } => {
+    const finalBalances: { [userId: number]: number } = {};
     members.forEach(member => { finalBalances[member.id] = 0; });
 
     const calcMembers = members.filter(m => m.permissions?.canParticipate !== false);
@@ -230,6 +230,12 @@ export const recalculateBalances = (entries: Entry[], members: Member[], current
             }
         }
     });
+
+    return finalBalances;
+};
+
+export const recalculateBalances = (entries: Entry[], members: Member[], currentUserId: number) => {
+    const finalBalances = calculateAllMemberBalances(entries, members);
 
     const currentUserBalance = finalBalances[currentUserId] || 0;
     const otherUserBalances: { [key: string]: number } = {};
