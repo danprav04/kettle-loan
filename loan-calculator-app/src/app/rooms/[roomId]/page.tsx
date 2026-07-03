@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import { FiInfo, FiEdit, FiSave, FiX, FiLoader, FiShield, FiSliders } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
-import { saveRoomData, getRoomData, addLocalEntry, updateLocalRoomName, LocalRoomData, Entry } from '@/lib/offline-sync';
+import { saveRoomData, getRoomData, addLocalEntry, updateLocalRoomName, calculateAllMemberBalances, LocalRoomData, Entry } from '@/lib/offline-sync';
 import { useSync } from '@/components/SyncProvider';
 import { PermissionProvider, Permissions, DEFAULT_PERMISSIONS } from '@/components/PermissionContext';
 import AdminPanel from '@/components/AdminPanel';
@@ -46,6 +46,7 @@ export default function RoomPage() {
     const [newName, setNewName] = useState('');
     const [isSavingName, setIsSavingName] = useState(false);
     const [members, setMembers] = useState<Member[]>([]);
+    const [entries, setEntries] = useState<Entry[]>([]);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [notification, setNotification] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -73,6 +74,7 @@ export default function RoomPage() {
         setRoomName(data.name || null);
         setNewName(data.name || '');
         setMembers(data.members || []);
+        setEntries(data.entries || []);
         setCurrentUserId(data.currentUserId || null);
         if (data.currency) setCurrency(data.currency);
         if (data.currentUserPermissions) {
@@ -594,6 +596,7 @@ export default function RoomPage() {
                     members={members as any}
                     currentUserId={currentUserId || 0}
                     onRefresh={() => fetchData()}
+                    memberBalances={calculateAllMemberBalances(entries, members as any)}
                 />
             </div>
         </PermissionProvider>

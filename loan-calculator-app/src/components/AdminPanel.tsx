@@ -131,12 +131,12 @@ export default function AdminPanel({
     if (isOpen) {
       setEditName(roomName || '');
       setEditCurrency(currency || 'ILS');
-      if (memberBalances) {
+      if (memberBalances && Object.keys(memberBalances).length > 0) {
         setBalances(memberBalances);
       } else {
-        handleApi({ url: `/api/rooms/${roomId}/entries`, method: 'GET' })
+        handleApi({ url: `/api/rooms/${roomId}`, method: 'GET' })
           .then((res) => {
-            const entriesList = Array.isArray(res) ? res : res?.entries || [];
+            const entriesList = res?.entries || [];
             import('@/lib/offline-sync').then(({ calculateAllMemberBalances }) => {
               setBalances(calculateAllMemberBalances(entriesList, members as any));
             });

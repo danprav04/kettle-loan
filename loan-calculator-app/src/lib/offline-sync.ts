@@ -1,5 +1,6 @@
 // src/lib/offline-sync.ts
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { calculateAllMemberBalances } from './balance-calc';
 
 const DB_NAME = 'loan-calculator-db';
 const DB_VERSION = 5;
@@ -173,66 +174,7 @@ export async function getOutboxCount(): Promise<number> {
     return db.count(OUTBOX_STORE);
 }
 
-export const calculateAllMemberBalances = (entries: Entry[], members: Member[]): { [userId: number]: number } => {
-    const finalBalances: { [userId: number]: number } = {};
-    members.forEach(member => { finalBalances[member.id] = 0; });
-
-    const calcMembers = members.filter(m => m.permissions?.canParticipate !== false);
-
-    entries.forEach(entry => {
-        const amount = parseFloat(entry.amount);
-
-        if (entry.payer_shares && entry.beneficiary_shares && Array.isArray(entry.payer_shares) && Array.isArray(entry.beneficiary_shares)) {
-            entry.payer_shares.forEach(p => {
-                if (finalBalances[p.userId] !== undefined) {
-                    finalBalances[p.userId] += amount * (p.percentage / 100);
-                }
-            });
-            entry.beneficiary_shares.forEach(b => {
-                if (finalBalances[b.userId] !== undefined) {
-                    finalBalances[b.userId] -= amount * (b.percentage / 100);
-                }
-            });
-            return;
-        }
-
-        const payerId = entry.user_id;
-
-        if (amount > 0) { // Expense
-            const participants = entry.split_with_user_ids;
-            if (participants && participants.length > 0) {
-                const numParticipants = participants.length;
-                const share = amount / numParticipants;
-                finalBalances[payerId] += amount;
-                participants.forEach(pId => {
-                    if (finalBalances[pId] !== undefined) {
-                        finalBalances[pId] -= share;
-                    }
-                });
-            }
-        } else if (amount < 0) { // Loan
-            const loanAmount = Math.abs(amount);
-            const borrowerId = payerId;
-
-            const participants = entry.split_with_user_ids;
-            const lenders = participants && participants.length > 0 
-                ? calcMembers.filter(m => participants.includes(m.id))
-                : [];
-
-            if (lenders.length > 0) {
-                finalBalances[borrowerId] -= loanAmount;
-                const creditPerLender = loanAmount / lenders.length;
-                lenders.forEach(lender => {
-                    if(finalBalances[lender.id] !== undefined) {
-                        finalBalances[lender.id] += creditPerLender;
-                    }
-                });
-            }
-        }
-    });
-
-    return finalBalances;
-};
+export { calculateAllMemberBalances };
 
 export const recalculateBalances = (entries: Entry[], members: Member[], currentUserId: number) => {
     const finalBalances = calculateAllMemberBalances(entries, members);
