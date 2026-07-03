@@ -10,14 +10,14 @@ import { FiInfo, FiEdit, FiSave, FiX, FiLoader, FiShield, FiSliders } from 'reac
 import { handleApi } from '@/lib/api';
 import { saveRoomData, getRoomData, addLocalEntry, updateLocalRoomName, LocalRoomData, Entry } from '@/lib/offline-sync';
 import { useSync } from '@/components/SyncProvider';
-import { RoomRoleProvider, RoomRole } from '@/components/RoleContext';
+import { PermissionProvider, Permissions, DEFAULT_PERMISSIONS } from '@/components/PermissionContext';
 import AdminPanel from '@/components/AdminPanel';
 import PayerBeneficiarySelector, { ShareItem, SelectorMember } from '@/components/PayerBeneficiarySelector';
 
 interface Member {
     id: number;
     username: string;
-    role?: string;
+    permissions?: { canAdmin?: boolean; canAddEntries?: boolean; canParticipate?: boolean; canView?: boolean };
 }
 
 interface RoomData {
@@ -25,7 +25,7 @@ interface RoomData {
     code: string;
     currency?: string;
     currentUserBalance?: number;
-    currentUserRole?: string;
+    currentUserPermissions?: Permissions;
 }
 
 export default function RoomPage() {
@@ -39,7 +39,7 @@ export default function RoomPage() {
     const [roomCode, setRoomCode] = useState('');
     const [roomName, setRoomName] = useState<string | null>(null);
     const [currency, setCurrency] = useState('ILS');
-    const [currentUserRole, setCurrentUserRole] = useState<RoomRole>('observer');
+    const [permissions, setPermissions] = useState<Permissions>(DEFAULT_PERMISSIONS);
     const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
 
     const [isEditingName, setIsEditingName] = useState(false);
@@ -75,11 +75,11 @@ export default function RoomPage() {
         setMembers(data.members || []);
         setCurrentUserId(data.currentUserId || null);
         if (data.currency) setCurrency(data.currency);
-        if (data.currentUserRole && ['admin', 'active', 'passive', 'observer'].includes(data.currentUserRole)) {
-            setCurrentUserRole(data.currentUserRole as RoomRole);
+        if (data.currentUserPermissions) {
+            setPermissions(data.currentUserPermissions);
         }
         
-        const eligible = (data.members || []).filter(m => m.role !== 'observer');
+        const eligible = (data.members || []).filter(m => m.permissions?.canParticipate !== false);
         if (eligible.length > 0 && !splitsInitializedRef.current && data.currentUserId) {
             splitsInitializedRef.current = true;
             setPayerShares([{ userId: data.currentUserId, percentage: 100 }]);
@@ -92,7 +92,7 @@ export default function RoomPage() {
             })));
 
             const initialSelected = (data.members || [])
-                .filter((m: Member) => m.id !== data.currentUserId && m.role !== 'observer')
+                .filter((m: Member) => m.id !== data.currentUserId && m.permissions?.canParticipate !== false)
                 .map((m: Member) => m.id);
             setSelectedMemberIds(new Set(initialSelected));
             setIncludeSelfInSplit(true);
@@ -231,12 +231,12 @@ export default function RoomPage() {
         } else if (entryType === 'expense') {
             const participants = new Set<number>(selectedMemberIds);
             if (includeSelfInSplit && currentUserId) participants.add(currentUserId);
-            finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.filter(m => m.role !== 'observer').map((m: Member) => m.id);
+            finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.filter(m => m.permissions?.canParticipate !== false).map((m: Member) => m.id);
         } else if (entryType === 'loan') {
             if (!isSimplified && loanPaidByUserIds.size > 0) {
                 finalSplitWithIds = Array.from(loanPaidByUserIds);
             } else {
-                const otherEligible = members.filter(m => m.role !== 'observer' && m.id !== currentUserId).map((m: Member) => m.id);
+                const otherEligible = members.filter(m => m.permissions?.canParticipate !== false && m.id !== currentUserId).map((m: Member) => m.id);
                 finalSplitWithIds = otherEligible.length > 0 ? otherEligible : (currentUserId ? [currentUserId] : []);
             }
         }
@@ -302,10 +302,10 @@ export default function RoomPage() {
     };
 
     const isSubmitDisabled = amount === '' || description === '';
-    const isViewOnly = currentUserRole === 'observer' || currentUserRole === 'passive';
+    const isViewOnly = !permissions.canAddEntries;
 
     return (
-        <RoomRoleProvider role={currentUserRole} currency={currency}>
+        <PermissionProvider permissions={permissions} currency={currency}>
             <div className="pb-16 sm:pb-6">
                 {isLoading ? (
                     <div className="max-w-md mx-auto p-8 text-center text-muted-foreground animate-fadeIn">Loading room...</div>
@@ -336,24 +336,30 @@ export default function RoomPage() {
                                         <h1 className="text-lg sm:text-xl font-bold text-card-foreground">
                                             {roomName || t('roomTitle', { code: roomCode })}
                                         </h1>
-                                        {currentUserRole === 'admin' && (
+                                        {permissions.canAdmin && (
                                             <button onClick={handleStartEditingName} className="hidden p-1 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Edit room name">
                                                 <FiEdit />
                                             </button>
                                         )}
                                     </div>
                                 )}
-                                <div className="flex items-center justify-center gap-2 mt-1">
+                                <div className="flex items-center justify-center gap-1.5 mt-1 flex-wrap">
                                     <span className="text-xs text-muted-foreground">{t('roomCodeLabel', { code: roomCode })}</span>
-                                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm ${
-                                        currentUserRole === 'admin' ? 'bg-purple-500/20 text-purple-400 border-purple-500/40 shadow-purple-500/10' :
-                                        currentUserRole === 'active' ? 'bg-blue-500/20 text-blue-400 border-blue-500/40' :
-                                        currentUserRole === 'passive' ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' :
-                                        'bg-zinc-500/20 text-zinc-400 border-zinc-500/40'
-                                    }`}>{currentUserRole}</span>
+                                    {permissions.canAdmin && (
+                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-purple-500/20 text-purple-400 border-purple-500/40 shadow-purple-500/10">Admin</span>
+                                    )}
+                                    {permissions.canAddEntries && (
+                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-blue-500/20 text-blue-400 border-blue-500/40">Edit</span>
+                                    )}
+                                    {permissions.canParticipate && (
+                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-emerald-500/20 text-emerald-400 border-emerald-500/40">Participant</span>
+                                    )}
+                                    {permissions.canView && (
+                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-sky-500/20 text-sky-400 border-sky-500/40">View</span>
+                                    )}
                                 </div>
 
-                                {currentUserRole === 'admin' && (
+                                {permissions.canAdmin && (
                                     <button
                                         onClick={() => setIsAdminPanelOpen(true)}
                                         className="absolute right-0 top-0 px-2.5 py-1.5 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 text-purple-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md border border-purple-500/30 hover:scale-105"
@@ -391,7 +397,7 @@ export default function RoomPage() {
                                     <FiShield className="mx-auto text-amber-500 text-3xl animate-pulse" />
                                     <h3 className="font-bold text-foreground text-base">{t('viewOnlyTitle')}</h3>
                                     <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-                                        {t('viewOnlyMsg', { role: currentUserRole || 'member' })}
+                                        {t('viewOnlyMsg', { role: 'member' })}
                                     </p>
                                 </div>
                             ) : (
@@ -501,7 +507,7 @@ export default function RoomPage() {
                                                             <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-md font-bold tracking-wider">{t('youBadge')}</span>
                                                         </div>
                                                     )}
-                                                    {otherMembers.filter(m => m.role !== 'observer').map((member: Member) => {
+                                                    {otherMembers.filter(m => m.permissions?.canParticipate !== false).map((member: Member) => {
                                                         const isSel = selectedMemberIds.has(member.id);
                                                         return (
                                                             <div
@@ -530,7 +536,7 @@ export default function RoomPage() {
                                             <div className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-white/10 shadow-lg space-y-2.5">
                                                 <label className="text-xs font-bold text-foreground uppercase tracking-wider block">{t('paidForMeBy')}</label>
                                                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                                                    {otherMembers.filter(m => m.role !== 'observer').map((member: Member) => {
+                                                    {otherMembers.filter(m => m.permissions?.canParticipate !== false).map((member: Member) => {
                                                         const isSel = loanPaidByUserIds.has(member.id);
                                                         return (
                                                             <div
@@ -590,6 +596,6 @@ export default function RoomPage() {
                     onRefresh={() => fetchData()}
                 />
             </div>
-        </RoomRoleProvider>
+        </PermissionProvider>
     );
 }

@@ -60,24 +60,26 @@ export async function GET(
         );
 
         const membersResult = await db.query(
-            'SELECT u.id, u.username, rm.role FROM users u JOIN room_members rm ON u.id = rm.user_id WHERE rm.room_id = $1',
+            'SELECT u.id, u.username, rm.can_admin, rm.can_add_entries, rm.can_participate, rm.can_view FROM users u JOIN room_members rm ON u.id = rm.user_id WHERE rm.room_id = $1',
             [resolvedId]
         );
         
-        const members: { id: number; username: string; role: 'admin' | 'active' | 'passive' | 'observer' }[] = membersResult.rows;
+        const members: { id: number; username: string; can_admin: boolean; can_add_entries: boolean; can_participate: boolean; can_view: boolean }[] = membersResult.rows;
         if (members.length === 0) {
            return NextResponse.json({ message: 'No members in room or room does not exist' }, { status: 404 });
         }
 
         const currentMember = members.find(m => m.id === user.userId);
-        const currentUserRole = currentMember ? currentMember.role : 'active';
+        const currentUserPermissions = currentMember
+            ? { canAdmin: currentMember.can_admin, canAddEntries: currentMember.can_add_entries, canParticipate: currentMember.can_participate, canView: currentMember.can_view }
+            : { canAdmin: false, canAddEntries: true, canParticipate: true, canView: true };
         
         const finalBalances: { [key: string]: number } = {};
         members.forEach(member => {
             finalBalances[member.id] = 0;
         });
 
-        const calcMembers = members.filter(m => m.role !== 'observer');
+        const calcMembers = members.filter(m => m.can_participate);
         const entries: DbEntry[] = entriesResult.rows;
 
         entries.forEach(entry => {
@@ -147,11 +149,11 @@ export async function GET(
             name: roomName,
             code: roomCode,
             currency: currency || 'ILS',
-            currentUserRole,
+            currentUserPermissions,
             entries: reversedEntries,
             balances: otherUserBalances,
             currentUserBalance,
-            members,
+            members: members.map(m => ({ id: m.id, username: m.username, permissions: { canAdmin: m.can_admin, canAddEntries: m.can_add_entries, canParticipate: m.can_participate, canView: m.can_view } })),
             currentUserId: user.userId
         });
     } catch (error) {
@@ -186,11 +188,11 @@ export async function PUT(
         }
 
         const memberCheckResult = await db.query(
-            'SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2',
+            'SELECT can_admin FROM room_members WHERE room_id = $1 AND user_id = $2',
             [resolvedId, user.userId]
         );
 
-        if (memberCheckResult.rows.length === 0 || memberCheckResult.rows[0].role !== 'admin') {
+        if (memberCheckResult.rows.length === 0 || memberCheckResult.rows[0].can_admin !== true) {
             return NextResponse.json({ message: 'Forbidden: Admin access required' }, { status: 403 });
         }
 

@@ -26,26 +26,31 @@ export async function PUT(
         }
 
         const body = await req.json();
-        const newRole = body.role;
-        const validRoles = ['admin', 'active', 'passive', 'observer'];
+        const permissions = body.permissions;
 
-        if (!validRoles.includes(newRole)) {
-            return NextResponse.json({ message: 'Invalid role' }, { status: 400 });
+        if (!permissions || typeof permissions !== 'object') {
+            return NextResponse.json({ message: 'Invalid permissions object' }, { status: 400 });
+        }
+
+        const { canAdmin, canAddEntries, canParticipate, canView } = permissions;
+
+        if (typeof canAdmin !== 'boolean' || typeof canAddEntries !== 'boolean' || typeof canParticipate !== 'boolean' || typeof canView !== 'boolean') {
+            return NextResponse.json({ message: 'All permission flags must be booleans' }, { status: 400 });
         }
 
         // Check acting user's admin status
         const actingMemberRes = await db.query(
-            'SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2',
+            'SELECT can_admin FROM room_members WHERE room_id = $1 AND user_id = $2',
             [resolvedId, user.userId]
         );
 
-        if (actingMemberRes.rows.length === 0 || actingMemberRes.rows[0].role !== 'admin') {
+        if (actingMemberRes.rows.length === 0 || actingMemberRes.rows[0].can_admin !== true) {
             return NextResponse.json({ message: 'Forbidden: Admin access required' }, { status: 403 });
         }
 
-        // Check target user's current role
+        // Check target user exists in the room
         const targetMemberRes = await db.query(
-            'SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2',
+            'SELECT can_admin FROM room_members WHERE room_id = $1 AND user_id = $2',
             [resolvedId, targetUserId]
         );
 
@@ -53,32 +58,30 @@ export async function PUT(
             return NextResponse.json({ message: 'Member not found in room' }, { status: 404 });
         }
 
-        const currentTargetRole = targetMemberRes.rows[0].role;
-
-        // Safeguard: Cannot demote the last remaining admin
-        if (currentTargetRole === 'admin' && newRole !== 'admin') {
+        // Safeguard: Cannot remove can_admin from the last remaining admin
+        if (targetMemberRes.rows[0].can_admin === true && !canAdmin) {
             const adminCountRes = await db.query(
-                'SELECT COUNT(*) as count FROM room_members WHERE room_id = $1 AND role = $2',
-                [resolvedId, 'admin']
+                'SELECT COUNT(*) as count FROM room_members WHERE room_id = $1 AND can_admin = true',
+                [resolvedId]
             );
             const adminCount = parseInt(adminCountRes.rows[0].count, 10);
 
             if (adminCount <= 1) {
                 return NextResponse.json({
-                    message: 'Cannot demote the last remaining admin in the room.'
+                    message: 'Cannot remove admin from the last remaining admin in the room.'
                 }, { status: 400 });
             }
         }
 
         await db.query(
-            'UPDATE room_members SET role = $1 WHERE room_id = $2 AND user_id = $3',
-            [newRole, resolvedId, targetUserId]
+            'UPDATE room_members SET can_admin = $1, can_add_entries = $2, can_participate = $3, can_view = $4 WHERE room_id = $5 AND user_id = $6',
+            [canAdmin, canAddEntries, canParticipate, canView, resolvedId, targetUserId]
         );
 
-        return NextResponse.json({ message: 'Role updated successfully' });
+        return NextResponse.json({ message: 'Permissions updated successfully' });
 
     } catch (error) {
-        console.error('Failed to update member role:', error);
+        console.error('Failed to update member permissions:', error);
         return NextResponse.json({ message: 'An error occurred.' }, { status: 500 });
     }
 }

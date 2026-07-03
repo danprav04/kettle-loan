@@ -22,7 +22,12 @@ interface OutboxRequest {
 interface Member {
     id: number;
     username: string;
-    role?: string;
+    permissions?: {
+        canAdmin?: boolean;
+        canAddEntries?: boolean;
+        canParticipate?: boolean;
+        canView?: boolean;
+    };
 }
 
 interface Share {
@@ -50,7 +55,12 @@ export interface LocalRoomData {
     name: string | null;
     code: string;
     currency?: string;
-    currentUserRole?: string;
+    currentUserPermissions?: {
+        canAdmin: boolean;
+        canAddEntries: boolean;
+        canParticipate: boolean;
+        canView: boolean;
+    };
     entries: Entry[];
     balances: { [key: string]: number };
     currentUserBalance: number;
@@ -167,7 +177,7 @@ export const recalculateBalances = (entries: Entry[], members: Member[], current
     const finalBalances: { [key: string]: number } = {};
     members.forEach(member => { finalBalances[member.id] = 0; });
 
-    const calcMembers = members.filter(m => m.role !== 'observer');
+    const calcMembers = members.filter(m => m.permissions?.canParticipate !== false);
 
     entries.forEach(entry => {
         const amount = parseFloat(entry.amount);

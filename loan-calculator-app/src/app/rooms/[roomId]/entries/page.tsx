@@ -12,11 +12,12 @@ import ConfirmationDialog from '@/components/ConfirmationDialog';
 import EditEntryModal from '@/components/EditEntryModal';
 import EntryEditsModal from '@/components/EntryEditsModal';
 import { FiClock, FiTrash2, FiInfo, FiEdit3 } from 'react-icons/fi';
+import { Permissions, DEFAULT_PERMISSIONS } from '@/components/PermissionContext';
 
 interface Member {
     id: number;
     username: string;
-    role?: string;
+    permissions?: { canAdmin?: boolean; canAddEntries?: boolean; canParticipate?: boolean; canView?: boolean };
 }
 
 interface User {
@@ -47,7 +48,7 @@ const getEntryDetails = (entry: Entry, memberMap: Map<number, string>, allMember
         let participantsText: string;
 
         const participants = entry.split_with_user_ids || [];
-        const calcMembersCount = allMembers.filter(m => m.role !== 'observer').length || allMembers.length;
+        const calcMembersCount = allMembers.filter(m => m.permissions?.canParticipate !== false).length || allMembers.length;
         const isForAll = participants.length > 0 && participants.length === calcMembersCount;
 
         if (isForAll) {
@@ -91,7 +92,7 @@ export default function EntriesPage() {
     const [entries, setEntries] = useState<Entry[]>([]);
     const [members, setMembers] = useState<Member[]>([]);
     const [currency, setCurrency] = useState('ILS');
-    const [currentUserRole, setCurrentUserRole] = useState('active');
+    const [currentUserPermissions, setCurrentUserPermissions] = useState<Permissions>(DEFAULT_PERMISSIONS);
 
     const [isLoading, setIsLoading] = useState(true);
     const [notification, setNotification] = useState<string | null>(null);
@@ -117,7 +118,7 @@ export default function EntriesPage() {
             setEntries(localData.entries);
             setMembers(localData.members);
             if (localData.currency) setCurrency(localData.currency);
-            if (localData.currentUserRole) setCurrentUserRole(localData.currentUserRole);
+            if (localData.currentUserPermissions) setCurrentUserPermissions(localData.currentUserPermissions);
         }
 
         if (isOnline) {
@@ -131,7 +132,7 @@ export default function EntriesPage() {
                     setEntries(data.entries);
                     setMembers(data.members);
                     if (data.currency) setCurrency(data.currency);
-                    if (data.currentUserRole) setCurrentUserRole(data.currentUserRole);
+                    if (data.currentUserPermissions) setCurrentUserPermissions(data.currentUserPermissions);
                 } else if (res.status === 401) {
                     router.push('/');
                 }
@@ -155,7 +156,7 @@ export default function EntriesPage() {
             return [];
         }
 
-        const calcMembers = members.filter(m => m.role !== 'observer');
+        const calcMembers = members.filter(m => m.permissions?.canParticipate !== false);
         const chronologicalEntries = [...entries].reverse();
         const runningBalances: { [key: number]: number } = {};
         members.forEach(member => { runningBalances[member.id] = 0; });
@@ -265,8 +266,8 @@ export default function EntriesPage() {
     };
 
     const canModify = (entry: Entry) => {
-        if (currentUserRole === 'admin') return true;
-        if (currentUserRole === 'active') {
+        if (currentUserPermissions.canAdmin) return true;
+        if (currentUserPermissions.canAddEntries) {
             return entry.user_id === user?.userId || entry.created_by_user_id === user?.userId;
         }
         return false;

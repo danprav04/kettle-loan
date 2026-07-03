@@ -17,7 +17,10 @@ CREATE TABLE room_members (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
-    role VARCHAR(20) NOT NULL DEFAULT 'active',
+    can_admin BOOLEAN NOT NULL DEFAULT false,
+    can_add_entries BOOLEAN NOT NULL DEFAULT true,
+    can_participate BOOLEAN NOT NULL DEFAULT true,
+    can_view BOOLEAN NOT NULL DEFAULT true,
     UNIQUE(user_id, room_id)
 );
 

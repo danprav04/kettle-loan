@@ -33,7 +33,7 @@ export async function DELETE(
         const entry = entryQuery.rows[0];
 
         const memberRes = await db.query(
-            'SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2',
+            'SELECT can_admin, can_add_entries FROM room_members WHERE room_id = $1 AND user_id = $2',
             [entry.room_id, user.userId]
         );
 
@@ -41,10 +41,10 @@ export async function DELETE(
             return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
         }
 
-        const role = memberRes.rows[0].role;
+        const { can_admin, can_add_entries } = memberRes.rows[0];
         const isOwner = entry.created_by_user_id === user.userId || entry.user_id === user.userId;
 
-        if (role !== 'admin' && !(role === 'active' && isOwner)) {
+        if (!can_admin && !(can_add_entries && isOwner)) {
             return NextResponse.json({
                 message: 'Forbidden: Only Admins or the entry recorder can delete this entry.'
             }, { status: 403 });
@@ -99,7 +99,7 @@ export async function PUT(
         const oldEntry = entryQuery.rows[0];
 
         const memberRes = await db.query(
-            'SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2',
+            'SELECT can_admin, can_add_entries FROM room_members WHERE room_id = $1 AND user_id = $2',
             [oldEntry.room_id, user.userId]
         );
 
@@ -107,10 +107,10 @@ export async function PUT(
             return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
         }
 
-        const role = memberRes.rows[0].role;
+        const { can_admin, can_add_entries } = memberRes.rows[0];
         const isOwner = oldEntry.created_by_user_id === user.userId || oldEntry.user_id === user.userId;
 
-        if (role !== 'admin' && !(role === 'active' && isOwner)) {
+        if (!can_admin && !(can_add_entries && isOwner)) {
             return NextResponse.json({
                 message: 'Forbidden: Only Admins or the entry recorder can edit this entry.'
             }, { status: 403 });
@@ -125,7 +125,7 @@ export async function PUT(
         let resolvedSplitWith = splitWithUserIds;
         if ((!Array.isArray(resolvedSplitWith) || resolvedSplitWith.length === 0) && (!Array.isArray(payerShares) || payerShares.length === 0)) {
             const membersRes = await db.query(
-                'SELECT user_id FROM room_members WHERE room_id = $1 AND role != \'observer\'',
+                'SELECT user_id FROM room_members WHERE room_id = $1 AND can_participate = true',
                 [oldEntry.room_id]
             );
             const allEligibleIds = membersRes.rows.map(r => r.user_id);

@@ -19,9 +19,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Room not found' }, { status: 404 });
         }
 
-        // Verify RBAC permissions
+        // Verify permissions
         const memberRes = await db.query(
-            'SELECT role FROM room_members WHERE room_id = $1 AND user_id = $2',
+            'SELECT can_add_entries, can_participate FROM room_members WHERE room_id = $1 AND user_id = $2',
             [resolvedId, user.userId]
         );
 
@@ -29,10 +29,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Forbidden: Not in room' }, { status: 403 });
         }
 
-        const userRole = memberRes.rows[0].role;
-        if (userRole === 'observer' || userRole === 'passive') {
+        if (memberRes.rows[0].can_add_entries !== true) {
             return NextResponse.json({
-                message: 'Forbidden: Observers and Passive members cannot log entries.'
+                message: 'Forbidden: You do not have permission to log entries.'
             }, { status: 403 });
         }
 
@@ -43,7 +42,7 @@ export async function POST(req: Request) {
         let resolvedSplitWith = splitWithUserIds;
         if ((!Array.isArray(resolvedSplitWith) || resolvedSplitWith.length === 0) && (!Array.isArray(payerShares) || payerShares.length === 0)) {
             const membersRes = await db.query(
-                'SELECT user_id FROM room_members WHERE room_id = $1 AND role != \'observer\'',
+                'SELECT user_id FROM room_members WHERE room_id = $1 AND can_participate = true',
                 [resolvedId]
             );
             const allEligibleIds = membersRes.rows.map(r => r.user_id);

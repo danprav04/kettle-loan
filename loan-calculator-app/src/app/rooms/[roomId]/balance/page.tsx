@@ -13,7 +13,7 @@ import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign, Fi
 interface Member {
     id: number;
     username: string;
-    role?: string;
+    permissions?: { canAdmin?: boolean; canAddEntries?: boolean; canParticipate?: boolean; canView?: boolean };
 }
 
 type PeerToPeerTransaction = Entry & { contribution: number; runningP2PBalance: number };
@@ -58,7 +58,7 @@ export default function BalanceDetailsPage() {
     };
 
     const activePerspectiveUserId = perspectiveUserId ?? user?.userId ?? 0;
-    const otherMembers = useMemo(() => members.filter(m => m.id !== activePerspectiveUserId && m.role !== 'observer'), [members, activePerspectiveUserId]);
+    const otherMembers = useMemo(() => members.filter(m => m.id !== activePerspectiveUserId && m.permissions?.canParticipate !== false), [members, activePerspectiveUserId]);
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -153,7 +153,7 @@ export default function BalanceDetailsPage() {
             return new Map<number, { netBalance: number; transactions: PeerToPeerTransaction[] }>();
         }
 
-        const calcMembers = members.filter(m => m.role !== 'observer');
+        const calcMembers = members.filter(m => m.permissions?.canParticipate !== false);
         const breakdown = new Map<number, { netBalance: number; transactions: PeerToPeerTransaction[] }>();
         const currentUserId = activePerspectiveUserId;
 
@@ -392,7 +392,7 @@ export default function BalanceDetailsPage() {
                                 onChange={(e) => setPerspectiveUserId(parseInt(e.target.value))}
                                 className="text-xs font-bold bg-transparent text-foreground cursor-pointer focus:outline-none border-none pr-1"
                             >
-                                {members.filter(m => m.role !== 'observer').map(m => (
+                                {members.filter(m => m.permissions?.canParticipate !== false).map(m => (
                                     <option key={m.id} value={m.id} className="bg-card text-foreground font-semibold">
                                         {m.username} {m.id === user?.userId ? `(${t('me')})` : ''}
                                     </option>
@@ -439,10 +439,8 @@ export default function BalanceDetailsPage() {
                                                         <span className="font-bold text-card-foreground text-sm sm:text-base tracking-tight block truncate">
                                                             {member.username}
                                                         </span>
-                                                        {member.role && (
-                                                            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                                                                {member.role}
-                                                            </span>
+                                                        {member.permissions?.canAdmin && (
+                                                            <span className="text-[10px] font-semibold text-purple-400 uppercase tracking-wider">Admin</span>
                                                         )}
                                                     </div>
                                                 </div>

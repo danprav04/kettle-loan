@@ -4,10 +4,17 @@ import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { handleApi } from '@/lib/api';
 
+interface MemberPermissions {
+  canAdmin: boolean;
+  canAddEntries: boolean;
+  canParticipate: boolean;
+  canView: boolean;
+}
+
 interface Member {
   id: number;
   username: string;
-  role: string;
+  permissions?: Partial<MemberPermissions>;
 }
 
 interface AdminPanelProps {
@@ -19,6 +26,46 @@ interface AdminPanelProps {
   members: Member[];
   currentUserId: number;
   onRefresh: () => void;
+}
+
+const PERMISSION_KEYS: (keyof MemberPermissions)[] = ['canAdmin', 'canAddEntries', 'canParticipate', 'canView'];
+
+const PERMISSION_ICONS: Record<keyof MemberPermissions, string> = {
+  canAdmin: '🛡️',
+  canAddEntries: '✏️',
+  canParticipate: '📊',
+  canView: '👁️',
+};
+
+const PERMISSION_COLORS: Record<keyof MemberPermissions, { on: string; off: string }> = {
+  canAdmin: { on: 'bg-purple-500', off: 'bg-zinc-600' },
+  canAddEntries: { on: 'bg-blue-500', off: 'bg-zinc-600' },
+  canParticipate: { on: 'bg-emerald-500', off: 'bg-zinc-600' },
+  canView: { on: 'bg-amber-500', off: 'bg-zinc-600' },
+};
+
+const PRESETS: { key: string; permissions: MemberPermissions }[] = [
+  { key: 'presetFullAccess', permissions: { canAdmin: true, canAddEntries: true, canParticipate: true, canView: true } },
+  { key: 'presetMember', permissions: { canAdmin: false, canAddEntries: true, canParticipate: true, canView: true } },
+  { key: 'presetViewOnly', permissions: { canAdmin: false, canAddEntries: false, canParticipate: false, canView: true } },
+];
+
+function getPermissions(member: Member): MemberPermissions {
+  return {
+    canAdmin: member.permissions?.canAdmin ?? false,
+    canAddEntries: member.permissions?.canAddEntries ?? true,
+    canParticipate: member.permissions?.canParticipate ?? true,
+    canView: member.permissions?.canView ?? true,
+  };
+}
+
+function getPermissionSummaryPills(perms: MemberPermissions) {
+  const pills: { label: string; color: string }[] = [];
+  if (perms.canAdmin) pills.push({ label: '🛡️', color: 'bg-purple-500/20 text-purple-300 border-purple-500/40' });
+  if (perms.canAddEntries) pills.push({ label: '✏️', color: 'bg-blue-500/20 text-blue-300 border-blue-500/40' });
+  if (perms.canParticipate) pills.push({ label: '📊', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' });
+  if (perms.canView) pills.push({ label: '👁️', color: 'bg-amber-500/20 text-amber-300 border-amber-500/40' });
+  return pills;
 }
 
 export default function AdminPanel({
@@ -37,6 +84,8 @@ export default function AdminPanel({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [expandedMemberId, setExpandedMemberId] = useState<number | null>(null);
+  const [savingMemberId, setSavingMemberId] = useState<number | null>(null);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -69,28 +118,87 @@ export default function AdminPanel({
     }
   };
 
-  const handleRoleChange = async (memberId: number, newRole: string) => {
+  const handlePermissionToggle = async (memberId: number, permKey: keyof MemberPermissions, newValue: boolean) => {
     setError('');
     setSuccess('');
+
+    const member = members.find(m => m.id === memberId);
+    if (!member) return;
+
+    const currentPerms = getPermissions(member);
+    const newPerms = { ...currentPerms, [permKey]: newValue };
+
+    // Last admin safeguard
+    if (permKey === 'canAdmin' && !newValue) {
+      const adminCount = members.filter(m => getPermissions(m).canAdmin).length;
+      if (adminCount <= 1) {
+        setError(t('lastAdminWarning'));
+        return;
+      }
+    }
+
+    setSavingMemberId(memberId);
     try {
       await handleApi({
         url: `/api/rooms/${roomId}/members/${memberId}`,
         method: 'PUT',
-        body: { role: newRole },
+        body: { permissions: newPerms },
       });
 
-      setSuccess('Role updated successfully!');
+      setSuccess(t('permissionsSaved'));
       onRefresh();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error updating role');
+      setError(err instanceof Error ? err.message : 'Error updating permissions');
+    } finally {
+      setSavingMemberId(null);
     }
   };
 
-  const roleColors: Record<string, string> = {
-    admin: 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.15)]',
-    active: 'bg-blue-500/20 text-cyan-300 border-cyan-500/40',
-    passive: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-    observer: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/40',
+  const handleApplyPreset = async (memberId: number, preset: MemberPermissions) => {
+    setError('');
+    setSuccess('');
+
+    // Last admin safeguard
+    if (!preset.canAdmin) {
+      const member = members.find(m => m.id === memberId);
+      if (member && getPermissions(member).canAdmin) {
+        const adminCount = members.filter(m => getPermissions(m).canAdmin).length;
+        if (adminCount <= 1) {
+          setError(t('lastAdminWarning'));
+          return;
+        }
+      }
+    }
+
+    setSavingMemberId(memberId);
+    try {
+      await handleApi({
+        url: `/api/rooms/${roomId}/members/${memberId}`,
+        method: 'PUT',
+        body: { permissions: preset },
+      });
+
+      setSuccess(t('permissionsSaved'));
+      onRefresh();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error updating permissions');
+    } finally {
+      setSavingMemberId(null);
+    }
+  };
+
+  const permI18nKey: Record<keyof MemberPermissions, string> = {
+    canAdmin: 'permAdmin',
+    canAddEntries: 'permAddEntries',
+    canParticipate: 'permParticipate',
+    canView: 'permView',
+  };
+
+  const permDescI18nKey: Record<keyof MemberPermissions, string> = {
+    canAdmin: 'permAdminDesc',
+    canAddEntries: 'permAddEntriesDesc',
+    canParticipate: 'permParticipateDesc',
+    canView: 'permViewDesc',
   };
 
   return (
@@ -111,12 +219,12 @@ export default function AdminPanel({
 
         <div className="p-6 overflow-y-auto space-y-6">
           {error && (
-            <div className="p-3.5 text-xs bg-danger/20 border border-danger/40 text-danger rounded-xl">
+            <div className="p-3.5 text-xs bg-danger/20 border border-danger/40 text-danger rounded-xl animate-fadeIn">
               {error}
             </div>
           )}
           {success && (
-            <div className="p-3.5 text-xs bg-success/20 border border-success/40 text-success rounded-xl">
+            <div className="p-3.5 text-xs bg-success/20 border border-success/40 text-success rounded-xl animate-fadeIn">
               {success}
             </div>
           )}
@@ -160,40 +268,126 @@ export default function AdminPanel({
             </div>
           </form>
 
-          {/* Members Roles */}
+          {/* Members Permissions */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold text-muted-foreground tracking-wider uppercase">{t('memberPermissions', { count: members.length })}</h3>
             <div className="space-y-2">
-              {members.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between p-3 rounded-2xl bg-background/50 border border-white/5 hover:bg-muted/20 transition-all"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-semibold text-xs text-foreground">{member.username}</span>
-                    {member.id === currentUserId && (
-                      <span className="text-[9px] font-bold bg-primary/20 text-primary px-1.5 py-0.5 rounded tracking-wider">{t('youBadge')}</span>
-                    )}
-                    <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded-md border ${roleColors[member.role] || roleColors.active}`}>
-                      {member.role}
-                    </span>
-                  </div>
+              {members.map((member) => {
+                const perms = getPermissions(member);
+                const isExpanded = expandedMemberId === member.id;
+                const isSelf = member.id === currentUserId;
+                const isSaving = savingMemberId === member.id;
+                const summaryPills = getPermissionSummaryPills(perms);
 
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={member.role}
-                      onChange={(e) => handleRoleChange(member.id, e.target.value)}
-                      disabled={member.id === currentUserId}
-                      className="text-xs px-2.5 py-1.5 rounded-xl border border-input bg-card text-foreground disabled:opacity-40 font-medium cursor-pointer"
+                return (
+                  <div
+                    key={member.id}
+                    className={`rounded-2xl border transition-all duration-300 overflow-hidden ${
+                      isExpanded
+                        ? 'bg-muted/30 border-white/10 shadow-lg'
+                        : 'bg-background/50 border-white/5 hover:bg-muted/20'
+                    }`}
+                  >
+                    {/* Member Header Row */}
+                    <button
+                      onClick={() => setExpandedMemberId(isExpanded ? null : member.id)}
+                      className="w-full flex items-center justify-between p-3 text-left"
+                      disabled={isSaving}
                     >
-                      <option value="admin">{t('roleAdmin')}</option>
-                      <option value="active">{t('roleActive')}</option>
-                      <option value="passive">{t('rolePassive')}</option>
-                      <option value="observer">{t('roleObserver')}</option>
-                    </select>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/30 flex items-center justify-center font-bold text-primary text-xs shrink-0">
+                          {member.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-xs text-foreground truncate">{member.username}</span>
+                            {isSelf && (
+                              <span className="text-[9px] font-bold bg-primary/20 text-primary px-1.5 py-0.5 rounded tracking-wider shrink-0">{t('youBadge')}</span>
+                            )}
+                          </div>
+                          {/* Permission summary pills */}
+                          <div className="flex items-center gap-1 mt-1">
+                            {summaryPills.map((pill, idx) => (
+                              <span key={idx} className={`text-[10px] px-1.5 py-0.5 rounded-md border ${pill.color}`}>
+                                {pill.label}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`p-1 rounded-full transition-transform duration-300 text-muted-foreground ${isExpanded ? 'rotate-180' : ''}`}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </button>
+
+                    {/* Expanded Permission Toggles */}
+                    {isExpanded && (
+                      <div className="px-3 pb-4 animate-fadeIn">
+                        {/* Quick Presets */}
+                        {!isSelf && (
+                          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t('quick')}:</span>
+                            {PRESETS.map((preset) => (
+                              <button
+                                key={preset.key}
+                                onClick={() => handleApplyPreset(member.id, preset.permissions)}
+                                disabled={isSaving}
+                                className="text-[10px] px-2.5 py-1 rounded-lg border border-white/10 bg-card hover:bg-white/5 text-muted-foreground hover:text-foreground font-semibold transition-all disabled:opacity-40"
+                              >
+                                {t(preset.key)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Individual Permission Toggles */}
+                        <div className="space-y-1.5">
+                          {PERMISSION_KEYS.map((key) => {
+                            const isEnabled = perms[key];
+                            const isDisabled = isSelf && key === 'canAdmin';
+                            const colors = PERMISSION_COLORS[key];
+
+                            return (
+                              <div
+                                key={key}
+                                className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                                  isEnabled
+                                    ? 'bg-white/[0.03] border-white/10'
+                                    : 'bg-transparent border-white/5'
+                                } ${isDisabled ? 'opacity-50' : ''}`}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <span className="text-sm shrink-0">{PERMISSION_ICONS[key]}</span>
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-semibold text-foreground">{t(permI18nKey[key])}</div>
+                                    <div className="text-[10px] text-muted-foreground leading-tight truncate">{t(permDescI18nKey[key])}</div>
+                                  </div>
+                                </div>
+
+                                {/* Toggle Switch */}
+                                <button
+                                  onClick={() => handlePermissionToggle(member.id, key, !isEnabled)}
+                                  disabled={isDisabled || isSaving}
+                                  className={`relative w-10 h-[22px] rounded-full transition-all duration-300 shrink-0 ${
+                                    isEnabled ? colors.on : colors.off
+                                  } ${isDisabled || isSaving ? 'cursor-not-allowed' : 'cursor-pointer hover:opacity-90'}`}
+                                  title={isDisabled ? t('lastAdminWarning') : ''}
+                                >
+                                  <span
+                                    className={`absolute top-[3px] w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
+                                      isEnabled ? 'left-[22px]' : 'left-[3px]'
+                                    }`}
+                                  />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

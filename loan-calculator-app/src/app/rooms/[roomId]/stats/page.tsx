@@ -13,7 +13,7 @@ import { FiDownload, FiFileText, FiGrid, FiBarChart2 } from 'react-icons/fi';
 interface Member {
     id: number;
     username: string;
-    role?: string;
+    permissions?: { canAdmin?: boolean; canAddEntries?: boolean; canParticipate?: boolean; canView?: boolean };
 }
 
 interface RoomStats {
@@ -136,7 +136,7 @@ export default function StatsPage() {
             let participantsText = '';
             
             const pIds = entry.split_with_user_ids || [];
-            const isForAll = pIds.length > 0 && pIds.length === members.filter(m => m.role !== 'observer').length;
+            const isForAll = pIds.length > 0 && pIds.length === members.filter(m => m.permissions?.canParticipate !== false).length;
             if(isForAll) {
                  participantsText = tRoom('entryParticipantEveryone');
             } else {

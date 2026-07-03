@@ -34,7 +34,7 @@ export async function POST(req: Request) {
             }
             const roomId = roomResult.rows[0].id;
 
-            await db.query('INSERT INTO room_members (user_id, room_id, role) VALUES ($1, $2, \'active\') ON CONFLICT (user_id, room_id) DO NOTHING', [user.userId, roomId]);
+            await db.query('INSERT INTO room_members (user_id, room_id, can_admin, can_add_entries, can_participate, can_view) VALUES ($1, $2, false, true, true, true) ON CONFLICT (user_id, room_id) DO NOTHING', [user.userId, roomId]);
             return NextResponse.json({ roomId });
 
         } else {
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
                     const roomId = roomResult.rows[0].id;
 
                     await client.query(
-                        'INSERT INTO room_members (user_id, room_id, role) VALUES ($1, $2, \'admin\')',
+                        'INSERT INTO room_members (user_id, room_id, can_admin, can_add_entries, can_participate, can_view) VALUES ($1, $2, true, true, true, true)',
                         [user.userId, roomId]
                     );
 
