@@ -346,16 +346,16 @@ export default function RoomPage() {
                                 <div className="flex items-center justify-center gap-1.5 mt-1 flex-wrap">
                                     <span className="text-xs text-muted-foreground">{t('roomCodeLabel', { code: roomCode })}</span>
                                     {permissions.canAdmin && (
-                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-purple-500/20 text-purple-400 border-purple-500/40 shadow-purple-500/10">Admin</span>
+                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-purple-500/20 text-purple-400 border-purple-500/40 shadow-purple-500/10">{t('badgeAdmin')}</span>
                                     )}
                                     {permissions.canAddEntries && (
-                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-blue-500/20 text-blue-400 border-blue-500/40">Edit</span>
+                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-blue-500/20 text-blue-400 border-blue-500/40">{t('badgeEdit')}</span>
                                     )}
                                     {permissions.canParticipate && (
-                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-emerald-500/20 text-emerald-400 border-emerald-500/40">Participant</span>
+                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-emerald-500/20 text-emerald-400 border-emerald-500/40">{t('badgeParticipant')}</span>
                                     )}
                                     {permissions.canView && (
-                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-sky-500/20 text-sky-400 border-sky-500/40">View</span>
+                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-sky-500/20 text-sky-400 border-sky-500/40">{t('badgeView')}</span>
                                     )}
                                 </div>
 

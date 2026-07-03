@@ -322,11 +322,11 @@ export default function AdminPanel({
 
                     {/* Expanded Permission Toggles */}
                     {isExpanded && (
-                      <div className="px-3 pb-4 animate-fadeIn">
+                      <div className="px-3 pt-3.5 pb-4 border-t border-white/10 animate-fadeIn">
                         {/* Quick Presets */}
                         {!isSelf && (
-                          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t('quick')}:</span>
+                          <div className="flex items-center gap-1.5 mb-3.5 flex-wrap">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t('quick')}</span>
                             {PRESETS.map((preset) => (
                               <button
                                 key={preset.key}
