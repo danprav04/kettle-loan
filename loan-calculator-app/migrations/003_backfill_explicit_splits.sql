@@ -1,6 +1,6 @@
--- 002_explicit_splits.sql
--- Backfill existing entries where split_with_user_ids is NULL or empty
--- to explicitly include all non-observer room members at the time of migration.
+-- 003_backfill_explicit_splits.sql
+-- Backfill historical entries where split_with_user_ids is NULL or empty
+-- and beneficiary_shares is NULL or empty (catching entries that had default payer_shares populated).
 
 UPDATE entries
 SET split_with_user_ids = COALESCE(
