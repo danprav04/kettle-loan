@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Инфографика: Управление групповыми расходами от имени участников</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #080c14;
+      background-image: 
+        radial-gradient(circle at 15% 10%, rgba(139, 92, 246, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 85% 90%, rgba(14, 165, 233, 0.15) 0%, transparent 40%),
+        linear-gradient(180deg, #080c14 0%, #0f172a 100%);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #f8fafc;
+      width: 1600px;
+      padding: 60px 60px 80px 60px;
+      overflow-x: hidden;
+    }
+
+    /* Header Section */
+    .header {
+      text-align: center;
+      margin-bottom: 60px;
+      position: relative;
+    }
+
+    .badge-row {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .badge {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(139, 92, 246, 0.4);
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: #a78bfa;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge.green {
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #34d399;
+    }
+
+    .badge.blue {
+      border-color: rgba(56, 189, 248, 0.4);
+      color: #38bdf8;
+    }
+
+    h1 {
+      font-size: 48px;
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 60%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+    }
+
+    .subtitle {
+      font-size: 20px;
+      color: #94a3b8;
+      max-width: 900px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    /* Grid Layout */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 36px;
+      position: relative;
+    }
+
+    /* Card Styling */
+    .card {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(51, 65, 85, 0.8);
+      border-radius: 24px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(12px);
+      transition: all 0.3s ease;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      border-radius: 24px 24px 0 0;
+    }
+
+    .card.step-1::before { background: #8b5cf6; }
+    .card.step-2::before { background: #0ea5e9; }
+    .card.step-3::before { background: #6366f1; }
+    .card.step-4::before { background: #f59e0b; }
+    .card.step-5::before { background: #10b981; }
+    .card.step-6::before { background: #ec4899; }
+
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      width: fit-content;
+    }
+
+    .step-1 .step-number { background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); }
+    .step-2 .step-number { background: rgba(14, 165, 233, 0.15); color: #7dd3fc; border: 1px solid rgba(14, 165, 233, 0.3); }
+    .step-3 .step-number { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); }
+    .step-4 .step-number { background: rgba(245, 158, 11, 0.15); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .step-5 .step-number { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .step-6 .step-number { background: rgba(236, 72, 153, 0.15); color: #fbcfe8; border: 1px solid rgba(236, 72, 153, 0.3); }
+
+    .card-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+
+    .card-desc {
+      font-size: 14.5px;
+      color: #cbd5e1;
+      line-height: 1.55;
+      margin-bottom: 20px;
+      flex-grow: 1;
+    }
+
+    /* Highlighted Screenshot Container */
+    .img-container {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid rgba(255, 59, 48, 0.6);
+      box-shadow: 0 0 25px rgba(255, 59, 48, 0.25);
+      background: #000;
+      height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .img-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+    }
+
+    .action-tag {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255, 59, 48, 0.9);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+
+    /* Arrow Connectors */
+    .arrow-right {
+      position: absolute;
+      top: 50%;
+      right: -24px;
+      transform: translateY(-50%);
+      color: #475569;
+      font-size: 28px;
+      font-weight: 900;
+      z-index: 10;
+    }
+
+    /* Footer Summary Banner */
+    .footer-banner {
+      margin-top: 50px;
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+      border: 1px solid rgba(139, 92, 246, 0.4);
+      border-radius: 24px;
+      padding: 36px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+
+    .footer-text h3 {
+      font-size: 24px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+
+    .footer-text p {
+      font-size: 15px;
+      color: #94a3b8;
+      max-width: 800px;
+      line-height: 1.5;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 32px;
+    }
+
+    .stat-box {
+      text-align: center;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 16px 24px;
+      border-radius: 16px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 900;
+      color: #a78bfa;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="badge-row">
+      <div class="badge">🇷🇺 100% Русская Локализация</div>
+      <div class="badge blue">🌙 Dark Mode Interface</div>
+      <div class="badge green">🛡️ Прозрачный Аудит и История</div>
+    </div>
+    <h1>Пользовательский Сценарий: Управление Групповыми Расходами</h1>
+    <div class="subtitle">
+      Как один организатор централизованно создает учетные записи от имени участников (`bob`, `alice`, `charlie`), добавляет их в созданную комнату, настраивает политики доступа и ведет справедливый сплит счетов с 100% прозрачностью.
+    </div>
+  </div>
+
+  <!-- 6-Step Grid -->
+  <div class="grid">
+    
+    <!-- Step 1 -->
+    <div class="card step-1">
+      <div class="step-number">ЭТАП 1 // ИНИЦИАЛИЗАЦИЯ</div>
+      <div class="card-title">🚀 Создание Групповой Комнаты</div>
+      <div class="card-desc">
+        Организатор входит под учетной записью <b>admin</b>, нажимает зеленую кнопку «Создать комнату», задает название <b>«Euro Trip ✈️»</b> и выбирает валюту <b>EUR (€)</b>. Система выдает уникальный код приглашения <b>J990GT</b>.
+      </div>
+      <div class="img-container">
+        <img src="C:/Users/Daniel/.gemini/antigravity/brain/52384d1e-1559-4366-8cd6-f20943c93df0/step1_ru_dark_highlighted.png" alt="Шаг 1">
+        <div class="action-tag">🎯 Кнопка создания и комната</div>
+      </div>
+      <div class="arrow-right">➔</div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="card step-2">
+      <div class="step-number">ЭТАП 2 // РЕГИСТРАЦИЯ</div>
+      <div class="card-title">📋 Регистрация со Слов Участников</div>
+      <div class="card-desc">
+        Если у друзей нет аккаунтов, организатор переходит на вкладку «Зарегистрироваться» и за пару секунд последовательно создает учетные записи и временные пароли для <b>bob</b>, <b>alice</b> и <b>charlie</b>.
+      </div>
+      <div class="img-container">
+        <img src="C:/Users/Daniel/.gemini/antigravity/brain/52384d1e-1559-4366-8cd6-f20943c93df0/step2_ru_dark_highlighted.png" alt="Шаг 2">
+        <div class="action-tag">🎯 Ввод логина и пароля</div>
+      </div>
+      <div class="arrow-right">➔</div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="card step-3">
+      <div class="step-number">ЭТАП 3 // ПРАВА ДОСТУПА</div>
+      <div class="card-title">🔐 Настройка Матрицы Прав</div>
+      <div class="card-desc">
+        Организатор добавляет участников в комнату и открывает панель «Управление комнатой». В блоке <b>«ПРАВА УЧАСТНИКОВ (5)»</b> индивидуально включаются 4 роли: <i>Админ</i>, <i>Внесение записей</i>, <i>Участие</i>, <i>Просмотр</i>.
+      </div>
+      <div class="img-container">
+        <img src="C:/Users/Daniel/.gemini/antigravity/brain/52384d1e-1559-4366-8cd6-f20943c93df0/step3_ru_dark_highlighted.png" alt="Шаг 3">
+        <div class="action-tag">🎯 Переключатели прав</div>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="card step-4">
+      <div class="step-number">ЭТАП 4 // СПЛИТ РАСХОДОВ</div>
+      <div class="card-title">💸 Многосторонний Детальный Расчет</div>
+      <div class="card-desc">
+        При внесении чека из ресторана или за аренду выбирается режим «Детальный расчет». В <b>Списке 1</b> указывается плательщик, а в <b>Списке 2</b> галочками (или по процентам/долям) отмечаются те, на кого делится счет.
+      </div>
+      <div class="img-container">
+        <img src="C:/Users/Daniel/.gemini/antigravity/brain/52384d1e-1559-4366-8cd6-f20943c93df0/step4_ru_dark_highlighted.png" alt="Шаг 4">
+        <div class="action-tag">🎯 Чекбоксы участников</div>
+      </div>
+      <div class="arrow-right">➔</div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="card step-5">
+      <div class="step-number">ЭТАП 5 // ВЗАИМОЗАЧЕТ</div>
+      <div class="card-title">⚖️ Сверка Баланса и Расчеты</div>
+      <div class="card-desc">
+        Алгоритм взаимозачета (Debt Simplification) сводит сотни мелких трат в 1-2 перевода. На странице <b>«Взаимные расчеты участников»</b> отображается долг: «Вы должны 75.01 EUR» и кнопка мгновенной фиксации <b>«Рассчитаться»</b>.
+      </div>
+      <div class="img-container">
+        <img src="C:/Users/Daniel/.gemini/antigravity/brain/52384d1e-1559-4366-8cd6-f20943c93df0/step5_ru_dark_highlighted.png" alt="Шаг 5">
+        <div class="action-tag">🎯 Карточка долга и расчет</div>
+      </div>
+      <div class="arrow-right">➔</div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="card step-6">
+      <div class="step-number">ЭТАП 6 // АУДИТ И ДОВЕРИЕ</div>
+      <div class="card-title">🛡️ Прозрачная История и Авторство</div>
+      <div class="card-desc">
+        Запись от имени другого участника маркируется фиолетовым штампом: <b>«Записано со слов участника: bob»</b>. Нажатие на иконку часов 🕒 открывает модальное окно <b>«История изменений записи»</b> с полным журналом правок.
+      </div>
+      <div class="img-container">
+        <img src="C:/Users/Daniel/.gemini/antigravity/brain/52384d1e-1559-4366-8cd6-f20943c93df0/step6_ru_dark_highlighted.png" alt="Шаг 6">
+        <div class="action-tag">🎯 Журнал истории (🕒)</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer Banner -->
+  <div class="footer-banner">
+    <div class="footer-text">
+      <h3>🏆 Полная Финансовая и Организационная Прозрачность</h3>
+      <p>Благодаря централизованной модели управления один организатор избавляет всю группу от административной рутины, при этом каждый участник защищен нативным аудитом, фиксацией авторства и прозрачным расчетом балансов.</p>
+    </div>
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-value">6</div>
+        <div class="stat-label">Этапов сценария</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">100%</div>
+        <div class="stat-label">Прозрачность</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">RU / Dark</div>
+        <div class="stat-label">Локализация</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
