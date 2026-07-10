@@ -278,9 +278,10 @@ export default function EditEntryModal({
               <div className="pt-2 space-y-3 border-t border-card-border/80 dark:border-white/5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('editSplitDetails')}</label>
-                  <div className="flex rounded-xl bg-muted/40 p-0.5 border border-card-border/60 dark:border-white/5">
+                  <div style={{ display: 'none' }} className="flex rounded-xl bg-muted/40 p-0.5 border border-card-border/60 dark:border-white/5">
                     <button
                       type="button"
+                      style={{ display: 'none' }}
                       onClick={() => setIsMultiParty(false)}
                       className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${!isMultiParty ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                     >
@@ -320,7 +321,7 @@ export default function EditEntryModal({
                     />
                   </div>
                 ) : (
-                  <div className="bg-card/40 p-4 rounded-2xl border border-card-border dark:border-white/5 space-y-2">
+                  <div style={{ display: 'none' }} className="bg-card/40 p-4 rounded-2xl border border-card-border dark:border-white/5 space-y-2">
                     <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">{isPositive ? t('splitWith') : t('paidForMeBy')}</span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
                       {isPositive && currentUserId && (

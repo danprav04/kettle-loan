@@ -57,7 +57,7 @@ export default function RoomPage() {
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
-    const [isMultiPartyMode, setIsMultiPartyMode] = useState(false);
+    const [isMultiPartyMode, setIsMultiPartyMode] = useState(true);
 
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
     const [includeSelfInSplit, setIncludeSelfInSplit] = useState(true);
@@ -467,9 +467,10 @@ export default function RoomPage() {
                                         </h2>
 
                                         {!isSimplified && otherMembers.length > 0 && (
-                                            <div className="flex rounded-xl bg-muted p-1 border border-border/40">
+                                            <div style={{ display: 'none' }} className="flex rounded-xl bg-muted p-1 border border-border/40">
                                                 <button
                                                     type="button"
+                                                    style={{ display: 'none' }}
                                                     onClick={() => setIsMultiPartyMode(false)}
                                                     className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all duration-300 ${!isMultiPartyMode ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                                                 >
@@ -489,7 +490,7 @@ export default function RoomPage() {
 
                                     <form onSubmit={handleAddEntry} className="space-y-4">
                                         {!isSimplified && !isMultiPartyMode && (
-                                            <div>
+                                            <div style={{ display: 'none' }}>
                                                 <div className="relative flex w-full rounded-full bg-muted p-1 border border-border/40">
                                                     <span
                                                         className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-md transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary shadow-primary/10' : 'border-success shadow-success/10'}`}
@@ -545,7 +546,7 @@ export default function RoomPage() {
 
                                         {/* Simple Split Selector */}
                                         {!isMultiPartyMode && entryType === 'expense' && !isSimplified && otherMembers.length > 0 && (
-                                            <div className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-card-border dark:border-white/10 shadow-lg space-y-2.5">
+                                            <div style={{ display: 'none' }} className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-card-border dark:border-white/10 shadow-lg space-y-2.5">
                                                 <label className="text-xs font-bold text-foreground uppercase tracking-wider block">{t('splitWith')}</label>
                                                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                                                     {currentUserId && isMemberEligibleParticipant(members.find(m => m.id === currentUserId) || { id: -1, username: '' }) && (
@@ -592,7 +593,7 @@ export default function RoomPage() {
                                         )}
 
                                         {!isMultiPartyMode && entryType === 'loan' && !isSimplified && otherMembers.length > 0 && (
-                                            <div className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-card-border dark:border-white/10 shadow-lg space-y-2.5">
+                                            <div style={{ display: 'none' }} className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-card-border dark:border-white/10 shadow-lg space-y-2.5">
                                                 <label className="text-xs font-bold text-foreground uppercase tracking-wider block">{t('paidForMeBy')}</label>
                                                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                                                     {otherMembers.filter(isMemberEligibleParticipant).map((member: Member) => {

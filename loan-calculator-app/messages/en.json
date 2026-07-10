@@ -135,6 +135,7 @@
     "resetFilters": "Reset",
     "peerBalancesTitle": "Peer-to-Peer Net Balances",
     "perspectiveLabel": "Perspective",
+    "perspectiveTotalBalance": "Total Balance",
     "me": "You",
     "owesYou": "Owes you {amount} {currency}",
     "youOwe": "You owe {amount} {currency}",

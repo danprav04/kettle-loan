@@ -135,6 +135,7 @@
     "resetFilters": "Сброс",
     "peerBalancesTitle": "Взаимные расчеты участников",
     "perspectiveLabel": "Ракурс",
+    "perspectiveTotalBalance": "Общий баланс",
     "me": "Вы",
     "owesYou": "Должен вам {amount} {currency}",
     "youOwe": "Вы должны {amount} {currency}",

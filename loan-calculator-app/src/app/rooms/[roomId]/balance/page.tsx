@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
-import { getRoomData, Entry, addLocalEntry, saveRoomData } from '@/lib/offline-sync';
+import { getRoomData, Entry, addLocalEntry, saveRoomData, calculateAllMemberBalances } from '@/lib/offline-sync';
 import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
 import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign, FiArrowDownLeft, FiArrowUpRight, FiCheckCircle, FiUsers, FiActivity } from 'react-icons/fi';
@@ -59,6 +59,12 @@ export default function BalanceDetailsPage() {
 
     const activePerspectiveUserId = perspectiveUserId ?? user?.userId ?? 0;
     const otherMembers = useMemo(() => members.filter(m => m.id !== activePerspectiveUserId && m.permissions?.canParticipate !== false), [members, activePerspectiveUserId]);
+
+    const allMemberBalances = useMemo(() => {
+        return calculateAllMemberBalances(entries, members as any);
+    }, [entries, members]);
+
+    const totalPerspectiveBalance = allMemberBalances[activePerspectiveUserId] ?? 0;
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -347,17 +353,19 @@ export default function BalanceDetailsPage() {
                 </div>
 
                 <div className="flex items-center gap-1.5 flex-wrap">
-                    {(['all', 'expense', 'loan', 'settlement'] as const).map(type => (
-                        <button
-                            key={type}
-                            onClick={() => setFilterType(type)}
-                            className={`text-[11px] px-3 py-1.5 rounded-xl uppercase font-extrabold tracking-wider transition-all border ${
-                                filterType === type ? 'bg-primary/15 text-primary border-primary/40 shadow-sm' : 'bg-background hover:bg-muted text-muted-foreground border-card-border'
-                            }`}
-                        >
-                            {type === 'all' ? t('filterAll') : (type === 'expense' ? t('filterExpense') : (type === 'loan' ? t('filterLoan') : t('filterSettlement')))}
-                        </button>
-                    ))}
+                    <div className="hidden items-center gap-1.5 flex-wrap">
+                        {(['all', 'expense', 'loan', 'settlement'] as const).map(type => (
+                            <button
+                                key={type}
+                                onClick={() => setFilterType(type)}
+                                className={`text-[11px] px-3 py-1.5 rounded-xl uppercase font-extrabold tracking-wider transition-all border ${
+                                    filterType === type ? 'bg-primary/15 text-primary border-primary/40 shadow-sm' : 'bg-background hover:bg-muted text-muted-foreground border-card-border'
+                                }`}
+                            >
+                                {type === 'all' ? t('filterAll') : (type === 'expense' ? t('filterExpense') : (type === 'loan' ? t('filterLoan') : t('filterSettlement')))}
+                            </button>
+                        ))}
+                    </div>
 
                     {(searchQuery || filterType !== 'all') && (
                         <button
@@ -384,20 +392,36 @@ export default function BalanceDetailsPage() {
                             </h1>
                         </div>
                     </div>
-                    {viewMode === 'balance' && members.length > 1 && (
-                        <div className="flex items-center gap-2 bg-background px-3 py-1.5 rounded-xl border border-card-border shadow-sm">
-                            <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider shrink-0">{t('perspectiveLabel')}:</span>
-                            <select
-                                value={activePerspectiveUserId}
-                                onChange={(e) => setPerspectiveUserId(parseInt(e.target.value))}
-                                className="text-xs font-bold bg-transparent text-foreground cursor-pointer focus:outline-none border-none pr-1"
-                            >
-                                {members.filter(m => m.permissions?.canParticipate !== false).map(m => (
-                                    <option key={m.id} value={m.id} className="bg-card text-foreground font-semibold">
-                                        {m.username} {m.id === user?.userId ? `(${t('me')})` : ''}
-                                    </option>
-                                ))}
-                            </select>
+                    {viewMode === 'balance' && (
+                        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+                            {members.length > 1 && (
+                                <div className="flex items-center gap-2 bg-background px-3 py-1.5 rounded-xl border border-card-border shadow-sm">
+                                    <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider shrink-0">{t('perspectiveLabel')}:</span>
+                                    <select
+                                        value={activePerspectiveUserId}
+                                        onChange={(e) => setPerspectiveUserId(parseInt(e.target.value))}
+                                        className="text-xs font-bold bg-transparent text-foreground cursor-pointer focus:outline-none border-none pr-1"
+                                    >
+                                        {members.filter(m => m.permissions?.canParticipate !== false).map(m => (
+                                            <option key={m.id} value={m.id} className="bg-card text-foreground font-semibold">
+                                                {m.username} {m.id === user?.userId ? `(${t('me')})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-extrabold text-xs shadow-sm transition-all ${
+                                totalPerspectiveBalance > 0.005
+                                    ? 'bg-success/15 text-success border-success/30'
+                                    : totalPerspectiveBalance < -0.005
+                                    ? 'bg-danger/15 text-danger border-danger/30'
+                                    : 'bg-muted/60 text-muted-foreground border-card-border'
+                            }`}>
+                                <span className="text-[11px] uppercase tracking-wider opacity-85 font-bold">{t('perspectiveTotalBalance') || t('balanceTitle')}:</span>
+                                <span className="text-xs sm:text-sm font-black font-mono">
+                                    {totalPerspectiveBalance > 0.005 ? '+' : ''}{totalPerspectiveBalance.toFixed(2)} {currency}
+                                </span>
+                            </div>
                         </div>
                     )}
                 </div>

@@ -135,6 +135,7 @@
     "resetFilters": "איפוס",
     "peerBalancesTitle": "יתרונות נטו בין משתתפים",
     "perspectiveLabel": "נקודת מבט",
+    "perspectiveTotalBalance": "יתרה כוללת",
     "me": "אתה",
     "owesYou": "חייב לך {amount} {currency}",
     "youOwe": "אתה חייב {amount} {currency}",
