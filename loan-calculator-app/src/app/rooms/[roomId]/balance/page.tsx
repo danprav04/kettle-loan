@@ -301,70 +301,52 @@ export default function BalanceDetailsPage() {
 
     const handleShareAsPdf = async () => {
         setIsGeneratingPdf(true);
-        await new Promise(resolve => setTimeout(resolve, 150));
         try {
-            const html2pdf = (await import('html2pdf.js')).default;
+            // Wait for next paint so the always-rendered container is fully laid out
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
             const element = pdfReportRef.current;
-            if (!element) return;
+            if (!element) {
+                console.error('PDF report container ref not found');
+                setIsGeneratingPdf(false);
+                return;
+            }
+
+            const html2pdf = (await import('html2pdf.js')).default;
 
             const perspectiveName = activePerspectiveMember ? activePerspectiveMember.username : t('me');
             const safeName = perspectiveName.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'perspective';
             const filenameSafe = `room_${roomId}_balance_${safeName}.pdf`;
 
             const opt: any = {
-                margin: 12,
+                margin: [10, 10, 10, 10] as [number, number, number, number],
                 filename: filenameSafe,
-                image: { type: 'jpeg', quality: 0.98 },
+                image: { type: 'jpeg', quality: 0.95 },
                 html2canvas: {
                     scale: 2,
                     useCORS: true,
                     logging: false,
-                    scrollX: 0,
-                    scrollY: 0,
                     onclone: (clonedDoc: Document) => {
-                        const clonedEl = clonedDoc.getElementById('pdf-report-container');
-                        if (clonedEl) {
-                            clonedEl.style.position = 'static';
-                            clonedEl.style.left = 'auto';
-                            clonedEl.style.top = 'auto';
-                            clonedEl.style.opacity = '1';
-                            clonedEl.style.visibility = 'visible';
-                            clonedEl.style.display = 'block';
-                            clonedEl.style.width = '794px';
-                            clonedEl.style.margin = '0';
-                            clonedDoc.body.innerHTML = '';
-                            clonedDoc.body.style.background = '#ffffff';
-                            clonedDoc.body.style.padding = '0';
-                            clonedDoc.body.style.margin = '0';
-                            clonedDoc.body.appendChild(clonedEl);
+                        const el = clonedDoc.getElementById('pdf-report-container');
+                        if (el) {
+                            el.style.position = 'static';
+                            el.style.left = '0';
+                            el.style.top = '0';
+                            el.style.opacity = '1';
+                            el.style.visibility = 'visible';
+                            el.style.pointerEvents = 'auto';
+                            el.style.overflow = 'visible';
                         }
                     }
                 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             };
 
-            const blob = await html2pdf().set(opt).from(element).outputPdf('blob');
-            const file = new File([blob], filenameSafe, { type: 'application/pdf' });
-            if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    title: `${t('pdfReportTitle', { code: roomId })} - ${perspectiveName}`,
-                    text: `${t('pdfPerspectiveHeader', { name: perspectiveName })}`,
-                    files: [file],
-                });
-            } else {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filenameSafe;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
+            await html2pdf().set(opt).from(element).save();
         } catch (error: any) {
             if (error?.name !== 'AbortError') {
-                console.error("Failed to generate or share PDF:", error);
+                console.error('Failed to generate PDF:', error);
             }
         } finally {
             setIsGeneratingPdf(false);
@@ -710,26 +692,26 @@ export default function BalanceDetailsPage() {
                 </div>
             </div>
 
-            {/* Offscreen PDF Report Container (rendered when generating PDF) */}
-            {isGeneratingPdf && (
-                <div
-                    ref={pdfReportRef}
-                    id="pdf-report-container"
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: '-9999px',
-                        width: '794px',
-                        zIndex: -9999,
-                        pointerEvents: 'none',
-                        opacity: 0.01,
-                        background: '#ffffff',
-                        color: '#111827',
-                        fontFamily: 'system-ui, -apple-system, sans-serif',
-                        padding: '36px',
-                        boxSizing: 'border-box'
-                    }}
-                >
+            {/* Offscreen PDF Report Container — always rendered so ref is stable */}
+            <div
+                ref={pdfReportRef}
+                id="pdf-report-container"
+                aria-hidden="true"
+                style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: '-9999px',
+                    width: '794px',
+                    zIndex: -9999,
+                    pointerEvents: 'none',
+                    opacity: 0,
+                    background: '#ffffff',
+                    color: '#111827',
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    padding: '36px',
+                    boxSizing: 'border-box'
+                }}
+            >
                     {/* Header */}
                     <div style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '18px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
@@ -842,8 +824,7 @@ export default function BalanceDetailsPage() {
                             );
                         })}
                     </div>
-                </div>
-            )}
+            </div>
         </div>
     );
 }
