@@ -101,11 +101,11 @@ export default function RoomPage() {
                 splitsInitializedRef.current = true;
                 setPayerShares([{ userId: defaultPayerId, percentage: 100 }]);
                 const count = eligible.length;
-                const base = Math.floor((100 / count) * 100) / 100;
-                const rem = Math.round((100 - base * count) * 100) / 100;
+                const base = Math.floor((100 / count) * 1e6) / 1e6;
+                const rem = Math.round((100 - base * count) * 1e6) / 1e6;
                 setBeneficiaryShares(eligible.map((m, idx) => ({
                     userId: m.id,
-                    percentage: idx === 0 ? Math.round((base + rem) * 100) / 100 : base
+                    percentage: idx === 0 ? Math.round((base + rem) * 1e6) / 1e6 : base
                 })));
 
                 const initialSelected = (data.members || [])
@@ -135,9 +135,9 @@ export default function RoomPage() {
                     });
                     return valid.length > 0 ? valid : eligible.map((m, idx) => {
                         const count = eligible.length;
-                        const base = Math.floor((100 / count) * 100) / 100;
-                        const rem = Math.round((100 - base * count) * 100) / 100;
-                        return { userId: m.id, percentage: idx === 0 ? Math.round((base + rem) * 100) / 100 : base };
+                        const base = Math.floor((100 / count) * 1e6) / 1e6;
+                        const rem = Math.round((100 - base * count) * 1e6) / 1e6;
+                        return { userId: m.id, percentage: idx === 0 ? Math.round((base + rem) * 1e6) / 1e6 : base };
                     });
                 });
                 setSelectedMemberIds(prev => {
