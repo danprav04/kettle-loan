@@ -423,13 +423,14 @@ export default function BalanceDetailsPage() {
                 </button>
 
                 {/* View Switcher & Default Saver */}
-                <div className="flex items-center gap-2">
-                    <div className="bg-card p-1 rounded-xl border border-card-border shadow-sm flex items-center">
+                <div className="flex items-center gap-2" style={{ display: 'none' }}>
+                    <div className="bg-card p-1 rounded-xl border border-card-border shadow-sm flex items-center" style={{ display: 'none' }}>
                         <button
                             onClick={() => setViewMode('balance')}
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                                 viewMode === 'balance' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                             }`}
+                            style={{ display: 'none' }}
                         >
                             <FiDollarSign /> {t('balanceBreakdown')}
                         </button>
