@@ -257,13 +257,13 @@ export default function BalanceDetailsPage() {
             }
         }
 
-        breakdown.forEach(value => value.transactions.reverse());
+        // Keep transactions in chronological order so new entries are at the bottom
         return breakdown;
     }, [entries, members, user, otherMembers]);
 
-    // Filtered history list
+    // Filtered history list (chronological order with new entries at the bottom)
     const filteredHistory = useMemo(() => {
-        return entries.filter(entry => {
+        return [...entries].reverse().filter(entry => {
             const matchesSearch = entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 entry.username.toLowerCase().includes(searchQuery.toLowerCase());
             if (!matchesSearch) return false;
@@ -348,7 +348,10 @@ export default function BalanceDetailsPage() {
                             null,
                             t
                         );
-                        const date = new Date(tx.created_at || (tx as any).createdAt || Date.now()).toLocaleDateString();
+                        const dt = new Date(tx.created_at || (tx as any).createdAt || Date.now());
+                        const dateStr = dt.toLocaleDateString();
+                        const timeStr = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        const dateContent = `<div style="font-weight:600;color:#475569">${esc(dateStr)}</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">${esc(timeStr)}</div>`;
                         let paidByContent = '';
                         if (isLoanWithoutShares && borrowerText) {
                             paidByContent = `<div style="font-weight:600">${esc(t('entryLoanTo', { borrower: borrowerText }))}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${esc(t('entryFromGroup'))}</div>`;
@@ -356,7 +359,7 @@ export default function BalanceDetailsPage() {
                             paidByContent = `<div style="font-weight:600">${esc(payersText)}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${esc(t('entryFor', { participants: participantsText }))}</div>`;
                         }
                         return `<tr style="border-bottom:1px solid #f1f5f9;page-break-inside:avoid;break-inside:avoid">
-                            <td style="padding:8px 12px;color:#64748b;white-space:nowrap">${esc(date)}</td>
+                            <td style="padding:8px 12px;white-space:nowrap">${dateContent}</td>
                             <td style="padding:8px 12px;font-weight:600;color:#1e293b">${esc(tx.description)}</td>
                             <td style="padding:8px 12px;color:#1e293b">${paidByContent}</td>
                             <td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:${balColor(tx.contribution)}">${tx.contribution > 0.005 ? '+' : ''}${tx.contribution.toFixed(2)} ${esc(currency)}</td>
@@ -385,12 +388,18 @@ export default function BalanceDetailsPage() {
             }).join('');
 
             const totalBal = totalPerspectiveBalance;
+            const nowDt = new Date();
+            const genDateStr = nowDt.toLocaleDateString();
+            const genTimeStr = nowDt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const generatedAtText = t('pdfGeneratedAt', { date: `${genDateStr}, ${genTimeStr}` });
+
             const htmlString = `
                 <div style="font-family:system-ui,-apple-system,sans-serif;color:#111827;padding:0;box-sizing:border-box">
                     <div style="border-bottom:2px solid #e2e8f0;padding-bottom:18px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center">
                         <div>
                             <h1 style="font-size:22px;font-weight:800;margin:0;color:#0f172a">${esc(t('pdfReportTitle', { name: displayRoomName }))}</h1>
                             <p style="font-size:14px;color:#64748b;margin-top:4px;margin-bottom:0;font-weight:600">${esc(t('pdfPerspectiveHeader', { name: perspectiveName }))}</p>
+                            <p style="font-size:12px;color:#94a3b8;margin-top:4px;margin-bottom:0;font-weight:500">${esc(generatedAtText)}</p>
                         </div>
                         <div style="background:${balBg(totalBal)};border:1px solid ${balBorder(totalBal)};border-radius:12px;padding:10px 16px;text-align:right">
                             <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">${esc(t('perspectiveTotalBalance'))}</div>
@@ -410,6 +419,9 @@ export default function BalanceDetailsPage() {
                     <div>
                         <h2 style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:16px;text-transform:uppercase;letter-spacing:0.04em">${esc(t('pdfDetailsTitle'))}</h2>
                         ${detailSections}
+                    </div>
+                    <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center">
+                        ${esc(generatedAtText)} &bull; ${esc(displayRoomName)}
                     </div>
                 </div>`;
 
