@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 
 export interface ShareItem {
@@ -46,6 +46,7 @@ export default function PayerBeneficiarySelector({
   const [search, setSearch] = useState('');
   const [lockedUserIds, setLockedUserIds] = useState<Set<number>>(new Set());
   const [inputStrs, setInputStrs] = useState<Record<number, string>>({});
+  const initialSelectedUserIdsRef = useRef<Set<number>>(new Set(shares.map((s) => s.userId)));
 
   const isMemberActiveParticipant = (m: SelectorMember) => {
     if (m.role === 'observer') return false;
@@ -56,7 +57,7 @@ export default function PayerBeneficiarySelector({
 
   const selectedUserIds = new Set(shares.map((s) => s.userId));
   const eligibleMembers = members.filter((m) => isMemberActiveParticipant(m));
-  const displayableMembers = members.filter((m) => isMemberActiveParticipant(m) || selectedUserIds.has(m.id));
+  const displayableMembers = members.filter((m) => isMemberActiveParticipant(m) || initialSelectedUserIdsRef.current.has(m.id) || selectedUserIds.has(m.id));
 
   const toggleMember = (userId: number) => {
     setLockedUserIds(new Set());

@@ -91,24 +91,72 @@ export default function RoomPage() {
         }
         
         const eligible = (data.members || []).filter(isMemberEligibleParticipant);
-        if (eligible.length > 0 && !splitsInitializedRef.current && data.currentUserId) {
-            splitsInitializedRef.current = true;
-            setPayerShares([{ userId: data.currentUserId, percentage: 100 }]);
-            const count = eligible.length;
-            const base = Math.floor((100 / count) * 100) / 100;
-            const rem = Math.round((100 - base * count) * 100) / 100;
-            setBeneficiaryShares(eligible.map((m, idx) => ({
-                userId: m.id,
-                percentage: idx === 0 ? Math.round((base + rem) * 100) / 100 : base
-            })));
+        if (eligible.length > 0 && data.currentUserId) {
+            const isCurrentUserEligible = (data.members || []).some(
+                (m: Member) => m.id === data.currentUserId && isMemberEligibleParticipant(m)
+            );
+            const defaultPayerId = isCurrentUserEligible ? data.currentUserId : eligible[0].id;
 
-            const initialSelected = (data.members || [])
-                .filter((m: Member) => m.id !== data.currentUserId && isMemberEligibleParticipant(m))
-                .map((m: Member) => m.id);
-            setSelectedMemberIds(new Set(initialSelected));
-            setIncludeSelfInSplit(true);
-            if (initialSelected.length > 0) {
-                setLoanPaidByUserIds(new Set([initialSelected[0]]));
+            if (!splitsInitializedRef.current) {
+                splitsInitializedRef.current = true;
+                setPayerShares([{ userId: defaultPayerId, percentage: 100 }]);
+                const count = eligible.length;
+                const base = Math.floor((100 / count) * 100) / 100;
+                const rem = Math.round((100 - base * count) * 100) / 100;
+                setBeneficiaryShares(eligible.map((m, idx) => ({
+                    userId: m.id,
+                    percentage: idx === 0 ? Math.round((base + rem) * 100) / 100 : base
+                })));
+
+                const initialSelected = (data.members || [])
+                    .filter((m: Member) => m.id !== data.currentUserId && isMemberEligibleParticipant(m))
+                    .map((m: Member) => m.id);
+                setSelectedMemberIds(new Set(initialSelected));
+                setIncludeSelfInSplit(isCurrentUserEligible);
+                if (initialSelected.length > 0) {
+                    setLoanPaidByUserIds(new Set([initialSelected[0]]));
+                } else if (isCurrentUserEligible) {
+                    setLoanPaidByUserIds(new Set([data.currentUserId]));
+                } else if (eligible.length > 0) {
+                    setLoanPaidByUserIds(new Set([eligible[0].id]));
+                }
+            } else {
+                setPayerShares(prev => {
+                    const valid = prev.filter(s => {
+                        const m = (data.members || []).find(mem => mem.id === s.userId);
+                        return m && isMemberEligibleParticipant(m);
+                    });
+                    return valid.length > 0 ? valid : [{ userId: defaultPayerId, percentage: 100 }];
+                });
+                setBeneficiaryShares(prev => {
+                    const valid = prev.filter(s => {
+                        const m = (data.members || []).find(mem => mem.id === s.userId);
+                        return m && isMemberEligibleParticipant(m);
+                    });
+                    return valid.length > 0 ? valid : eligible.map((m, idx) => {
+                        const count = eligible.length;
+                        const base = Math.floor((100 / count) * 100) / 100;
+                        const rem = Math.round((100 - base * count) * 100) / 100;
+                        return { userId: m.id, percentage: idx === 0 ? Math.round((base + rem) * 100) / 100 : base };
+                    });
+                });
+                setSelectedMemberIds(prev => {
+                    const next = new Set<number>();
+                    prev.forEach(id => {
+                        const m = (data.members || []).find(mem => mem.id === id);
+                        if (m && isMemberEligibleParticipant(m)) next.add(id);
+                    });
+                    return next;
+                });
+                setIncludeSelfInSplit(prev => prev && isCurrentUserEligible);
+                setLoanPaidByUserIds(prev => {
+                    const next = new Set<number>();
+                    prev.forEach(id => {
+                        const m = (data.members || []).find(mem => mem.id === id);
+                        if (m && isMemberEligibleParticipant(m)) next.add(id);
+                    });
+                    return next.size > 0 ? next : new Set([defaultPayerId]);
+                });
             }
         }
     }, []);
@@ -500,7 +548,7 @@ export default function RoomPage() {
                                             <div className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-card-border dark:border-white/10 shadow-lg space-y-2.5">
                                                 <label className="text-xs font-bold text-foreground uppercase tracking-wider block">{t('splitWith')}</label>
                                                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                                                    {currentUserId && (
+                                                    {currentUserId && isMemberEligibleParticipant(members.find(m => m.id === currentUserId) || { id: -1, username: '' }) && (
                                                         <div
                                                             onClick={() => setIncludeSelfInSplit(!includeSelfInSplit)}
                                                             className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer ${
