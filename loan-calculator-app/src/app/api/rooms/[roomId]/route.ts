@@ -102,16 +102,19 @@ export async function GET(
 
             if (amount > 0) { // This is an Expense
                 const participants = entry.split_with_user_ids;
+                const activeParticipants = participants && participants.length > 0
+                    ? calcMembers.filter(m => participants.includes(m.id))
+                    : [];
 
-                if (participants && participants.length > 0) {
-                    const numParticipants = participants.length;
+                if (activeParticipants.length > 0) {
+                    const numParticipants = activeParticipants.length;
                     const share = amount / numParticipants;
 
                     finalBalances[payerId] += amount;
 
-                    participants.forEach(participantId => {
-                        if (finalBalances[participantId] !== undefined) {
-                            finalBalances[participantId] -= share;
+                    activeParticipants.forEach(participant => {
+                        if (finalBalances[participant.id] !== undefined) {
+                            finalBalances[participant.id] -= share;
                         }
                     });
                 }

@@ -12,6 +12,11 @@ export interface SelectorMember {
   id: number;
   username: string;
   role?: string;
+  can_participate?: boolean;
+  permissions?: {
+    canParticipate?: boolean;
+    [key: string]: any;
+  };
 }
 
 interface PayerBeneficiarySelectorProps {
@@ -42,8 +47,16 @@ export default function PayerBeneficiarySelector({
   const [lockedUserIds, setLockedUserIds] = useState<Set<number>>(new Set());
   const [inputStrs, setInputStrs] = useState<Record<number, string>>({});
 
-  const eligibleMembers = members.filter((m) => m.role !== 'observer');
+  const isMemberActiveParticipant = (m: SelectorMember) => {
+    if (m.role === 'observer') return false;
+    if (m.can_participate !== undefined && m.can_participate === false) return false;
+    if (m.permissions?.canParticipate !== undefined && m.permissions.canParticipate === false) return false;
+    return true;
+  };
+
   const selectedUserIds = new Set(shares.map((s) => s.userId));
+  const eligibleMembers = members.filter((m) => isMemberActiveParticipant(m));
+  const displayableMembers = members.filter((m) => isMemberActiveParticipant(m) || selectedUserIds.has(m.id));
 
   const toggleMember = (userId: number) => {
     setLockedUserIds(new Set());
@@ -169,7 +182,7 @@ export default function PayerBeneficiarySelector({
     onChange(nextShares);
   };
 
-  const filteredMembers = eligibleMembers.filter((m) =>
+  const filteredMembers = displayableMembers.filter((m) =>
     m.username.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -268,7 +281,7 @@ export default function PayerBeneficiarySelector({
         </div>
       )}
 
-      {eligibleMembers.length > 5 && (
+      {displayableMembers.length > 5 && (
         <input
           type="text"
           placeholder={t('searchMember')}

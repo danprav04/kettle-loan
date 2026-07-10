@@ -10,6 +10,11 @@ interface Member {
   id: number;
   username: string;
   role?: string;
+  can_participate?: boolean;
+  permissions?: {
+    canParticipate?: boolean;
+    [key: string]: any;
+  };
 }
 
 interface EditEntryModalProps {
@@ -44,6 +49,13 @@ export default function EditEntryModal({
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const isMemberActiveParticipant = (m: Member) => {
+    if (m.role === 'observer') return false;
+    if (m.can_participate !== undefined && m.can_participate === false) return false;
+    if (m.permissions?.canParticipate !== undefined && m.permissions.canParticipate === false) return false;
+    return true;
+  };
 
   useEffect(() => {
     if (entry) {
@@ -84,7 +96,7 @@ export default function EditEntryModal({
         setSelectedMemberIds(new Set(splitOnly));
         setIncludeSelf(hasSelf);
       } else {
-        const eligible = members.filter((m) => m.role !== 'observer');
+        const eligible = members.filter(isMemberActiveParticipant);
         const payerId = entry.user_id;
         const isPos = parseFloat(entry.amount) >= 0;
         const splitOnly = eligible.filter((m) => m.id !== payerId).map((m) => m.id);
@@ -108,7 +120,7 @@ export default function EditEntryModal({
   const numAmount = parseFloat(amount) || 0;
   const finalAmount = isMultiParty ? numAmount : (isPositive ? numAmount : -numAmount);
 
-  const eligibleMembers = members.filter((m) => m.role !== 'observer');
+  const eligibleMembers = members.filter((m) => isMemberActiveParticipant(m) || selectedMemberIds.has(m.id));
   const otherMembers = eligibleMembers.filter((m) => m.id !== (currentUserId || entry.user_id));
 
   const toggleSimpleMember = (memberId: number) => {

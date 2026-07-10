@@ -66,6 +66,13 @@ export default function RoomPage() {
     const [beneficiaryShares, setBeneficiaryShares] = useState<ShareItem[]>([]);
     const splitsInitializedRef = useRef(false);
 
+    const isMemberEligibleParticipant = (m: Member) => {
+        if (m.role === 'observer') return false;
+        if (m.can_participate !== undefined && m.can_participate === false) return false;
+        if (m.permissions?.canParticipate !== undefined && m.permissions.canParticipate === false) return false;
+        return true;
+    };
+
     const otherMembers = useMemo(() => members.filter((m: Member) => m.id !== currentUserId), [members, currentUserId]);
 
     const updateStateFromData = useCallback((data: LocalRoomData) => {
@@ -81,7 +88,7 @@ export default function RoomPage() {
             setPermissions(data.currentUserPermissions);
         }
         
-        const eligible = (data.members || []).filter(m => m.permissions?.canParticipate !== false);
+        const eligible = (data.members || []).filter(isMemberEligibleParticipant);
         if (eligible.length > 0 && !splitsInitializedRef.current && data.currentUserId) {
             splitsInitializedRef.current = true;
             setPayerShares([{ userId: data.currentUserId, percentage: 100 }]);
@@ -94,7 +101,7 @@ export default function RoomPage() {
             })));
 
             const initialSelected = (data.members || [])
-                .filter((m: Member) => m.id !== data.currentUserId && m.permissions?.canParticipate !== false)
+                .filter((m: Member) => m.id !== data.currentUserId && isMemberEligibleParticipant(m))
                 .map((m: Member) => m.id);
             setSelectedMemberIds(new Set(initialSelected));
             setIncludeSelfInSplit(true);
@@ -233,12 +240,12 @@ export default function RoomPage() {
         } else if (entryType === 'expense') {
             const participants = new Set<number>(selectedMemberIds);
             if (includeSelfInSplit && currentUserId) participants.add(currentUserId);
-            finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.filter(m => m.permissions?.canParticipate !== false).map((m: Member) => m.id);
+            finalSplitWithIds = participants.size > 0 ? Array.from(participants) : members.filter(isMemberEligibleParticipant).map((m: Member) => m.id);
         } else if (entryType === 'loan') {
             if (!isSimplified && loanPaidByUserIds.size > 0) {
                 finalSplitWithIds = Array.from(loanPaidByUserIds);
             } else {
-                const otherEligible = members.filter(m => m.permissions?.canParticipate !== false && m.id !== currentUserId).map((m: Member) => m.id);
+                const otherEligible = members.filter(m => isMemberEligibleParticipant(m) && m.id !== currentUserId).map((m: Member) => m.id);
                 finalSplitWithIds = otherEligible.length > 0 ? otherEligible : (currentUserId ? [currentUserId] : []);
             }
         }
@@ -488,7 +495,7 @@ export default function RoomPage() {
 
                                         {/* Simple Split Selector */}
                                         {!isMultiPartyMode && entryType === 'expense' && !isSimplified && otherMembers.length > 0 && (
-                                            <div className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-white/10 shadow-lg space-y-2.5">
+                                            <div className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-card-border dark:border-white/10 shadow-lg space-y-2.5">
                                                 <label className="text-xs font-bold text-foreground uppercase tracking-wider block">{t('splitWith')}</label>
                                                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                                                     {currentUserId && (
@@ -509,7 +516,7 @@ export default function RoomPage() {
                                                             <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-md font-bold tracking-wider">{t('youBadge')}</span>
                                                         </div>
                                                     )}
-                                                    {otherMembers.filter(m => m.permissions?.canParticipate !== false).map((member: Member) => {
+                                                    {otherMembers.filter(isMemberEligibleParticipant).map((member: Member) => {
                                                         const isSel = selectedMemberIds.has(member.id);
                                                         return (
                                                             <div
@@ -535,10 +542,10 @@ export default function RoomPage() {
                                         )}
 
                                         {!isMultiPartyMode && entryType === 'loan' && !isSimplified && otherMembers.length > 0 && (
-                                            <div className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-white/10 shadow-lg space-y-2.5">
+                                            <div className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-card-border dark:border-white/10 shadow-lg space-y-2.5">
                                                 <label className="text-xs font-bold text-foreground uppercase tracking-wider block">{t('paidForMeBy')}</label>
                                                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                                                    {otherMembers.filter(m => m.permissions?.canParticipate !== false).map((member: Member) => {
+                                                    {otherMembers.filter(isMemberEligibleParticipant).map((member: Member) => {
                                                         const isSel = loanPaidByUserIds.has(member.id);
                                                         return (
                                                             <div

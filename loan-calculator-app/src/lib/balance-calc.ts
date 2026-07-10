@@ -3,6 +3,7 @@
 export interface BalanceCalcMember {
     id: number;
     username?: string;
+    role?: string;
     can_participate?: boolean;
     permissions?: {
         canParticipate?: boolean;
@@ -32,6 +33,7 @@ export const calculateAllMemberBalances = (
     });
 
     const calcMembers = members.filter(m => {
+        if (m.role === 'observer') return false;
         if (m.can_participate !== undefined) return m.can_participate !== false;
         if (m.permissions?.canParticipate !== undefined) return m.permissions.canParticipate !== false;
         return true;
@@ -58,13 +60,17 @@ export const calculateAllMemberBalances = (
 
         if (amount > 0) { // Expense
             const participants = entry.split_with_user_ids;
-            if (participants && participants.length > 0) {
-                const numParticipants = participants.length;
+            const activeParticipants = participants && participants.length > 0
+                ? calcMembers.filter(m => participants.includes(m.id))
+                : (participants === null || participants === undefined ? calcMembers : []);
+
+            if (activeParticipants.length > 0) {
+                const numParticipants = activeParticipants.length;
                 const share = amount / numParticipants;
                 finalBalances[payerId] += amount;
-                participants.forEach(pId => {
-                    if (finalBalances[pId] !== undefined) {
-                        finalBalances[pId] -= share;
+                activeParticipants.forEach(p => {
+                    if (finalBalances[p.id] !== undefined) {
+                        finalBalances[p.id] -= share;
                     }
                 });
             }
@@ -75,7 +81,7 @@ export const calculateAllMemberBalances = (
             const participants = entry.split_with_user_ids;
             const lenders = participants && participants.length > 0
                 ? calcMembers.filter(m => participants.includes(m.id))
-                : [];
+                : (participants === null || participants === undefined ? calcMembers.filter(m => m.id !== borrowerId) : []);
 
             if (lenders.length > 0) {
                 finalBalances[borrowerId] -= loanAmount;
