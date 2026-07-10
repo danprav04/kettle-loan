@@ -231,14 +231,14 @@ export default function EditEntryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn">
-      <div className="w-full max-w-2xl overflow-hidden bg-card border border-white/10 rounded-3xl shadow-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/75 backdrop-blur-md animate-fadeIn">
+      <div className="w-full max-w-2xl overflow-hidden bg-card border border-card-border dark:border-white/10 rounded-3xl shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-muted/20">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-card-border/80 dark:border-white/5 bg-muted/30">
           <h2 className="text-base font-bold flex items-center gap-2 text-foreground">
             <span className="p-1 rounded-lg bg-primary/20 text-primary">✏️</span> {t('editEntryTitle')}
           </h2>
-          <button onClick={onClose} className="p-1 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
+          <button onClick={onClose} className="p-1 rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-all">
             ✕
           </button>
         </div>
@@ -275,10 +275,10 @@ export default function EditEntryModal({
             </div>
 
             {members.length > 1 && (
-              <div className="pt-2 space-y-3 border-t border-white/5">
+              <div className="pt-2 space-y-3 border-t border-card-border/80 dark:border-white/5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('editSplitDetails')}</label>
-                  <div className="flex rounded-xl bg-muted/40 p-0.5 border border-white/5">
+                  <div className="flex rounded-xl bg-muted/40 p-0.5 border border-card-border/60 dark:border-white/5">
                     <button
                       type="button"
                       onClick={() => setIsMultiParty(false)}
@@ -320,14 +320,14 @@ export default function EditEntryModal({
                     />
                   </div>
                 ) : (
-                  <div className="bg-card/40 p-4 rounded-2xl border border-white/5 space-y-2">
+                  <div className="bg-card/40 p-4 rounded-2xl border border-card-border dark:border-white/5 space-y-2">
                     <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">{isPositive ? t('splitWith') : t('paidForMeBy')}</span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
                       {isPositive && currentUserId && (
                         <div
                           onClick={() => setIncludeSelf(!includeSelf)}
                           className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer ${
-                            includeSelf ? 'bg-primary/15 border-primary/60 text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/30 border-white/5 text-muted-foreground'
+                            includeSelf ? 'bg-primary/15 border-primary/60 text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/30 border-card-border/60 dark:border-white/5 text-muted-foreground'
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -348,7 +348,7 @@ export default function EditEntryModal({
                             key={m.id}
                             onClick={() => toggleSimpleMember(m.id)}
                             className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer ${
-                              sel ? 'bg-primary/15 border-primary/60 text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/30 border-white/5 text-muted-foreground'
+                              sel ? 'bg-primary/15 border-primary/60 text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/30 border-card-border/60 dark:border-white/5 text-muted-foreground'
                             }`}
                           >
                             <div className="flex items-center gap-2">
@@ -371,11 +371,11 @@ export default function EditEntryModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/5 bg-muted/10 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-card-border/80 dark:border-white/5 bg-muted/30 flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-muted hover:bg-white/10 text-foreground text-xs font-semibold rounded-xl border border-white/10 transition-all"
+            className="px-4 py-2 bg-muted hover:bg-muted/80 dark:hover:bg-white/10 text-foreground text-xs font-semibold rounded-xl border border-card-border dark:border-white/10 transition-all shadow-sm"
             disabled={isLoading}
           >
             {t('closeBtn')}

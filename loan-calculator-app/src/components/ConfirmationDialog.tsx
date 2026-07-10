@@ -18,7 +18,7 @@ export default function ConfirmationDialog({ isOpen, onClose, onConfirm, title, 
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 backdrop-blur-sm"
       aria-labelledby="confirmation-dialog-title"
       role="dialog"
       aria-modal="true"

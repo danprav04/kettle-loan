@@ -17,6 +17,8 @@ import PayerBeneficiarySelector, { ShareItem, SelectorMember } from '@/component
 interface Member {
     id: number;
     username: string;
+    role?: string;
+    can_participate?: boolean;
     permissions?: { canAdmin?: boolean; canAddEntries?: boolean; canParticipate?: boolean; canView?: boolean };
 }
 

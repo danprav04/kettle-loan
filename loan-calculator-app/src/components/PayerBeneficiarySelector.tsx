@@ -187,7 +187,7 @@ export default function PayerBeneficiarySelector({
   );
 
   return (
-    <div className="space-y-2.5 p-3.5 bg-card/80 backdrop-blur-md border border-white/10 shadow-lg rounded-2xl transition-all duration-300 hover:border-primary/30">
+    <div className="space-y-2.5 p-3.5 bg-card/80 backdrop-blur-md border border-card-border dark:border-white/10 shadow-lg rounded-2xl transition-all duration-300 hover:border-primary/30">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <label className="text-xs font-bold text-foreground uppercase tracking-wider">{label}</label>
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -242,7 +242,7 @@ export default function PayerBeneficiarySelector({
             <button
               type="button"
               onClick={() => rebalanceEqual([currentUserId])}
-              className="px-2 py-1 bg-muted/60 hover:bg-primary/20 hover:text-primary text-foreground font-medium rounded-lg transition-all border border-white/5 text-[11px]"
+              className="px-2 py-1 bg-muted/60 hover:bg-primary/20 hover:text-primary text-foreground font-medium rounded-lg transition-all border border-card-border/60 dark:border-white/5 text-[11px]"
             >
               {t('justMe')}
             </button>
@@ -250,21 +250,21 @@ export default function PayerBeneficiarySelector({
           <button
             type="button"
             onClick={() => rebalanceEqual(eligibleMembers.map((m) => m.id))}
-            className="px-2 py-1 bg-muted/60 hover:bg-primary/20 hover:text-primary text-foreground font-medium rounded-lg transition-all border border-white/5 text-[11px]"
+            className="px-2 py-1 bg-muted/60 hover:bg-primary/20 hover:text-primary text-foreground font-medium rounded-lg transition-all border border-card-border/60 dark:border-white/5 text-[11px]"
           >
             {t('everyone')}
           </button>
           <button
             type="button"
             onClick={() => rebalanceEqual([])}
-            className="px-2 py-1 bg-muted/60 hover:bg-primary/20 hover:text-primary text-foreground font-medium rounded-lg transition-all border border-white/5 text-[11px]"
+            className="px-2 py-1 bg-muted/60 hover:bg-primary/20 hover:text-primary text-foreground font-medium rounded-lg transition-all border border-card-border/60 dark:border-white/5 text-[11px]"
           >
             {t('selectNone')}
           </button>
           <button
             type="button"
             onClick={() => rebalanceEqual(shares.map((s) => s.userId))}
-            className="px-2 py-1 bg-muted/60 hover:bg-primary/20 hover:text-primary text-foreground font-medium rounded-lg transition-all border border-white/5 text-[11px]"
+            className="px-2 py-1 bg-muted/60 hover:bg-primary/20 hover:text-primary text-foreground font-medium rounded-lg transition-all border border-card-border/60 dark:border-white/5 text-[11px]"
           >
             {t('splitEquallyShort')}
           </button>
@@ -305,7 +305,7 @@ export default function PayerBeneficiarySelector({
               key={member.id}
               onClick={() => toggleMember(member.id)}
               className={`flex flex-col justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer gap-2 ${
-                isSelected ? 'bg-primary/10 border-primary/60 shadow-sm text-foreground' : 'bg-background/40 hover:bg-muted/30 border-white/5 text-muted-foreground'
+                isSelected ? 'bg-primary/10 border-primary/60 shadow-sm text-foreground' : 'bg-background/40 hover:bg-muted/30 border-card-border/60 dark:border-white/5 text-muted-foreground'
               }`}
             >
               <div className="flex items-center justify-between w-full min-w-0">

@@ -39,10 +39,10 @@ const PERMISSION_ICONS: Record<keyof MemberPermissions, string> = {
 };
 
 const PERMISSION_COLORS: Record<keyof MemberPermissions, { on: string; off: string }> = {
-  canAdmin: { on: 'bg-purple-500', off: 'bg-zinc-600' },
-  canAddEntries: { on: 'bg-blue-500', off: 'bg-zinc-600' },
-  canParticipate: { on: 'bg-emerald-500', off: 'bg-zinc-600' },
-  canView: { on: 'bg-amber-500', off: 'bg-zinc-600' },
+  canAdmin: { on: 'bg-purple-500', off: 'bg-zinc-300 dark:bg-zinc-600' },
+  canAddEntries: { on: 'bg-blue-500', off: 'bg-zinc-300 dark:bg-zinc-600' },
+  canParticipate: { on: 'bg-emerald-500', off: 'bg-zinc-300 dark:bg-zinc-600' },
+  canView: { on: 'bg-amber-500', off: 'bg-zinc-300 dark:bg-zinc-600' },
 };
 
 const PRESETS: { key: string; permissions: MemberPermissions }[] = [
@@ -273,16 +273,16 @@ export default function AdminPanel({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="w-full max-w-lg overflow-hidden bg-card/95 border border-white/10 rounded-3xl shadow-[0_0_60px_rgba(168,85,247,0.15)] flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/80 backdrop-blur-md animate-fadeIn">
+      <div className="w-full max-w-lg overflow-hidden bg-card/95 border border-card-border dark:border-white/10 rounded-3xl shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-muted/20">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-card-border/80 dark:border-white/5 bg-muted/30">
           <h2 className="text-base font-bold flex items-center gap-2.5 text-foreground">
             <span className="p-1.5 rounded-xl bg-primary/20 text-primary">🛡️</span> {t('adminTitle')}
           </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all"
+            className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-all"
           >
             ✕
           </button>
@@ -301,7 +301,7 @@ export default function AdminPanel({
           )}
 
           {/* Room Settings */}
-          <form onSubmit={handleSaveRoomSettings} className="space-y-4 p-4 rounded-2xl bg-muted/20 border border-white/5">
+          <form onSubmit={handleSaveRoomSettings} className="space-y-4 p-4 rounded-2xl bg-muted/40 border border-card-border/80 dark:border-white/5">
             <h3 className="text-xs font-bold text-muted-foreground tracking-wider uppercase">{t('roomSettings')}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
@@ -355,8 +355,8 @@ export default function AdminPanel({
                     key={member.id}
                     className={`rounded-2xl border transition-all duration-300 overflow-hidden ${
                       isExpanded
-                        ? 'bg-muted/30 border-white/10 shadow-lg'
-                        : 'bg-background/50 border-white/5 hover:bg-muted/20'
+                        ? 'bg-muted/60 dark:bg-muted/30 border-primary/30 shadow-md'
+                        : 'bg-background/80 dark:bg-background/50 border-card-border dark:border-white/5 hover:bg-muted/40'
                     }`}
                   >
                     {/* Member Header Row */}
@@ -393,7 +393,7 @@ export default function AdminPanel({
 
                     {/* Expanded Permission Toggles */}
                     {isExpanded && (
-                      <div className="px-3 pt-3.5 pb-4 border-t border-white/10 animate-fadeIn">
+                      <div className="px-3 pt-3.5 pb-4 border-t border-card-border/80 dark:border-white/10 animate-fadeIn">
                         {/* Quick Presets */}
                         {!isSelf && (
                           <div className="flex items-center gap-1.5 mb-3.5 flex-wrap">
@@ -411,8 +411,8 @@ export default function AdminPanel({
                                   title={presetReason || ''}
                                   className={`text-[10px] px-2.5 py-1 rounded-lg border transition-all font-semibold ${
                                     presetReason
-                                      ? 'border-white/5 bg-transparent text-muted-foreground/40 cursor-not-allowed'
-                                      : 'border-white/10 bg-card hover:bg-white/5 text-muted-foreground hover:text-foreground'
+                                      ? 'border-card-border/40 dark:border-white/5 bg-transparent text-muted-foreground/40 cursor-not-allowed'
+                                      : 'border-card-border dark:border-white/10 bg-card hover:bg-muted text-muted-foreground hover:text-foreground shadow-2xs'
                                   }`}
                                 >
                                   {t(preset.key)}
@@ -438,8 +438,8 @@ export default function AdminPanel({
                                 key={key}
                                 className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
                                   isEnabled
-                                    ? 'bg-white/[0.03] border-white/10'
-                                    : 'bg-transparent border-white/5'
+                                    ? 'bg-primary/[0.05] dark:bg-white/[0.03] border-primary/20 dark:border-white/10'
+                                    : 'bg-transparent border-card-border/60 dark:border-white/5'
                                 } ${isDisabled ? 'opacity-70' : ''}`}
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
@@ -484,10 +484,10 @@ export default function AdminPanel({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/5 bg-muted/10 flex justify-end">
+        <div className="px-6 py-4 border-t border-card-border/80 dark:border-white/5 bg-muted/30 flex justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-muted hover:bg-white/10 text-foreground text-xs font-semibold rounded-xl border border-white/10 transition-all"
+            className="px-5 py-2 bg-muted hover:bg-muted/80 dark:hover:bg-white/10 text-foreground text-xs font-semibold rounded-xl border border-card-border dark:border-white/10 transition-all shadow-sm"
           >
             {t('closeBtn')}
           </button>
