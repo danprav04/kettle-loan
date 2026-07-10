@@ -86,11 +86,11 @@ export default function EditEntryModal({
         const splitOnly = isPos ? ids.filter((id) => id !== payerId) : ids;
         const allPartIds = hasSelf ? [payerId, ...splitOnly] : splitOnly;
         const count = allPartIds.length || 1;
-        const pct = Math.floor((100 / count) * 100) / 100;
-        const rem = Math.round((100 - pct * count) * 100) / 100;
+        const pct = Math.floor((100 / count) * 1e6) / 1e6;
+        const rem = Math.round((100 - pct * count) * 1e6) / 1e6;
         const bShares: ShareItem[] = allPartIds.map((id, idx) => ({
           userId: id,
-          percentage: idx === 0 ? Math.round((pct + rem) * 100) / 100 : pct,
+          percentage: idx === 0 ? Math.round((pct + rem) * 1e6) / 1e6 : pct,
         }));
         setBeneficiaryShares(bShares);
         setSelectedMemberIds(new Set(splitOnly));
@@ -102,11 +102,11 @@ export default function EditEntryModal({
         const splitOnly = eligible.filter((m) => m.id !== payerId).map((m) => m.id);
         const allPartIds = isPos ? [payerId, ...splitOnly] : splitOnly;
         const count = allPartIds.length || 1;
-        const pct = Math.floor((100 / count) * 100) / 100;
-        const rem = Math.round((100 - pct * count) * 100) / 100;
+        const pct = Math.floor((100 / count) * 1e6) / 1e6;
+        const rem = Math.round((100 - pct * count) * 1e6) / 1e6;
         setBeneficiaryShares(allPartIds.map((id, idx) => ({
           userId: id,
-          percentage: idx === 0 ? Math.round((pct + rem) * 100) / 100 : pct,
+          percentage: idx === 0 ? Math.round((pct + rem) * 1e6) / 1e6 : pct,
         })));
         setSelectedMemberIds(new Set(splitOnly));
         setIncludeSelf(isPos);
@@ -158,12 +158,12 @@ export default function EditEntryModal({
         }
         payloadSplitWith = allPartIds;
         const count = allPartIds.length;
-        const basePct = Math.floor((100 / count) * 100) / 100;
-        const rem = Math.round((100 - basePct * count) * 100) / 100;
+        const basePct = Math.floor((100 / count) * 1e6) / 1e6;
+        const rem = Math.round((100 - basePct * count) * 1e6) / 1e6;
         payloadPayerShares = [{ userId: payerId, percentage: 100 }];
         payloadBeneficiaryShares = allPartIds.map((id, idx) => ({
           userId: id,
-          percentage: idx === 0 ? Math.round((basePct + rem) * 100) / 100 : basePct,
+          percentage: idx === 0 ? Math.round((basePct + rem) * 1e6) / 1e6 : basePct,
         }));
       }
 

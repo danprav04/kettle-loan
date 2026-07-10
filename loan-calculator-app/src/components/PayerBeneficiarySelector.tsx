@@ -76,12 +76,12 @@ export default function PayerBeneficiarySelector({
       return;
     }
     const count = userIds.length;
-    const basePct = Math.floor((100 / count) * 100) / 100;
-    const remainder = Math.round((100 - basePct * count) * 100) / 100;
+    const basePct = Math.floor((100 / count) * 1e6) / 1e6;
+    const remainder = Math.round((100 - basePct * count) * 1e6) / 1e6;
 
     const nextShares: ShareItem[] = userIds.map((id, index) => ({
       userId: id,
-      percentage: index === 0 ? Math.round((basePct + remainder) * 100) / 100 : basePct,
+      percentage: index === 0 ? Math.round((basePct + remainder) * 1e6) / 1e6 : basePct,
     }));
     onChange(nextShares);
   };
@@ -128,14 +128,14 @@ export default function PayerBeneficiarySelector({
         mon = monetaryPerUnlocked;
       }
       const pct = (mon / effectiveTotal) * 100;
-      return { ...s, percentage: Math.round(pct * 100) / 100 };
+      return { ...s, percentage: Math.round(pct * 1e6) / 1e6 };
     });
 
     // Fix rounding discrepancies on index 0 (only if <= 0.05% floating point error)
     const currTotPct = nextShares.reduce((a, b) => a + b.percentage, 0);
-    const diffPct = Math.round((100 - currTotPct) * 100) / 100;
-    if (nextShares.length > 0 && Math.abs(diffPct) > 0.001 && Math.abs(diffPct) <= 0.05) {
-      nextShares[0].percentage = Math.round((nextShares[0].percentage + diffPct) * 100) / 100;
+    const diffPct = Math.round((100 - currTotPct) * 1e6) / 1e6;
+    if (nextShares.length > 0 && Math.abs(diffPct) > 1e-8 && Math.abs(diffPct) <= 0.05) {
+      nextShares[0].percentage = Math.round((nextShares[0].percentage + diffPct) * 1e6) / 1e6;
     }
 
     onChange(nextShares);
@@ -157,7 +157,7 @@ export default function PayerBeneficiarySelector({
     });
   };
 
-  const sumPercentages = Math.round(shares.reduce((acc, curr) => acc + curr.percentage, 0) * 100) / 100;
+  const sumPercentages = Math.round(shares.reduce((acc, curr) => acc + curr.percentage, 0) * 1e6) / 1e6;
   const isValid = Math.abs(sumPercentages - 100) <= 0.1;
   const currentSumMonetary = totalAmount > 0 ? ((totalAmount * sumPercentages) / 100).toFixed(2) : '0.00';
   const remainingMonetary = totalAmount - parseFloat(currentSumMonetary);
@@ -172,13 +172,13 @@ export default function PayerBeneficiarySelector({
       const currentMon = (totalAmount * s.percentage) / 100;
       const nextMon = Math.max(0, currentMon + extraPerPerson);
       const nextPct = totalAmount > 0 ? (nextMon / totalAmount) * 100 : 0;
-      return { ...s, percentage: Math.round(nextPct * 100) / 100 };
+      return { ...s, percentage: Math.round(nextPct * 1e6) / 1e6 };
     });
 
     const currTotPct = nextShares.reduce((a, b) => a + b.percentage, 0);
-    const diffPct = Math.round((100 - currTotPct) * 100) / 100;
-    if (nextShares.length > 0 && Math.abs(diffPct) > 0.001 && Math.abs(diffPct) <= 0.05) {
-      nextShares[0].percentage = Math.round((nextShares[0].percentage + diffPct) * 100) / 100;
+    const diffPct = Math.round((100 - currTotPct) * 1e6) / 1e6;
+    if (nextShares.length > 0 && Math.abs(diffPct) > 1e-8 && Math.abs(diffPct) <= 0.05) {
+      nextShares[0].percentage = Math.round((nextShares[0].percentage + diffPct) * 1e6) / 1e6;
     }
     onChange(nextShares);
   };
@@ -202,12 +202,12 @@ export default function PayerBeneficiarySelector({
                   const updatedShares = shares.map((s) => {
                     const currentMon = (totalAmount * s.percentage) / 100;
                     const nextPct = (currentMon / newTot) * 100;
-                    return { ...s, percentage: Math.round(nextPct * 100) / 100 };
+                    return { ...s, percentage: Math.round(nextPct * 1e6) / 1e6 };
                   });
                   const currTotPct = updatedShares.reduce((a, b) => a + b.percentage, 0);
-                  const diffPct = Math.round((100 - currTotPct) * 100) / 100;
-                  if (updatedShares.length > 0 && Math.abs(diffPct) > 0.001 && Math.abs(diffPct) <= 0.05) {
-                    updatedShares[0].percentage = Math.round((updatedShares[0].percentage + diffPct) * 100) / 100;
+                  const diffPct = Math.round((100 - currTotPct) * 1e6) / 1e6;
+                  if (updatedShares.length > 0 && Math.abs(diffPct) > 1e-8 && Math.abs(diffPct) <= 0.05) {
+                    updatedShares[0].percentage = Math.round((updatedShares[0].percentage + diffPct) * 1e6) / 1e6;
                   }
                   onChange(updatedShares);
                 }
