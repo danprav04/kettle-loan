@@ -9,7 +9,7 @@ import { getRoomData, Entry, addLocalEntry, saveRoomData, calculateAllMemberBala
 import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
 import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign, FiArrowDownLeft, FiArrowUpRight, FiCheckCircle, FiUsers, FiActivity, FiShare2 } from 'react-icons/fi';
-import { getEntryDetails } from '@/lib/entry-formatting';
+import { getEntryDetails, getEntryPayerAndParticipantStrings } from '@/lib/entry-formatting';
 
 interface Member {
     id: number;
@@ -30,6 +30,7 @@ export default function BalanceDetailsPage() {
     const [entries, setEntries] = useState<Entry[]>([]);
     const [members, setMembers] = useState<Member[]>([]);
     const [currency, setCurrency] = useState('ILS');
+    const [roomName, setRoomName] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [expandedMemberId, setExpandedMemberId] = useState<number | null>(null);
     const [perspectiveUserId, setPerspectiveUserId] = useState<number | null>(null);
@@ -82,6 +83,7 @@ export default function BalanceDetailsPage() {
             setEntries(localData.entries);
             setMembers(localData.members);
             if (localData.currency) setCurrency(localData.currency);
+            if (localData.name) setRoomName(localData.name);
         }
 
         if (isOnline) {
@@ -95,6 +97,7 @@ export default function BalanceDetailsPage() {
                     setEntries(data.entries);
                     setMembers(data.members);
                     if (data.currency) setCurrency(data.currency);
+                    if (data.name) setRoomName(data.name);
                 } else if (res.status === 401) {
                     router.push('/');
                 }
@@ -305,7 +308,9 @@ export default function BalanceDetailsPage() {
 
             const perspectiveName = activePerspectiveMember ? activePerspectiveMember.username : t('me');
             const safeName = perspectiveName.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'perspective';
-            const filenameSafe = `room_${roomId}_balance_${safeName}.pdf`;
+            const displayRoomName = roomName || t('roomTitle', { code: roomId }) || `Room #${roomId}`;
+            const safeRoomIdentifier = (roomName || `room_${roomId}`).replace(/[/\\?%*:|"<>]/g, '_').trim();
+            const filenameSafe = `${safeRoomIdentifier}_balance_${safeName}.pdf`;
 
             const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -336,12 +341,24 @@ export default function BalanceDetailsPage() {
                     txRows = `<div style="padding:16px;text-align:center;color:#64748b;font-size:13px">${esc(t('noMutualTransactions'))}</div>`;
                 } else {
                     const rows = txs.map((tx) => {
-                        const txAuthor = tx.username || (members.find(m => m.id === tx.user_id)?.username ?? '');
+                        const { payersText, participantsText, isLoanWithoutShares, borrowerText } = getEntryPayerAndParticipantStrings(
+                            tx,
+                            memberMap,
+                            members,
+                            null,
+                            t
+                        );
                         const date = new Date(tx.created_at || (tx as any).createdAt || Date.now()).toLocaleDateString();
+                        let paidByContent = '';
+                        if (isLoanWithoutShares && borrowerText) {
+                            paidByContent = `<div style="font-weight:600">${esc(t('entryLoanTo', { borrower: borrowerText }))}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${esc(t('entryFromGroup'))}</div>`;
+                        } else {
+                            paidByContent = `<div style="font-weight:600">${esc(payersText)}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${esc(t('entryFor', { participants: participantsText }))}</div>`;
+                        }
                         return `<tr style="border-bottom:1px solid #f1f5f9;page-break-inside:avoid;break-inside:avoid">
                             <td style="padding:8px 12px;color:#64748b;white-space:nowrap">${esc(date)}</td>
                             <td style="padding:8px 12px;font-weight:600;color:#1e293b">${esc(tx.description)}</td>
-                            <td style="padding:8px 12px;color:#475569">${esc(txAuthor)}</td>
+                            <td style="padding:8px 12px;color:#1e293b">${paidByContent}</td>
                             <td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:${balColor(tx.contribution)}">${tx.contribution > 0.005 ? '+' : ''}${tx.contribution.toFixed(2)} ${esc(currency)}</td>
                             <td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:#334155">${tx.runningP2PBalance.toFixed(2)} ${esc(currency)}</td>
                         </tr>`;
@@ -372,7 +389,7 @@ export default function BalanceDetailsPage() {
                 <div style="font-family:system-ui,-apple-system,sans-serif;color:#111827;padding:0;box-sizing:border-box">
                     <div style="border-bottom:2px solid #e2e8f0;padding-bottom:18px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center">
                         <div>
-                            <h1 style="font-size:22px;font-weight:800;margin:0;color:#0f172a">${esc(t('pdfReportTitle', { code: roomId }))}</h1>
+                            <h1 style="font-size:22px;font-weight:800;margin:0;color:#0f172a">${esc(t('pdfReportTitle', { name: displayRoomName }))}</h1>
                             <p style="font-size:14px;color:#64748b;margin-top:4px;margin-bottom:0;font-weight:600">${esc(t('pdfPerspectiveHeader', { name: perspectiveName }))}</p>
                         </div>
                         <div style="background:${balBg(totalBal)};border:1px solid ${balBorder(totalBal)};border-radius:12px;padding:10px 16px;text-align:right">

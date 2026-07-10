@@ -13,13 +13,13 @@ interface User {
     username: string;
 }
 
-export const getEntryDetails = (
+export const getEntryPayerAndParticipantStrings = (
     entry: Entry,
     memberMap: Map<number, string>,
     allMembers: Member[],
     currentUser: User | null,
     t: (key: string, values?: Record<string, string | number>) => string
-): React.ReactNode => {
+): { payersText: string; participantsText: string; isLoanWithoutShares: boolean; borrowerText?: string } => {
     const amount = parseFloat(entry.amount);
     const actorUsername = entry.username;
 
@@ -60,12 +60,36 @@ export const getEntryDetails = (
         }
     }
 
-    if (amount < 0 && (!entry.payer_shares || entry.payer_shares.length === 0) && (!entry.beneficiary_shares || entry.beneficiary_shares.length === 0)) {
-        // Loan without explicit share structure
-        const borrowerText = entry.user_id === currentUser?.userId ? t('entryParticipantYou') : actorUsername;
+    const isLoanWithoutShares = amount < 0 && (!entry.payer_shares || entry.payer_shares.length === 0) && (!entry.beneficiary_shares || entry.beneficiary_shares.length === 0);
+    const borrowerText = isLoanWithoutShares ? (entry.user_id === currentUser?.userId ? t('entryParticipantYou') : actorUsername) : undefined;
+
+    return {
+        payersText,
+        participantsText,
+        isLoanWithoutShares,
+        borrowerText
+    };
+};
+
+export const getEntryDetails = (
+    entry: Entry,
+    memberMap: Map<number, string>,
+    allMembers: Member[],
+    currentUser: User | null,
+    t: (key: string, values?: Record<string, string | number>) => string
+): React.ReactNode => {
+    const { payersText, participantsText, isLoanWithoutShares, borrowerText } = getEntryPayerAndParticipantStrings(
+        entry,
+        memberMap,
+        allMembers,
+        currentUser,
+        t
+    );
+
+    if (isLoanWithoutShares) {
         return (
             <>
-                <span>{t('entryLoanTo', { borrower: borrowerText })}</span>
+                <span>{t('entryLoanTo', { borrower: borrowerText! })}</span>
                 <span className="mx-1.5">&bull;</span>
                 <span>{t('entryFromGroup')}</span>
             </>
