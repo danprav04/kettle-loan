@@ -257,13 +257,13 @@ export default function BalanceDetailsPage() {
             }
         }
 
-        // Keep transactions in chronological order so new entries are at the bottom
+        breakdown.forEach(value => value.transactions.reverse());
         return breakdown;
     }, [entries, members, user, otherMembers]);
 
-    // Filtered history list (chronological order with new entries at the bottom)
+    // Filtered history list
     const filteredHistory = useMemo(() => {
-        return [...entries].reverse().filter(entry => {
+        return entries.filter(entry => {
             const matchesSearch = entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 entry.username.toLowerCase().includes(searchQuery.toLowerCase());
             if (!matchesSearch) return false;
@@ -334,7 +334,7 @@ export default function BalanceDetailsPage() {
                 const p2pData = peerToPeerBalances.get(member.id);
                 const netBalance = p2pData?.netBalance ?? 0;
                 const balanceInfo = getBalanceText(netBalance, member.username);
-                const txs = p2pData?.transactions ?? [];
+                const txs = [...(p2pData?.transactions ?? [])].reverse();
 
                 let txRows = '';
                 if (txs.length === 0) {

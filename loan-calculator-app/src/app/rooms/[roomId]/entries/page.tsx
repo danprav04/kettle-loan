@@ -162,7 +162,7 @@ export default function EntriesPage() {
             };
         });
 
-        return entriesWithBalance;
+        return entriesWithBalance.reverse();
     }, [entries, members, user]);
 
     const memberMap = useMemo(() => {
