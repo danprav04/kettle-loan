@@ -420,9 +420,6 @@ export default function BalanceDetailsPage() {
                         <h2 style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:16px;text-transform:uppercase;letter-spacing:0.04em">${esc(t('pdfDetailsTitle'))}</h2>
                         ${detailSections}
                     </div>
-                    <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center">
-                        ${esc(generatedAtText)} &bull; ${esc(displayRoomName)}
-                    </div>
                 </div>`;
 
             const opt: any = {
