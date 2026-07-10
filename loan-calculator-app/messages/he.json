@@ -193,7 +193,15 @@
     "exportTXT": "ייצוא TXT (CSV)",
     "loadingStats": "טוען סטטיסטיקות...",
     "noEntriesStats": "לא נמצאו רשומות ליצירת סטטיסטיקה.",
-    "memberHeader": "משתתף"
+    "memberHeader": "משתתף",
+    "exportDate": "תאריך",
+    "exportDescription": "תיאור",
+    "exportType": "סוג",
+    "exportPayer": "שילם",
+    "exportAmount": "סכום",
+    "exportParticipants": "משתתפים",
+    "exportTypeExpense": "הוצאה",
+    "exportTypeLoan": "הלוואה"
   },
   "Dialog": {
     "cancel": "ביטול",

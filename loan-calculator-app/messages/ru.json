@@ -193,7 +193,15 @@
     "exportTXT": "Экспорт TXT (CSV)",
     "loadingStats": "Загрузка статистики...",
     "noEntriesStats": "Нет записей для формирования статистики.",
-    "memberHeader": "Участник"
+    "memberHeader": "Участник",
+    "exportDate": "Дата",
+    "exportDescription": "Описание",
+    "exportType": "Тип",
+    "exportPayer": "Оплатил",
+    "exportAmount": "Сумма",
+    "exportParticipants": "Участники",
+    "exportTypeExpense": "Расход",
+    "exportTypeLoan": "Заём"
   },
   "Dialog": {
     "cancel": "Отмена",

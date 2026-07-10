@@ -193,7 +193,15 @@
     "exportTXT": "Export TXT (CSV)",
     "loadingStats": "Loading statistics...",
     "noEntriesStats": "No entries found to generate statistics.",
-    "memberHeader": "Member"
+    "memberHeader": "Member",
+    "exportDate": "Date",
+    "exportDescription": "Description",
+    "exportType": "Type",
+    "exportPayer": "Payer",
+    "exportAmount": "Amount",
+    "exportParticipants": "Participants",
+    "exportTypeExpense": "Expense",
+    "exportTypeLoan": "Loan"
   },
   "Dialog": {
     "cancel": "Cancel",

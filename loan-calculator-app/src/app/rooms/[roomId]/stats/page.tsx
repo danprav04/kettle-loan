@@ -13,6 +13,8 @@ import { FiDownload, FiFileText, FiGrid, FiBarChart2 } from 'react-icons/fi';
 interface Member {
     id: number;
     username: string;
+    role?: string;
+    can_participate?: boolean;
     permissions?: { canAdmin?: boolean; canAddEntries?: boolean; canParticipate?: boolean; canView?: boolean };
 }
 
@@ -36,6 +38,7 @@ export default function StatsPage() {
     const [entries, setEntries] = useState<Entry[]>([]);
     const [members, setMembers] = useState<Member[]>([]);
     const [roomCode, setRoomCode] = useState('');
+    const [currency, setCurrency] = useState('ILS');
     const [isLoading, setIsLoading] = useState(true);
     const [isExporting, setIsExporting] = useState(false);
 
@@ -52,6 +55,7 @@ export default function StatsPage() {
             setEntries(localData.entries);
             setMembers(localData.members);
             setRoomCode(localData.code);
+            if (localData.currency) setCurrency(localData.currency);
         }
 
         if (isOnline) {
@@ -63,6 +67,7 @@ export default function StatsPage() {
                     setEntries(data.entries);
                     setMembers(data.members);
                     setRoomCode(data.code);
+                    if (data.currency) setCurrency(data.currency);
                 } else if (res.status === 401) {
                     router.push('/');
                 }
@@ -88,34 +93,84 @@ export default function StatsPage() {
         const memberContributions = new Map<number, { username: string; paid: number; share: number; net: number }>();
         members.forEach(m => memberContributions.set(m.id, { username: m.username, paid: 0, share: 0, net: 0 }));
 
+        const calcMembers = members.filter(m => {
+            if (m.role === 'observer') return false;
+            if (m.can_participate !== undefined) return m.can_participate !== false;
+            if (m.permissions?.canParticipate !== undefined) return m.permissions.canParticipate !== false;
+            return true;
+        });
+
         for (const entry of entries) {
             const amount = parseFloat(entry.amount);
             const payerId = entry.user_id;
-            const payerData = memberContributions.get(payerId);
+
+            if (entry.payer_shares && entry.beneficiary_shares && Array.isArray(entry.payer_shares) && Array.isArray(entry.beneficiary_shares)) {
+                if (amount > 0) {
+                    totalExpenses += amount;
+                    if (!biggestExpense || amount > biggestExpense.amount) {
+                        biggestExpense = { description: entry.description, amount };
+                    }
+                } else if (amount < 0) {
+                    totalLoans += Math.abs(amount);
+                }
+
+                entry.payer_shares.forEach(p => {
+                    const pData = memberContributions.get(p.userId);
+                    if (pData) pData.paid += Math.abs(amount) * (Number(p.percentage) / 100);
+                });
+                entry.beneficiary_shares.forEach(b => {
+                    const bData = memberContributions.get(b.userId);
+                    if (bData) bData.share += Math.abs(amount) * (Number(b.percentage) / 100);
+                });
+                continue;
+            }
 
             if (amount > 0) { // Expense
                 totalExpenses += amount;
                 if (!biggestExpense || amount > biggestExpense.amount) {
                     biggestExpense = { description: entry.description, amount };
                 }
+                const payerData = memberContributions.get(payerId);
                 if (payerData) payerData.paid += amount;
 
                 const participants = entry.split_with_user_ids;
-                if (participants && participants.length > 0) {
-                    const share = amount / participants.length;
-                    participants.forEach(pId => {
-                        const pData = memberContributions.get(pId);
+                const activeParticipants = participants && participants.length > 0
+                    ? calcMembers.filter(m => participants.includes(m.id))
+                    : (participants === null || participants === undefined || participants.length === 0 ? calcMembers : []);
+
+                if (activeParticipants.length > 0) {
+                    const share = amount / activeParticipants.length;
+                    activeParticipants.forEach(p => {
+                        const pData = memberContributions.get(p.id);
                         if (pData) pData.share += share;
                     });
                 }
-            } else { // Loan
+            } else if (amount < 0) { // Loan
                 const loanAmount = Math.abs(amount);
                 totalLoans += loanAmount;
-                if (payerData) payerData.share += loanAmount;
+                const borrowerData = memberContributions.get(payerId);
+                if (borrowerData) borrowerData.share += loanAmount;
+
+                const participants = entry.split_with_user_ids;
+                const lenders = participants && participants.length > 0
+                    ? calcMembers.filter(m => participants.includes(m.id))
+                    : (participants === null || participants === undefined || participants.length === 0 ? calcMembers.filter(m => m.id !== payerId) : []);
+
+                if (lenders.length > 0) {
+                    const creditPerLender = loanAmount / lenders.length;
+                    lenders.forEach(lender => {
+                        const lenderData = memberContributions.get(lender.id);
+                        if (lenderData) lenderData.paid += creditPerLender;
+                    });
+                }
             }
         }
         
-        memberContributions.forEach(data => { data.net = data.paid - data.share; });
+        memberContributions.forEach(data => {
+            data.paid = Math.round(data.paid * 100) / 100;
+            data.share = Math.round(data.share * 100) / 100;
+            data.net = Math.round((data.paid - data.share) * 100) / 100;
+        });
 
         return {
             totalExpenses,
@@ -127,67 +182,100 @@ export default function StatsPage() {
     }, [entries, members]);
 
     const handleExport = (format: 'xlsx' | 'csv' | 'txt') => {
+        if (!stats || entries.length === 0) return;
         setIsExporting(true);
-        const memberMap = new Map(members.map(m => [m.id, m.username]));
-        
-        const dataToExport = entries.map(entry => {
-            const amount = parseFloat(entry.amount);
-            const type = amount > 0 ? 'Expense' : 'Loan';
+        try {
+            const memberMap = new Map(members.map(m => [m.id, m.username]));
+            const calcMembersCount = members.filter(m => m.role !== 'observer' && m.can_participate !== false && m.permissions?.canParticipate !== false).length || members.length;
             
-            const formatPercentage = (pct: number) => {
-                return Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(1)}%`;
-            };
+            const dataToExport = entries.map(entry => {
+                const amount = parseFloat(entry.amount);
+                const isExpense = amount > 0 || (amount === 0 && entry.description);
+                const typeText = isExpense ? (t('exportTypeExpense') || 'Expense') : (t('exportTypeLoan') || 'Loan');
+                
+                const formatPercentage = (pct: number) => {
+                    return Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(1)}%`;
+                };
 
-            let payersText = entry.username;
-            if (entry.payer_shares && Array.isArray(entry.payer_shares) && entry.payer_shares.length > 0) {
-                payersText = entry.payer_shares.map(p => `${memberMap.get(p.userId) || `ID:${p.userId}`} (${formatPercentage(Number(p.percentage))})`).join(', ');
-            }
+                let payersText = memberMap.get(entry.user_id) || entry.username;
+                if (entry.payer_shares && Array.isArray(entry.payer_shares) && entry.payer_shares.length > 0) {
+                    payersText = entry.payer_shares.map(p => `${memberMap.get(p.userId) || `ID:${p.userId}`} (${formatPercentage(Number(p.percentage))})`).join(', ');
+                } else if (!isExpense && (!entry.beneficiary_shares || entry.beneficiary_shares.length === 0)) {
+                    const participants = entry.split_with_user_ids || [];
+                    const isForAll = participants.length > 0 && participants.length === calcMembersCount;
+                    if (participants.length === 0 || isForAll) {
+                        payersText = tRoom('entryFromGroup') || 'The Group';
+                    } else {
+                        payersText = participants.map(id => memberMap.get(id) || `ID:${id}`).join(', ');
+                    }
+                }
 
-            let participantsText = '';
-            if (entry.beneficiary_shares && Array.isArray(entry.beneficiary_shares) && entry.beneficiary_shares.length > 0) {
-                participantsText = entry.beneficiary_shares.map(b => `${memberMap.get(b.userId) || `ID:${b.userId}`} (${formatPercentage(Number(b.percentage))})`).join(', ');
-            } else {
-                const pIds = entry.split_with_user_ids || [];
-                const isForAll = pIds.length > 0 && pIds.length === members.filter(m => m.permissions?.canParticipate !== false).length;
-                if (isForAll) {
-                     participantsText = tRoom('entryParticipantEveryone');
+                let participantsText = '';
+                if (entry.beneficiary_shares && Array.isArray(entry.beneficiary_shares) && entry.beneficiary_shares.length > 0) {
+                    participantsText = entry.beneficiary_shares.map(b => `${memberMap.get(b.userId) || `ID:${b.userId}`} (${formatPercentage(Number(b.percentage))})`).join(', ');
+                } else if (!isExpense && (!entry.payer_shares || entry.payer_shares.length === 0)) {
+                    participantsText = memberMap.get(entry.user_id) || entry.username;
                 } else {
-                     participantsText = pIds.map(id => memberMap.get(id) || `ID:${id}`).join(', ');
+                    const pIds = entry.split_with_user_ids || [];
+                    const isForAll = pIds.length > 0 && pIds.length === calcMembersCount;
+                    if (pIds.length === 0 || isForAll) {
+                        participantsText = tRoom('entryParticipantEveryone');
+                    } else {
+                        participantsText = pIds.map(id => memberMap.get(id) || `ID:${id}`).join(', ');
+                    }
+                }
+
+                return {
+                    [t('exportDate') || 'Date']: new Date(entry.created_at).toLocaleString(),
+                    [t('exportDescription') || 'Description']: entry.description,
+                    [t('exportType') || 'Type']: typeText,
+                    [t('exportPayer') || 'Payer']: payersText,
+                    [`${t('exportAmount') || 'Amount'} (${currency})`]: Math.abs(amount),
+                    [t('exportParticipants') || 'Participants']: participantsText
+                };
+            }).reverse();
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const filename = `Kettle_Room_${roomCode}_Export`;
+
+            if (format === 'xlsx') {
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Entries");
+                try {
+                    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+                    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+                    const link = document.createElement("a");
+                    if (link.download !== undefined) {
+                        const url = URL.createObjectURL(blob);
+                        link.setAttribute("href", url);
+                        link.setAttribute("download", `${filename}.xlsx`);
+                        link.style.visibility = 'hidden';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    }
+                } catch (e) {
+                    XLSX.writeFile(workbook, `${filename}.xlsx`);
+                }
+            } else {
+                const csvData = XLSX.utils.sheet_to_csv(worksheet);
+                const blob = new Blob(['\uFEFF' + csvData], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                if (link.download !== undefined) {
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", `${filename}.${format === 'csv' ? 'csv' : 'txt'}`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
                 }
             }
-
-            return {
-                Date: new Date(entry.created_at).toLocaleString(),
-                Description: entry.description,
-                Type: type,
-                Payer: payersText,
-                Amount: Math.abs(amount),
-                Participants: type === 'Expense' || entry.beneficiary_shares ? participantsText : ''
-            };
-        }).reverse(); // chronological order
-
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const filename = `Kettle_Room_${roomCode}_Export`;
-
-        if (format === 'xlsx') {
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Entries");
-            XLSX.writeFile(workbook, `${filename}.xlsx`);
-        } else {
-            const csvData = XLSX.utils.sheet_to_csv(worksheet);
-            const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            if (link.download !== undefined) {
-                const url = URL.createObjectURL(blob);
-                link.setAttribute("href", url);
-                link.setAttribute("download", `${filename}.${format === 'csv' ? 'csv' : 'txt'}`);
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
+        } catch (error) {
+            console.error("Export failed:", error);
+        } finally {
+            setIsExporting(false);
         }
-        setIsExporting(false);
     };
 
 
@@ -201,7 +289,7 @@ export default function StatsPage() {
                     <button disabled={isExporting || !stats} className="font-bold py-2 px-4 rounded-lg btn-secondary flex items-center disabled:opacity-50">
                         <FiDownload className="me-2"/> {t('exportData')}
                     </button>
-                    <div className="absolute right-0 mt-2 w-48 bg-card rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                    <div className="absolute right-0 mt-2 w-48 bg-card rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
                         <div className="py-1">
                             <button onClick={() => handleExport('xlsx')} className="w-full text-left flex items-center px-4 py-2 text-sm text-foreground hover:bg-muted"><FiGrid className="me-2"/> {t('exportXLSX')}</button>
                             <button onClick={() => handleExport('csv')} className="w-full text-left flex items-center px-4 py-2 text-sm text-foreground hover:bg-muted"><FiFileText className="me-2"/> {t('exportCSV')}</button>
@@ -221,12 +309,12 @@ export default function StatsPage() {
                     <div className="space-y-6">
                         {/* General Stats */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('totalExpenses')}</div><div className="text-2xl font-bold text-success">{stats.totalExpenses.toFixed(2)}</div></div>
-                            <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('totalLoans')}</div><div className="text-2xl font-bold text-danger">{stats.totalLoans.toFixed(2)}</div></div>
+                            <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('totalExpenses')}</div><div className="text-2xl font-bold text-success">{stats.totalExpenses.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">{currency}</span></div></div>
+                            <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('totalLoans')}</div><div className="text-2xl font-bold text-danger">{stats.totalLoans.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">{currency}</span></div></div>
                             <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('totalEntries')}</div><div className="text-2xl font-bold">{stats.totalEntries}</div></div>
                         </div>
                         {stats.biggestExpense && (
-                             <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('biggestExpense')}</div><div className="text-xl font-bold">{stats.biggestExpense.amount.toFixed(2)} <span className="text-base font-normal text-muted-foreground">- {stats.biggestExpense.description}</span></div></div>
+                             <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('biggestExpense')}</div><div className="text-xl font-bold">{stats.biggestExpense.amount.toFixed(2)} {currency} <span className="text-base font-normal text-muted-foreground">- {stats.biggestExpense.description}</span></div></div>
                         )}
 
                         {/* Member Contributions */}
@@ -237,9 +325,9 @@ export default function StatsPage() {
                                     <thead className="border-b border-card-border">
                                         <tr>
                                             <th className="p-2 text-sm font-semibold text-muted-foreground">{t('memberHeader')}</th>
-                                            <th className="p-2 text-sm font-semibold text-muted-foreground text-right">{t('paid')}</th>
-                                            <th className="p-2 text-sm font-semibold text-muted-foreground text-right">{t('owes')}</th>
-                                            <th className="p-2 text-sm font-semibold text-muted-foreground text-right">{t('net')}</th>
+                                            <th className="p-2 text-sm font-semibold text-muted-foreground text-right">{t('paid')} ({currency})</th>
+                                            <th className="p-2 text-sm font-semibold text-muted-foreground text-right">{t('owes')} ({currency})</th>
+                                            <th className="p-2 text-sm font-semibold text-muted-foreground text-right">{t('net')} ({currency})</th>
                                         </tr>
                                     </thead>
                                     <tbody>
