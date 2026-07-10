@@ -148,6 +148,8 @@
     "outstandingDebtSubtitle": "Record a repayment to settle outstanding debts with {member}",
     "mutualActivityLog": "Mutual Activity Log",
     "netImpactLabel": "Net Impact",
+    "totalAfterLog": "Total:",
+    "totalAfterHeader": "Total After",
     "noMutualTransactions": "No mutual transactions recorded yet.",
     "noFilteredHistory": "No transactions match your search filters.",
     "byAuthor": "By {author}",

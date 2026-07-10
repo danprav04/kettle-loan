@@ -148,6 +148,8 @@
     "outstandingDebtSubtitle": "רשום החזר כדי לסגור את החוב מול {member}",
     "mutualActivityLog": "היסטוריית פעילות הדדית",
     "netImpactLabel": "השפעה נטו",
+    "totalAfterLog": "סה\"כ:",
+    "totalAfterHeader": "יתרה אחרי",
     "noMutualTransactions": "לא נרשמו פעולות הדדיות עדיין.",
     "noFilteredHistory": "לא נמצאו עסקאות התואמות לסינון שלך.",
     "byAuthor": "על ידי {author}",

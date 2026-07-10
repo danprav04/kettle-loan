@@ -148,6 +148,8 @@
     "outstandingDebtSubtitle": "Зафиксируйте платеж для погашения долга перед {member}",
     "mutualActivityLog": "История взаимных операций",
     "netImpactLabel": "Итого",
+    "totalAfterLog": "Итого после:",
+    "totalAfterHeader": "Остаток после",
     "noMutualTransactions": "Взаимных операций пока нет.",
     "noFilteredHistory": "Операции по выбранным фильтрам не найдены.",
     "byAuthor": "Автор: {author}",

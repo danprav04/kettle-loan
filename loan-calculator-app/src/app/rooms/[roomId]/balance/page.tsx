@@ -456,21 +456,22 @@ export default function BalanceDetailsPage() {
                                             {isExpanded && (
                                                 <div className="bg-background/80 px-4 sm:px-6 pt-2 pb-5 animate-fadeIn border-t border-card-border/60">
                                                     {netBalance < -0.005 && activePerspectiveUserId === user?.userId && (
-                                                        <div className="my-4 p-4 rounded-xl bg-gradient-to-r from-success/20 via-success/10 to-transparent border border-success/40 flex items-center justify-between flex-wrap gap-3 shadow-sm">
-                                                            <div className="flex items-center gap-3 min-w-0">
-                                                                <div className="p-2.5 rounded-xl bg-success text-success-foreground shrink-0 shadow-sm">
-                                                                    <FiCheckCircle className="w-5 h-5" />
+                                                        <div className="mt-2 mb-3.5 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-success/15 via-success/10 to-transparent border border-success/30 flex items-center justify-between gap-3 shadow-sm hover:border-success/40 transition-all">
+                                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                                <div className="w-7 h-7 rounded-lg bg-success/20 text-success flex items-center justify-center shrink-0 shadow-xs">
+                                                                    <FiCheckCircle className="w-3.5 h-3.5" />
                                                                 </div>
-                                                                <div className="min-w-0">
-                                                                    <p className="text-xs sm:text-sm font-extrabold text-foreground tracking-tight truncate">{t('outstandingDebtTitle')}</p>
-                                                                    <p className="text-[11px] text-muted-foreground truncate">{t('outstandingDebtSubtitle', { member: member.username })}</p>
+                                                                <div className="min-w-0 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2">
+                                                                    <span className="text-xs font-bold text-foreground tracking-tight truncate">{t('outstandingDebtTitle')}</span>
+                                                                    <span className="text-[11px] text-muted-foreground truncate hidden sm:inline">&bull;</span>
+                                                                    <span className="text-[11px] text-muted-foreground truncate">{t('outstandingDebtSubtitle', { member: member.username })}</span>
                                                                 </div>
                                                             </div>
                                                             <button 
                                                                 onClick={() => handleSettleUp(member.id, Math.abs(netBalance))}
-                                                                className="bg-success text-success-foreground hover:opacity-90 py-2 px-4 rounded-xl text-xs font-extrabold tracking-wide transition-all shadow-md active:scale-95 flex items-center gap-1.5 shrink-0"
+                                                                className="bg-success text-success-foreground hover:opacity-90 py-1.5 px-3 rounded-lg text-xs font-bold tracking-wide transition-all shadow-sm active:scale-95 flex items-center gap-1.5 shrink-0"
                                                             >
-                                                                <FiDollarSign className="w-3.5 h-3.5" />
+                                                                <FiDollarSign className="w-3.5 h-3.5 shrink-0" />
                                                                 <span>{t('settleUpBtn', { amount: Math.abs(netBalance).toFixed(2), currency })}</span>
                                                             </button>
                                                         </div>
@@ -481,7 +482,7 @@ export default function BalanceDetailsPage() {
                                                                 <span className="flex items-center gap-1.5">
                                                                     <FiClock className="w-3.5 h-3.5" /> {t('mutualActivityLog')}
                                                                 </span>
-                                                                <span>{t('netImpactLabel')}</span>
+                                                                <span>{t('netImpactLabel')} / {t('totalAfterHeader')}</span>
                                                             </div>
                                                             <div className="divide-y divide-card-border/60 bg-card rounded-xl border border-card-border overflow-hidden shadow-sm">
                                                                 {p2pData.transactions.map((tx, index) => {
@@ -506,12 +507,24 @@ export default function BalanceDetailsPage() {
                                                                                     </p>
                                                                                 </div>
                                                                             </div>
-                                                                            <div className="text-right shrink-0">
-                                                                                <span className={`text-xs sm:text-sm font-bold font-mono px-2 py-1 rounded ${
+                                                                            <div className="text-right shrink-0 flex flex-col items-end justify-center gap-1">
+                                                                                <span className={`text-xs sm:text-sm font-bold font-mono px-2 py-0.5 rounded-md ${
                                                                                     isPositive ? 'text-success bg-success/10' : 'text-danger bg-danger/10'
                                                                                 }`}>
                                                                                     {isPositive ? '+' : ''}{tx.contribution.toFixed(2)} {currency}
                                                                                 </span>
+                                                                                <div className="text-[11px] font-medium font-mono flex items-center justify-end gap-1 px-1">
+                                                                                    <span className="text-muted-foreground text-[10px] uppercase font-sans font-semibold">{t('totalAfterLog')}</span>
+                                                                                    <span className={`font-bold ${
+                                                                                        tx.runningP2PBalance > 0.005 
+                                                                                            ? 'text-success dark:text-success/90' 
+                                                                                            : tx.runningP2PBalance < -0.005 
+                                                                                                ? 'text-danger dark:text-danger/90' 
+                                                                                                : 'text-muted-foreground'
+                                                                                    }`}>
+                                                                                        {tx.runningP2PBalance > 0.005 ? '+' : ''}{tx.runningP2PBalance.toFixed(2)} {currency}
+                                                                                    </span>
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     );
