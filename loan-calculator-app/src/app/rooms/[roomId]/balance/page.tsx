@@ -308,13 +308,38 @@ export default function BalanceDetailsPage() {
             if (!element) return;
 
             const perspectiveName = activePerspectiveMember ? activePerspectiveMember.username : t('me');
-            const filenameSafe = `room_${roomId}_balance_${perspectiveName.replace(/[^a-zA-Z0-9_-]/g, '_') || 'perspective'}.pdf`;
+            const safeName = perspectiveName.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'perspective';
+            const filenameSafe = `room_${roomId}_balance_${safeName}.pdf`;
 
             const opt: any = {
                 margin: 12,
                 filename: filenameSafe,
                 image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    scrollX: 0,
+                    scrollY: 0,
+                    onclone: (clonedDoc: Document) => {
+                        const clonedEl = clonedDoc.getElementById('pdf-report-container');
+                        if (clonedEl) {
+                            clonedEl.style.position = 'static';
+                            clonedEl.style.left = 'auto';
+                            clonedEl.style.top = 'auto';
+                            clonedEl.style.opacity = '1';
+                            clonedEl.style.visibility = 'visible';
+                            clonedEl.style.display = 'block';
+                            clonedEl.style.width = '794px';
+                            clonedEl.style.margin = '0';
+                            clonedDoc.body.innerHTML = '';
+                            clonedDoc.body.style.background = '#ffffff';
+                            clonedDoc.body.style.padding = '0';
+                            clonedDoc.body.style.margin = '0';
+                            clonedDoc.body.appendChild(clonedEl);
+                        }
+                    }
+                },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             };
@@ -689,10 +714,11 @@ export default function BalanceDetailsPage() {
             {isGeneratingPdf && (
                 <div
                     ref={pdfReportRef}
+                    id="pdf-report-container"
                     style={{
-                        position: 'absolute',
+                        position: 'fixed',
                         top: 0,
-                        left: 0,
+                        left: '-9999px',
                         width: '794px',
                         zIndex: -9999,
                         pointerEvents: 'none',
