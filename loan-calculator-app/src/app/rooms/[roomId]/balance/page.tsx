@@ -1,14 +1,15 @@
 // src/app/rooms/[roomId]/balance/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
 import { getRoomData, Entry, addLocalEntry, saveRoomData, calculateAllMemberBalances } from '@/lib/offline-sync';
 import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
-import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign, FiArrowDownLeft, FiArrowUpRight, FiCheckCircle, FiUsers, FiActivity } from 'react-icons/fi';
+import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign, FiArrowDownLeft, FiArrowUpRight, FiCheckCircle, FiUsers, FiActivity, FiShare2 } from 'react-icons/fi';
+import { getEntryDetails } from '@/lib/entry-formatting';
 
 interface Member {
     id: number;
@@ -32,6 +33,8 @@ export default function BalanceDetailsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [expandedMemberId, setExpandedMemberId] = useState<number | null>(null);
     const [perspectiveUserId, setPerspectiveUserId] = useState<number | null>(null);
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const pdfReportRef = useRef<HTMLDivElement>(null);
 
     // Dashboard features state
     const [viewMode, setViewMode] = useState<'balance' | 'history'>('balance');
@@ -59,6 +62,7 @@ export default function BalanceDetailsPage() {
 
     const activePerspectiveUserId = perspectiveUserId ?? user?.userId ?? 0;
     const otherMembers = useMemo(() => members.filter(m => m.id !== activePerspectiveUserId && m.permissions?.canParticipate !== false), [members, activePerspectiveUserId]);
+    const memberMap = useMemo(() => new Map(members.map(m => [m.id, m.username])), [members]);
 
     const allMemberBalances = useMemo(() => {
         return calculateAllMemberBalances(entries, members as any);
@@ -293,6 +297,55 @@ export default function BalanceDetailsPage() {
         return { text: t('settledUp'), color: 'text-muted-foreground bg-muted/50 border-card-border' };
     };
 
+    const activePerspectiveMember = members.find(m => m.id === activePerspectiveUserId);
+
+    const handleShareAsPdf = async () => {
+        setIsGeneratingPdf(true);
+        await new Promise(resolve => setTimeout(resolve, 150));
+        try {
+            const html2pdf = (await import('html2pdf.js')).default;
+            const element = pdfReportRef.current;
+            if (!element) return;
+
+            const perspectiveName = activePerspectiveMember ? activePerspectiveMember.username : t('me');
+            const filenameSafe = `room_${roomId}_balance_${perspectiveName.replace(/[^a-zA-Z0-9_-]/g, '_') || 'perspective'}.pdf`;
+
+            const opt: any = {
+                margin: 12,
+                filename: filenameSafe,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
+            const blob = await html2pdf().set(opt).from(element).outputPdf('blob');
+            const file = new File([blob], filenameSafe, { type: 'application/pdf' });
+            if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: `${t('pdfReportTitle', { code: roomId })} - ${perspectiveName}`,
+                    text: `${t('pdfPerspectiveHeader', { name: perspectiveName })}`,
+                    files: [file],
+                });
+            } else {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filenameSafe;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        } catch (error: any) {
+            if (error?.name !== 'AbortError') {
+                console.error("Failed to generate or share PDF:", error);
+            }
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    };
+
     return (
         <div className="max-w-4xl mx-auto animate-scaleIn flex flex-col h-full space-y-4">
             <div className="shrink-0 flex items-center justify-between flex-wrap gap-2">
@@ -422,6 +475,24 @@ export default function BalanceDetailsPage() {
                                     {totalPerspectiveBalance > 0.005 ? '+' : ''}{totalPerspectiveBalance.toFixed(2)} {currency}
                                 </span>
                             </div>
+                            <button
+                                onClick={handleShareAsPdf}
+                                disabled={isGeneratingPdf}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs shadow-sm transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                                title={t('shareAsPdf')}
+                            >
+                                {isGeneratingPdf ? (
+                                    <>
+                                        <div className="w-3.5 h-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" />
+                                        <span className="hidden sm:inline">{t('generatingPdf')}</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <FiShare2 className="w-3.5 h-3.5 shrink-0" />
+                                        <span>{t('shareAsPdf')}</span>
+                                    </>
+                                )}
+                            </button>
                         </div>
                     )}
                 </div>
@@ -516,13 +587,16 @@ export default function BalanceDetailsPage() {
                                                                                 </div>
                                                                                 <div className="min-w-0">
                                                                                     <p className="font-semibold text-foreground text-xs sm:text-sm truncate">{tx.description}</p>
-                                                                                    <p className="text-[11px] text-muted-foreground flex items-center flex-wrap gap-y-1 mt-0.5">
+                                                                                    <div className="text-[11px] text-muted-foreground italic flex items-center flex-wrap gap-1 mt-0.5">
+                                                                                        {getEntryDetails(tx, memberMap, members, user, t)}
+                                                                                    </div>
+                                                                                    <p className="text-[11px] text-muted-foreground flex items-center flex-wrap gap-y-1 mt-1">
                                                                                         {(tx.pending_sync || tx.offline_timestamp || typeof tx.id === 'string') && (
                                                                                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30 rounded-full me-1.5 shrink-0">
                                                                                                 <FiClock className="w-2.5 h-2.5" /> {t('unsynchronized')}
                                                                                             </span>
                                                                                         )}
-                                                                                        <span>{tx.username} &bull; {new Date(tx.created_at).toLocaleString()}</span>
+                                                                                        <span>{t('byAuthor', { author: tx.username })} &bull; {new Date(tx.created_at).toLocaleString()}</span>
                                                                                     </p>
                                                                                 </div>
                                                                             </div>
@@ -584,7 +658,10 @@ export default function BalanceDetailsPage() {
                                                 </div>
                                                 <div className="min-w-0">
                                                     <p className="font-bold text-foreground text-xs sm:text-sm truncate">{entry.description}</p>
-                                                    <p className="text-muted-foreground text-[11px] mt-0.5 flex items-center flex-wrap gap-y-1">
+                                                    <div className="text-[11px] text-muted-foreground italic flex items-center flex-wrap gap-1 mt-0.5">
+                                                        {getEntryDetails(entry, memberMap, members, user, t)}
+                                                    </div>
+                                                    <p className="text-muted-foreground text-[11px] mt-1 flex items-center flex-wrap gap-y-1">
                                                         {(entry.pending_sync || entry.offline_timestamp || typeof entry.id === 'string') && (
                                                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30 rounded-full me-1.5 shrink-0">
                                                                 <FiClock className="w-2.5 h-2.5" /> {t('unsynchronized')}
@@ -607,6 +684,140 @@ export default function BalanceDetailsPage() {
                     )}
                 </div>
             </div>
+
+            {/* Offscreen PDF Report Container (rendered when generating PDF) */}
+            {isGeneratingPdf && (
+                <div
+                    ref={pdfReportRef}
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '794px',
+                        zIndex: -9999,
+                        pointerEvents: 'none',
+                        opacity: 0.01,
+                        background: '#ffffff',
+                        color: '#111827',
+                        fontFamily: 'system-ui, -apple-system, sans-serif',
+                        padding: '36px',
+                        boxSizing: 'border-box'
+                    }}
+                >
+                    {/* Header */}
+                    <div style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '18px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <h1 style={{ fontSize: '22px', fontWeight: 800, margin: 0, color: '#0f172a' }}>{t('pdfReportTitle', { code: roomId })}</h1>
+                            <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px', marginBottom: 0, fontWeight: 600 }}>
+                                {t('pdfPerspectiveHeader', { name: activePerspectiveMember?.username ?? t('me') })}
+                            </p>
+                        </div>
+                        <div style={{ background: totalPerspectiveBalance > 0.005 ? '#f0fdf4' : totalPerspectiveBalance < -0.005 ? '#fef2f2' : '#f8fafc', border: `1px solid ${totalPerspectiveBalance > 0.005 ? '#bbf7d0' : totalPerspectiveBalance < -0.005 ? '#fecaca' : '#e2e8f0'}`, borderRadius: '12px', padding: '10px 16px', textAlign: 'right' }}>
+                            <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('perspectiveTotalBalance')}</div>
+                            <div style={{ fontSize: '18px', fontWeight: 900, fontFamily: 'monospace', color: totalPerspectiveBalance > 0.005 ? '#16a34a' : totalPerspectiveBalance < -0.005 ? '#dc2626' : '#334155' }}>
+                                {totalPerspectiveBalance > 0.005 ? '+' : ''}{totalPerspectiveBalance.toFixed(2)} {currency}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Summary Section */}
+                    <div style={{ marginBottom: '32px' }}>
+                        <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('pdfSummaryTitle')}</h2>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                            <thead>
+                                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: '12px', color: '#475569' }}>
+                                    <th style={{ padding: '10px 16px', borderRight: '1px solid #e2e8f0' }}>{t('memberHeader')}</th>
+                                    <th style={{ padding: '10px 16px' }}>{t('balanceTitle')}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {otherMembers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={2} style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>{t('noOtherMembers')}</td>
+                                    </tr>
+                                ) : (
+                                    otherMembers.map((member, index) => {
+                                        const p2pData = peerToPeerBalances.get(member.id);
+                                        const netBalance = p2pData?.netBalance ?? 0;
+                                        const balanceInfo = getBalanceText(netBalance, member.username);
+                                        return (
+                                            <tr key={member.id} style={{ borderBottom: index < otherMembers.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                                                <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a', fontSize: '14px', borderRight: '1px solid #f1f5f9' }}>{member.username}</td>
+                                                <td style={{ padding: '12px 16px', fontWeight: 700, fontSize: '14px', color: netBalance > 0.005 ? '#16a34a' : netBalance < -0.005 ? '#dc2626' : '#64748b' }}>
+                                                    {balanceInfo.text}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Detailed Breakdown Section */}
+                    <div>
+                        <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('pdfDetailsTitle')}</h2>
+                        {otherMembers.map((member) => {
+                            const p2pData = peerToPeerBalances.get(member.id);
+                            const netBalance = p2pData?.netBalance ?? 0;
+                            const balanceInfo = getBalanceText(netBalance, member.username);
+                            const txs = p2pData?.transactions ?? [];
+
+                            return (
+                                <div
+                                    key={member.id}
+                                    style={{
+                                        marginBottom: '24px',
+                                        border: '1px solid #e2e8f0',
+                                        borderRadius: '12px',
+                                        overflow: 'hidden',
+                                        pageBreakInside: 'avoid',
+                                        breakInside: 'avoid'
+                                    }}
+                                >
+                                    <div style={{ background: '#f8fafc', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>{member.username}</div>
+                                        <div style={{ fontSize: '13px', fontWeight: 700, color: netBalance > 0.005 ? '#16a34a' : netBalance < -0.005 ? '#dc2626' : '#64748b' }}>{balanceInfo.text}</div>
+                                    </div>
+                                    {txs.length === 0 ? (
+                                        <div style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>{t('noMutualTransactions')}</div>
+                                    ) : (
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                            <thead>
+                                                <tr style={{ background: '#f1f5f9', color: '#475569', textAlign: 'left', fontSize: '11px', textTransform: 'uppercase' }}>
+                                                    <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0' }}>{t('pdfDate')}</th>
+                                                    <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0' }}>{t('pdfDescription')}</th>
+                                                    <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0' }}>{t('pdfPaidBy')}</th>
+                                                    <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', textAlign: 'right' }}>{t('pdfImpact')}</th>
+                                                    <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', textAlign: 'right' }}>{t('pdfBalanceAfter')}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {txs.map((tx, idx) => {
+                                                    const txAuthor = tx.username || (members.find(m => m.id === tx.user_id)?.username ?? '');
+                                                    return (
+                                                        <tr key={tx.id || idx} style={{ borderBottom: idx < txs.length - 1 ? '1px solid #f1f5f9' : 'none', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                                                            <td style={{ padding: '8px 12px', color: '#64748b', whiteSpace: 'nowrap' }}>{new Date(tx.created_at || (tx as any).createdAt || Date.now()).toLocaleDateString()}</td>
+                                                            <td style={{ padding: '8px 12px', fontWeight: 600, color: '#1e293b' }}>{tx.description}</td>
+                                                            <td style={{ padding: '8px 12px', color: '#475569' }}>{t('byAuthor', { author: txAuthor })}</td>
+                                                            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, fontFamily: 'monospace', color: tx.contribution > 0.005 ? '#16a34a' : tx.contribution < -0.005 ? '#dc2626' : '#64748b' }}>
+                                                                {tx.contribution > 0.005 ? '+' : ''}{tx.contribution.toFixed(2)} {currency}
+                                                            </td>
+                                                            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, fontFamily: 'monospace', color: '#334155' }}>
+                                                                {tx.runningP2PBalance.toFixed(2)} {currency}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -13,6 +13,7 @@ import EditEntryModal from '@/components/EditEntryModal';
 import EntryEditsModal from '@/components/EntryEditsModal';
 import { FiClock, FiTrash2, FiInfo, FiEdit3 } from 'react-icons/fi';
 import { Permissions, DEFAULT_PERMISSIONS } from '@/components/PermissionContext';
+import { getEntryDetails } from '@/lib/entry-formatting';
 
 interface Member {
     id: number;
@@ -26,60 +27,6 @@ interface User {
 }
 
 type ProcessedEntry = Entry & { runningBalance: number };
-
-const getEntryDetails = (entry: Entry, memberMap: Map<number, string>, allMembers: Member[], currentUser: User | null, t: (key: string, values?: Record<string, string | number>) => string) => {
-    const amount = parseFloat(entry.amount);
-    const actorUsername = entry.username;
-
-    if (entry.payer_shares && entry.beneficiary_shares && Array.isArray(entry.payer_shares) && Array.isArray(entry.beneficiary_shares)) {
-        const payers = entry.payer_shares.map(p => `${memberMap.get(p.userId) || '...'} (${p.percentage}%)`).join(', ');
-        const ben = entry.beneficiary_shares.map(b => `${memberMap.get(b.userId) || '...'} (${b.percentage}%)`).join(', ');
-        return (
-            <>
-                <span>Paid: {payers}</span>
-                <span className="mx-1.5">&bull;</span>
-                <span>Split: {ben}</span>
-            </>
-        );
-    }
-
-    if (amount > 0) { // Expense
-        const payerText = entry.user_id === currentUser?.userId ? t('entryParticipantYou') : actorUsername;
-        let participantsText: string;
-
-        const participants = entry.split_with_user_ids || [];
-        const calcMembersCount = allMembers.filter(m => m.permissions?.canParticipate !== false).length || allMembers.length;
-        const isForAll = participants.length > 0 && participants.length === calcMembersCount;
-
-        if (isForAll) {
-            participantsText = t('entryParticipantEveryone');
-        } else {
-            participantsText = participants.map(id => {
-                if (id === currentUser?.userId) return t('entryParticipantYou');
-                return memberMap.get(id) || '...';
-            }).join(', ');
-        }
-
-        return (
-            <>
-                <span>{t('entryPaidBy', { payer: payerText })}</span>
-                <span className="mx-1.5">&bull;</span>
-                <span>{t('entryFor', { participants: participantsText })}</span>
-            </>
-        );
-    } else if (amount < 0) { // Loan
-        const borrowerText = entry.user_id === currentUser?.userId ? t('entryParticipantYou') : actorUsername;
-        return (
-            <>
-                <span>{t('entryLoanTo', { borrower: borrowerText })}</span>
-                <span className="mx-1.5">&bull;</span>
-                <span>{t('entryFromGroup')}</span>
-            </>
-        );
-    }
-
-    return null;
-};
 
 export default function EntriesPage() {
     const params = useParams<{ roomId: string }>();
@@ -322,7 +269,7 @@ export default function EntriesPage() {
                                                         <FiClock className="w-3 h-3" /> {t('unsynchronized')}
                                                     </span>
                                                 )}
-                                                <span>{entry.username} &bull; {new Date(entry.created_at).toLocaleString()}</span>
+                                                <span>{t('byAuthor', { author: entry.username })} &bull; {new Date(entry.created_at).toLocaleString()}</span>
                                             </p>
                                         </div>
                                         <div className="flex items-center space-x-3 rtl:space-x-reverse shrink-0">

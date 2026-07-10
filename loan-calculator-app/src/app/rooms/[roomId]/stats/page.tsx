@@ -133,23 +133,36 @@ export default function StatsPage() {
         const dataToExport = entries.map(entry => {
             const amount = parseFloat(entry.amount);
             const type = amount > 0 ? 'Expense' : 'Loan';
-            let participantsText = '';
             
-            const pIds = entry.split_with_user_ids || [];
-            const isForAll = pIds.length > 0 && pIds.length === members.filter(m => m.permissions?.canParticipate !== false).length;
-            if(isForAll) {
-                 participantsText = tRoom('entryParticipantEveryone');
+            const formatPercentage = (pct: number) => {
+                return Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(1)}%`;
+            };
+
+            let payersText = entry.username;
+            if (entry.payer_shares && Array.isArray(entry.payer_shares) && entry.payer_shares.length > 0) {
+                payersText = entry.payer_shares.map(p => `${memberMap.get(p.userId) || `ID:${p.userId}`} (${formatPercentage(Number(p.percentage))})`).join(', ');
+            }
+
+            let participantsText = '';
+            if (entry.beneficiary_shares && Array.isArray(entry.beneficiary_shares) && entry.beneficiary_shares.length > 0) {
+                participantsText = entry.beneficiary_shares.map(b => `${memberMap.get(b.userId) || `ID:${b.userId}`} (${formatPercentage(Number(b.percentage))})`).join(', ');
             } else {
-                 participantsText = pIds.map(id => memberMap.get(id) || `ID:${id}`).join(', ');
+                const pIds = entry.split_with_user_ids || [];
+                const isForAll = pIds.length > 0 && pIds.length === members.filter(m => m.permissions?.canParticipate !== false).length;
+                if (isForAll) {
+                     participantsText = tRoom('entryParticipantEveryone');
+                } else {
+                     participantsText = pIds.map(id => memberMap.get(id) || `ID:${id}`).join(', ');
+                }
             }
 
             return {
                 Date: new Date(entry.created_at).toLocaleString(),
                 Description: entry.description,
                 Type: type,
-                Payer: entry.username,
+                Payer: payersText,
                 Amount: Math.abs(amount),
-                Participants: type === 'Expense' ? participantsText : ''
+                Participants: type === 'Expense' || entry.beneficiary_shares ? participantsText : ''
             };
         }).reverse(); // chronological order
 
