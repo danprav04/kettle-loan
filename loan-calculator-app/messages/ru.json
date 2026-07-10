@@ -139,7 +139,7 @@
     "me": "Вы",
     "owesYou": "Должен вам {amount} {currency}",
     "youOwe": "Вы должны {amount} {currency}",
-    "settledUp": "Рассчитались",
+    "settledUp": "В расчете",
     "owesMember": "Должен {member} {amount} {currency}",
     "memberOwes": "{member} должен {amount} {currency}",
     "loadingData": "Загрузка данных...",
