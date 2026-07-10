@@ -456,22 +456,17 @@ export default function BalanceDetailsPage() {
                                             {isExpanded && (
                                                 <div className="bg-background/80 px-4 sm:px-6 pt-2 pb-5 animate-fadeIn border-t border-card-border/60">
                                                     {netBalance < -0.005 && activePerspectiveUserId === user?.userId && (
-                                                        <div className="mt-2 mb-3.5 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-success/15 via-success/10 to-transparent border border-success/30 flex items-center justify-between gap-3 shadow-sm hover:border-success/40 transition-all">
-                                                            <div className="flex items-center gap-2.5 min-w-0">
-                                                                <div className="w-7 h-7 rounded-lg bg-success/20 text-success flex items-center justify-center shrink-0 shadow-xs">
-                                                                    <FiCheckCircle className="w-3.5 h-3.5" />
-                                                                </div>
-                                                                <div className="min-w-0 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2">
-                                                                    <span className="text-xs font-bold text-foreground tracking-tight truncate">{t('outstandingDebtTitle')}</span>
-                                                                    <span className="text-[11px] text-muted-foreground truncate hidden sm:inline">&bull;</span>
-                                                                    <span className="text-[11px] text-muted-foreground truncate">{t('outstandingDebtSubtitle', { member: member.username })}</span>
-                                                                </div>
+                                                        <div className="mt-2.5 mb-3 py-2 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-card-border/50">
+                                                            <div className="flex items-center gap-2 min-w-0 text-xs">
+                                                                <span className="font-semibold text-foreground shrink-0">{t('outstandingDebtTitle')}</span>
+                                                                <span className="text-muted-foreground hidden sm:inline">&bull;</span>
+                                                                <span className="text-muted-foreground truncate">{t('outstandingDebtSubtitle', { member: member.username })}</span>
                                                             </div>
                                                             <button 
                                                                 onClick={() => handleSettleUp(member.id, Math.abs(netBalance))}
-                                                                className="bg-success text-success-foreground hover:opacity-90 py-1.5 px-3 rounded-lg text-xs font-bold tracking-wide transition-all shadow-sm active:scale-95 flex items-center gap-1.5 shrink-0"
+                                                                className="self-start sm:self-center py-1.5 px-3 rounded-lg border border-card-border bg-card hover:bg-muted text-foreground text-xs font-semibold transition-all shadow-2xs active:scale-95 flex items-center gap-1.5 shrink-0"
                                                             >
-                                                                <FiDollarSign className="w-3.5 h-3.5 shrink-0" />
+                                                                <FiCheckCircle className="w-3.5 h-3.5 text-success shrink-0" />
                                                                 <span>{t('settleUpBtn', { amount: Math.abs(netBalance).toFixed(2), currency })}</span>
                                                             </button>
                                                         </div>
