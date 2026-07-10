@@ -29,7 +29,7 @@ declare module 'html2pdf.js' {
 
     interface Html2PdfInstance {
         set(options: Html2PdfOptions): Html2PdfInstance;
-        from(element: HTMLElement | string): Html2PdfInstance;
+        from(element: HTMLElement | string, type?: 'string' | 'element' | 'canvas' | 'img'): Html2PdfInstance;
         toPdf(): Html2PdfInstance;
         outputPdf(type: 'blob' | 'datauristring' | 'arraybuffer' | 'pdfobjectnewwindow' | 'pdfjsnewwindow', options?: string): Promise<any>;
         save(filename?: string): Promise<void>;

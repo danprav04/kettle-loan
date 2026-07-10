@@ -1,7 +1,7 @@
 // src/app/rooms/[roomId]/balance/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
@@ -34,7 +34,6 @@ export default function BalanceDetailsPage() {
     const [expandedMemberId, setExpandedMemberId] = useState<number | null>(null);
     const [perspectiveUserId, setPerspectiveUserId] = useState<number | null>(null);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-    const pdfReportRef = useRef<HTMLDivElement>(null);
 
     // Dashboard features state
     const [viewMode, setViewMode] = useState<'balance' | 'history'>('balance');
@@ -302,48 +301,111 @@ export default function BalanceDetailsPage() {
     const handleShareAsPdf = async () => {
         setIsGeneratingPdf(true);
         try {
-            // Wait for next paint so the always-rendered container is fully laid out
-            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-            const element = pdfReportRef.current;
-            if (!element) {
-                console.error('PDF report container ref not found');
-                setIsGeneratingPdf(false);
-                return;
-            }
-
             const html2pdf = (await import('html2pdf.js')).default;
 
             const perspectiveName = activePerspectiveMember ? activePerspectiveMember.username : t('me');
             const safeName = perspectiveName.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'perspective';
             const filenameSafe = `room_${roomId}_balance_${safeName}.pdf`;
 
+            const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+            const balColor = (v: number) => v > 0.005 ? '#16a34a' : v < -0.005 ? '#dc2626' : '#64748b';
+            const balBg = (v: number) => v > 0.005 ? '#f0fdf4' : v < -0.005 ? '#fef2f2' : '#f8fafc';
+            const balBorder = (v: number) => v > 0.005 ? '#bbf7d0' : v < -0.005 ? '#fecaca' : '#e2e8f0';
+
+            // Build summary rows
+            const summaryRows = otherMembers.map((member) => {
+                const p2pData = peerToPeerBalances.get(member.id);
+                const netBalance = p2pData?.netBalance ?? 0;
+                const balanceInfo = getBalanceText(netBalance, member.username);
+                return `<tr>
+                    <td style="padding:12px 16px;font-weight:700;color:#0f172a;font-size:14px;border-right:1px solid #f1f5f9">${esc(member.username)}</td>
+                    <td style="padding:12px 16px;font-weight:700;font-size:14px;color:${balColor(netBalance)}">${esc(balanceInfo.text)}</td>
+                </tr>`;
+            }).join('');
+
+            // Build detail sections
+            const detailSections = otherMembers.map((member) => {
+                const p2pData = peerToPeerBalances.get(member.id);
+                const netBalance = p2pData?.netBalance ?? 0;
+                const balanceInfo = getBalanceText(netBalance, member.username);
+                const txs = p2pData?.transactions ?? [];
+
+                let txRows = '';
+                if (txs.length === 0) {
+                    txRows = `<div style="padding:16px;text-align:center;color:#64748b;font-size:13px">${esc(t('noMutualTransactions'))}</div>`;
+                } else {
+                    const rows = txs.map((tx) => {
+                        const txAuthor = tx.username || (members.find(m => m.id === tx.user_id)?.username ?? '');
+                        const date = new Date(tx.created_at || (tx as any).createdAt || Date.now()).toLocaleDateString();
+                        return `<tr style="border-bottom:1px solid #f1f5f9;page-break-inside:avoid;break-inside:avoid">
+                            <td style="padding:8px 12px;color:#64748b;white-space:nowrap">${esc(date)}</td>
+                            <td style="padding:8px 12px;font-weight:600;color:#1e293b">${esc(tx.description)}</td>
+                            <td style="padding:8px 12px;color:#475569">${esc(txAuthor)}</td>
+                            <td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:${balColor(tx.contribution)}">${tx.contribution > 0.005 ? '+' : ''}${tx.contribution.toFixed(2)} ${esc(currency)}</td>
+                            <td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:#334155">${tx.runningP2PBalance.toFixed(2)} ${esc(currency)}</td>
+                        </tr>`;
+                    }).join('');
+                    txRows = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+                        <thead><tr style="background:#f1f5f9;color:#475569;text-align:left;font-size:11px;text-transform:uppercase">
+                            <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0">${esc(t('pdfDate'))}</th>
+                            <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0">${esc(t('pdfDescription'))}</th>
+                            <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0">${esc(t('pdfPaidBy'))}</th>
+                            <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right">${esc(t('pdfImpact'))}</th>
+                            <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right">${esc(t('pdfBalanceAfter'))}</th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>`;
+                }
+
+                return `<div style="margin-bottom:24px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;page-break-inside:avoid;break-inside:avoid">
+                    <div style="background:#f8fafc;padding:12px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
+                        <div style="font-size:15px;font-weight:700;color:#0f172a">${esc(member.username)}</div>
+                        <div style="font-size:13px;font-weight:700;color:${balColor(netBalance)}">${esc(balanceInfo.text)}</div>
+                    </div>
+                    ${txRows}
+                </div>`;
+            }).join('');
+
+            const totalBal = totalPerspectiveBalance;
+            const htmlString = `
+                <div style="font-family:system-ui,-apple-system,sans-serif;color:#111827;padding:0;box-sizing:border-box">
+                    <div style="border-bottom:2px solid #e2e8f0;padding-bottom:18px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center">
+                        <div>
+                            <h1 style="font-size:22px;font-weight:800;margin:0;color:#0f172a">${esc(t('pdfReportTitle', { code: roomId }))}</h1>
+                            <p style="font-size:14px;color:#64748b;margin-top:4px;margin-bottom:0;font-weight:600">${esc(t('pdfPerspectiveHeader', { name: perspectiveName }))}</p>
+                        </div>
+                        <div style="background:${balBg(totalBal)};border:1px solid ${balBorder(totalBal)};border-radius:12px;padding:10px 16px;text-align:right">
+                            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">${esc(t('perspectiveTotalBalance'))}</div>
+                            <div style="font-size:18px;font-weight:900;font-family:monospace;color:${balColor(totalBal)}">${totalBal > 0.005 ? '+' : ''}${totalBal.toFixed(2)} ${esc(currency)}</div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:32px">
+                        <h2 style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em">${esc(t('pdfSummaryTitle'))}</h2>
+                        <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+                            <thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;text-align:left;font-size:12px;color:#475569">
+                                <th style="padding:10px 16px;border-right:1px solid #e2e8f0">${esc(t('memberHeader'))}</th>
+                                <th style="padding:10px 16px">${esc(t('balanceTitle'))}</th>
+                            </tr></thead>
+                            <tbody>${summaryRows || `<tr><td colspan="2" style="padding:16px;text-align:center;color:#64748b;font-size:13px">${esc(t('noOtherMembers'))}</td></tr>`}</tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h2 style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:16px;text-transform:uppercase;letter-spacing:0.04em">${esc(t('pdfDetailsTitle'))}</h2>
+                        ${detailSections}
+                    </div>
+                </div>`;
+
             const opt: any = {
                 margin: [10, 10, 10, 10] as [number, number, number, number],
                 filename: filenameSafe,
                 image: { type: 'jpeg', quality: 0.95 },
-                html2canvas: {
-                    scale: 2,
-                    useCORS: true,
-                    logging: false,
-                    onclone: (clonedDoc: Document) => {
-                        const el = clonedDoc.getElementById('pdf-report-container');
-                        if (el) {
-                            el.style.position = 'static';
-                            el.style.left = '0';
-                            el.style.top = '0';
-                            el.style.opacity = '1';
-                            el.style.visibility = 'visible';
-                            el.style.pointerEvents = 'auto';
-                            el.style.overflow = 'visible';
-                        }
-                    }
-                },
+                html2canvas: { scale: 2, useCORS: true, logging: false },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             };
 
-            await html2pdf().set(opt).from(element).save();
+            await html2pdf().set(opt).from(htmlString, 'string').save();
         } catch (error: any) {
             if (error?.name !== 'AbortError') {
                 console.error('Failed to generate PDF:', error);
@@ -690,140 +752,6 @@ export default function BalanceDetailsPage() {
                         )
                     )}
                 </div>
-            </div>
-
-            {/* Offscreen PDF Report Container — always rendered so ref is stable */}
-            <div
-                ref={pdfReportRef}
-                id="pdf-report-container"
-                aria-hidden="true"
-                style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: '-9999px',
-                    width: '794px',
-                    zIndex: -9999,
-                    pointerEvents: 'none',
-                    opacity: 0,
-                    background: '#ffffff',
-                    color: '#111827',
-                    fontFamily: 'system-ui, -apple-system, sans-serif',
-                    padding: '36px',
-                    boxSizing: 'border-box'
-                }}
-            >
-                    {/* Header */}
-                    <div style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '18px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                            <h1 style={{ fontSize: '22px', fontWeight: 800, margin: 0, color: '#0f172a' }}>{t('pdfReportTitle', { code: roomId })}</h1>
-                            <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px', marginBottom: 0, fontWeight: 600 }}>
-                                {t('pdfPerspectiveHeader', { name: activePerspectiveMember?.username ?? t('me') })}
-                            </p>
-                        </div>
-                        <div style={{ background: totalPerspectiveBalance > 0.005 ? '#f0fdf4' : totalPerspectiveBalance < -0.005 ? '#fef2f2' : '#f8fafc', border: `1px solid ${totalPerspectiveBalance > 0.005 ? '#bbf7d0' : totalPerspectiveBalance < -0.005 ? '#fecaca' : '#e2e8f0'}`, borderRadius: '12px', padding: '10px 16px', textAlign: 'right' }}>
-                            <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('perspectiveTotalBalance')}</div>
-                            <div style={{ fontSize: '18px', fontWeight: 900, fontFamily: 'monospace', color: totalPerspectiveBalance > 0.005 ? '#16a34a' : totalPerspectiveBalance < -0.005 ? '#dc2626' : '#334155' }}>
-                                {totalPerspectiveBalance > 0.005 ? '+' : ''}{totalPerspectiveBalance.toFixed(2)} {currency}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Summary Section */}
-                    <div style={{ marginBottom: '32px' }}>
-                        <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('pdfSummaryTitle')}</h2>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                            <thead>
-                                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: '12px', color: '#475569' }}>
-                                    <th style={{ padding: '10px 16px', borderRight: '1px solid #e2e8f0' }}>{t('memberHeader')}</th>
-                                    <th style={{ padding: '10px 16px' }}>{t('balanceTitle')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {otherMembers.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={2} style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>{t('noOtherMembers')}</td>
-                                    </tr>
-                                ) : (
-                                    otherMembers.map((member, index) => {
-                                        const p2pData = peerToPeerBalances.get(member.id);
-                                        const netBalance = p2pData?.netBalance ?? 0;
-                                        const balanceInfo = getBalanceText(netBalance, member.username);
-                                        return (
-                                            <tr key={member.id} style={{ borderBottom: index < otherMembers.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                                                <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a', fontSize: '14px', borderRight: '1px solid #f1f5f9' }}>{member.username}</td>
-                                                <td style={{ padding: '12px 16px', fontWeight: 700, fontSize: '14px', color: netBalance > 0.005 ? '#16a34a' : netBalance < -0.005 ? '#dc2626' : '#64748b' }}>
-                                                    {balanceInfo.text}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Detailed Breakdown Section */}
-                    <div>
-                        <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('pdfDetailsTitle')}</h2>
-                        {otherMembers.map((member) => {
-                            const p2pData = peerToPeerBalances.get(member.id);
-                            const netBalance = p2pData?.netBalance ?? 0;
-                            const balanceInfo = getBalanceText(netBalance, member.username);
-                            const txs = p2pData?.transactions ?? [];
-
-                            return (
-                                <div
-                                    key={member.id}
-                                    style={{
-                                        marginBottom: '24px',
-                                        border: '1px solid #e2e8f0',
-                                        borderRadius: '12px',
-                                        overflow: 'hidden',
-                                        pageBreakInside: 'avoid',
-                                        breakInside: 'avoid'
-                                    }}
-                                >
-                                    <div style={{ background: '#f8fafc', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>{member.username}</div>
-                                        <div style={{ fontSize: '13px', fontWeight: 700, color: netBalance > 0.005 ? '#16a34a' : netBalance < -0.005 ? '#dc2626' : '#64748b' }}>{balanceInfo.text}</div>
-                                    </div>
-                                    {txs.length === 0 ? (
-                                        <div style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>{t('noMutualTransactions')}</div>
-                                    ) : (
-                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                                            <thead>
-                                                <tr style={{ background: '#f1f5f9', color: '#475569', textAlign: 'left', fontSize: '11px', textTransform: 'uppercase' }}>
-                                                    <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0' }}>{t('pdfDate')}</th>
-                                                    <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0' }}>{t('pdfDescription')}</th>
-                                                    <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0' }}>{t('pdfPaidBy')}</th>
-                                                    <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', textAlign: 'right' }}>{t('pdfImpact')}</th>
-                                                    <th style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', textAlign: 'right' }}>{t('pdfBalanceAfter')}</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {txs.map((tx, idx) => {
-                                                    const txAuthor = tx.username || (members.find(m => m.id === tx.user_id)?.username ?? '');
-                                                    return (
-                                                        <tr key={tx.id || idx} style={{ borderBottom: idx < txs.length - 1 ? '1px solid #f1f5f9' : 'none', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                                                            <td style={{ padding: '8px 12px', color: '#64748b', whiteSpace: 'nowrap' }}>{new Date(tx.created_at || (tx as any).createdAt || Date.now()).toLocaleDateString()}</td>
-                                                            <td style={{ padding: '8px 12px', fontWeight: 600, color: '#1e293b' }}>{tx.description}</td>
-                                                            <td style={{ padding: '8px 12px', color: '#475569' }}>{t('byAuthor', { author: txAuthor })}</td>
-                                                            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, fontFamily: 'monospace', color: tx.contribution > 0.005 ? '#16a34a' : tx.contribution < -0.005 ? '#dc2626' : '#64748b' }}>
-                                                                {tx.contribution > 0.005 ? '+' : ''}{tx.contribution.toFixed(2)} {currency}
-                                                            </td>
-                                                            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, fontFamily: 'monospace', color: '#334155' }}>
-                                                                {tx.runningP2PBalance.toFixed(2)} {currency}
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
             </div>
         </div>
     );
