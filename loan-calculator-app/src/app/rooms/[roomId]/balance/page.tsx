@@ -60,7 +60,20 @@ export default function BalanceDetailsPage() {
         setFilterType('all');
     };
 
-    const activePerspectiveUserId = perspectiveUserId ?? user?.userId ?? 0;
+    const activePerspectiveUserId = useMemo(() => {
+        if (perspectiveUserId !== null) return perspectiveUserId;
+        if (!user?.userId) return 0;
+        
+        if (members.length > 0) {
+            const currentUserMember = members.find(m => m.id === user.userId);
+            if (currentUserMember && currentUserMember.permissions?.canParticipate === false) {
+                const firstParticipant = members.find(m => m.permissions?.canParticipate !== false);
+                return firstParticipant ? firstParticipant.id : user.userId;
+            }
+        }
+        return user.userId;
+    }, [perspectiveUserId, user?.userId, members]);
+
     const otherMembers = useMemo(() => members.filter(m => m.id !== activePerspectiveUserId && m.permissions?.canParticipate !== false), [members, activePerspectiveUserId]);
     const memberMap = useMemo(() => new Map(members.map(m => [m.id, m.username])), [members]);
 
@@ -551,12 +564,12 @@ export default function BalanceDetailsPage() {
                                 <div className="flex items-center gap-2 bg-background px-3 py-1.5 rounded-xl border border-card-border shadow-sm">
                                     <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider shrink-0">{t('perspectiveLabel')}:</span>
                                     <select
-                                        value={activePerspectiveUserId}
+                                        value={activePerspectiveUserId.toString()}
                                         onChange={(e) => setPerspectiveUserId(parseInt(e.target.value))}
                                         className="text-xs font-bold bg-transparent text-foreground cursor-pointer focus:outline-none border-none pr-1"
                                     >
                                         {members.filter(m => m.permissions?.canParticipate !== false).map(m => (
-                                            <option key={m.id} value={m.id} className="bg-card text-foreground font-semibold">
+                                            <option key={m.id} value={m.id.toString()} className="bg-card text-foreground font-semibold">
                                                 {m.username} {m.id === user?.userId ? `(${t('me')})` : ''}
                                             </option>
                                         ))}
