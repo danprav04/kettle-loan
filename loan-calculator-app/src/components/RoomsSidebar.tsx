@@ -181,6 +181,10 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     return (
         <>
             <aside className="w-80 bg-card border-e border-card-border h-full p-4 flex flex-col">
+                <div className="px-2 mb-6 flex items-center space-x-2 text-primary">
+                    <Icon path={mdiKettle} size={1.5} />
+                    <span className="text-xl font-bold tracking-tight">Kettle</span>
+                </div>
                 {user && (
                     <div className="px-2 mb-4 border-b border-card-border pb-4">
                         <div className="flex items-baseline space-x-1 rtl:space-x-reverse truncate">
@@ -273,13 +277,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                                 <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
                             </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                             <button onClick={toggleSimplifiedLayout} className={`flex items-center justify-center w-full p-2 rounded-md btn-muted transition-colors ${isSimplified ? 'text-primary' : ''}`} aria-label={tAccess('toggleSimplifiedLayout')} >
-                                 <Icon path={mdiKettle} size={0.75} />
-                                 <span className="font-semibold text-xs ms-1">SIMPLE</span>
-                            </button>
                             <PushSubscriptionToggle />
-                        </div>
                     </div>
                 </div>
             </aside>
