@@ -297,7 +297,7 @@ export default function BalanceDetailsPage() {
         const absBalance = Math.abs(balance);
         const isSelf = activePerspectiveUserId === user?.userId;
 
-        if (balance > 0.005) {
+        if (balance >= 0.5) {
             return {
                 text: isSelf
                     ? t('owesYou', { amount: absBalance.toFixed(0), currency })
@@ -305,7 +305,7 @@ export default function BalanceDetailsPage() {
                 color: 'text-success bg-success/15 border-success/30'
             };
         }
-        if (balance < -0.005) {
+        if (balance <= -0.5) {
             return {
                 text: isSelf
                     ? t('youOwe', { amount: absBalance.toFixed(0), currency })
@@ -331,9 +331,9 @@ export default function BalanceDetailsPage() {
 
             const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-            const balColor = (v: number) => v > 0.005 ? '#16a34a' : v < -0.005 ? '#dc2626' : '#64748b';
-            const balBg = (v: number) => v > 0.005 ? '#f0fdf4' : v < -0.005 ? '#fef2f2' : '#f8fafc';
-            const balBorder = (v: number) => v > 0.005 ? '#bbf7d0' : v < -0.005 ? '#fecaca' : '#e2e8f0';
+            const balColor = (v: number) => v >= 0.5 ? '#16a34a' : v <= -0.5 ? '#dc2626' : '#64748b';
+            const balBg = (v: number) => v >= 0.5 ? '#f0fdf4' : v <= -0.5 ? '#fef2f2' : '#f8fafc';
+            const balBorder = (v: number) => v >= 0.5 ? '#bbf7d0' : v <= -0.5 ? '#fecaca' : '#e2e8f0';
 
             // Build summary rows
             const summaryRows = otherMembers.map((member) => {
@@ -379,7 +379,7 @@ export default function BalanceDetailsPage() {
                             <td style="padding:8px 12px;white-space:nowrap">${dateContent}</td>
                             <td style="padding:8px 12px;font-weight:600;color:#1e293b">${esc(tx.description)}</td>
                             <td style="padding:8px 12px;color:#1e293b">${paidByContent}</td>
-                            <td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:${balColor(tx.contribution)}">${tx.contribution > 0.005 ? '+' : ''}${tx.contribution.toFixed(0)} ${esc(currency)}</td>
+                            <td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:${balColor(tx.contribution)}">${tx.contribution >= 0.5 ? '+' : ''}${tx.contribution.toFixed(0)} ${esc(currency)}</td>
                             <td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:#334155">${tx.runningP2PBalance.toFixed(0)} ${esc(currency)}</td>
                         </tr>`;
                     }).join('');
@@ -420,7 +420,7 @@ export default function BalanceDetailsPage() {
                         </div>
                         <div style="background:${balBg(totalBal)};border:1px solid ${balBorder(totalBal)};border-radius:12px;padding:10px 16px;text-align:right">
                             <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">${esc(t('perspectiveTotalBalance'))}</div>
-                            <div style="font-size:18px;font-weight:900;font-family:monospace;color:${balColor(totalBal)}">${totalBal > 0.005 ? '+' : ''}${totalBal.toFixed(0)} ${esc(currency)}</div>
+                            <div style="font-size:18px;font-weight:900;font-family:monospace;color:${balColor(totalBal)}">${totalBal >= 0.5 ? '+' : ''}${totalBal.toFixed(0)} ${esc(currency)}</div>
                         </div>
                     </div>
                     <div style="margin-bottom:32px">
@@ -577,15 +577,15 @@ export default function BalanceDetailsPage() {
                                 </div>
                             )}
                             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-extrabold text-xs shadow-sm transition-all ${
-                                totalPerspectiveBalance > 0.005
+                                totalPerspectiveBalance >= 0.5
                                     ? 'bg-success/15 text-success border-success/30'
-                                    : totalPerspectiveBalance < -0.005
+                                    : totalPerspectiveBalance <= -0.5
                                     ? 'bg-danger/15 text-danger border-danger/30'
                                     : 'bg-muted/60 text-muted-foreground border-card-border'
                             }`}>
                                 <span className="text-[11px] uppercase tracking-wider opacity-85 font-bold">{t('perspectiveTotalBalance') || t('balanceTitle')}:</span>
                                 <span className="text-xs sm:text-sm font-black font-mono">
-                                    {totalPerspectiveBalance > 0.005 ? '+' : ''}{totalPerspectiveBalance.toFixed(0)} {currency}
+                                    {totalPerspectiveBalance >= 0.5 ? '+' : ''}{totalPerspectiveBalance.toFixed(0)} {currency}
                                 </span>
                             </div>
                             <button
@@ -663,7 +663,7 @@ export default function BalanceDetailsPage() {
                                             </button>
                                             {isExpanded && (
                                                 <div className="bg-background/80 px-4 sm:px-6 pt-2 pb-5 animate-fadeIn border-t border-card-border/60">
-                                                    {netBalance < -0.005 && members.find(m => m.id === user?.userId)?.permissions?.canAddEntries !== false && (
+                                                    {netBalance <= -0.5 && members.find(m => m.id === user?.userId)?.permissions?.canAddEntries !== false && (
                                                         <div className="mt-2.5 mb-3 py-2 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-card-border/50">
                                                             <div className="flex items-center gap-2 min-w-0 text-xs">
                                                                 <span className="font-semibold text-foreground shrink-0">{t('outstandingDebtTitle')}</span>
@@ -722,13 +722,13 @@ export default function BalanceDetailsPage() {
                                                                                 <div className="text-[11px] font-medium font-mono flex items-center justify-end gap-1 px-1">
                                                                                     <span className="text-muted-foreground text-[10px] uppercase font-sans font-semibold">{t('totalAfterLog')}</span>
                                                                                     <span className={`font-bold ${
-                                                                                        tx.runningP2PBalance > 0.005 
+                                                                                        tx.runningP2PBalance >= 0.5 
                                                                                             ? 'text-success dark:text-success/90' 
-                                                                                            : tx.runningP2PBalance < -0.005 
+                                                                                            : tx.runningP2PBalance <= -0.5 
                                                                                                 ? 'text-danger dark:text-danger/90' 
                                                                                                 : 'text-muted-foreground'
                                                                                     }`}>
-                                                                                        {tx.runningP2PBalance > 0.005 ? '+' : ''}{tx.runningP2PBalance.toFixed(0)} {currency}
+                                                                                        {tx.runningP2PBalance >= 0.5 ? '+' : ''}{tx.runningP2PBalance.toFixed(0)} {currency}
                                                                                     </span>
                                                                                 </div>
                                                                             </div>
