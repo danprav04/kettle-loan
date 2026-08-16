@@ -309,12 +309,12 @@ export default function StatsPage() {
                     <div className="space-y-6">
                         {/* General Stats */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('totalExpenses')}</div><div className="text-2xl font-bold text-success">{stats.totalExpenses.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">{currency}</span></div></div>
-                            <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('totalLoans')}</div><div className="text-2xl font-bold text-danger">{stats.totalLoans.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">{currency}</span></div></div>
+                            <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('totalExpenses')}</div><div className="text-2xl font-bold text-success">{stats.totalExpenses.toFixed(0)} <span className="text-sm font-normal text-muted-foreground">{currency}</span></div></div>
+                            <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('totalLoans')}</div><div className="text-2xl font-bold text-danger">{stats.totalLoans.toFixed(0)} <span className="text-sm font-normal text-muted-foreground">{currency}</span></div></div>
                             <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('totalEntries')}</div><div className="text-2xl font-bold">{stats.totalEntries}</div></div>
                         </div>
                         {stats.biggestExpense && (
-                             <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('biggestExpense')}</div><div className="text-xl font-bold">{stats.biggestExpense.amount.toFixed(2)} {currency} <span className="text-base font-normal text-muted-foreground">- {stats.biggestExpense.description}</span></div></div>
+                             <div className="p-4 bg-muted rounded-lg"><div className="text-sm text-muted-foreground">{t('biggestExpense')}</div><div className="text-xl font-bold">{stats.biggestExpense.amount.toFixed(0)} {currency} <span className="text-base font-normal text-muted-foreground">- {stats.biggestExpense.description}</span></div></div>
                         )}
 
                         {/* Member Contributions */}
@@ -334,9 +334,9 @@ export default function StatsPage() {
                                         {Array.from(stats.memberContributions.values()).map(data => (
                                             <tr key={data.username} className="border-b border-card-border last:border-0">
                                                 <td className="p-2 font-medium">{data.username}</td>
-                                                <td className="p-2 text-right text-success">{data.paid.toFixed(2)}</td>
-                                                <td className="p-2 text-right text-danger">{data.share.toFixed(2)}</td>
-                                                <td className={`p-2 text-right font-bold ${data.net >= 0 ? 'text-green-500' : 'text-red-500'}`}>{data.net.toFixed(2)}</td>
+                                                <td className="p-2 text-right text-success">{data.paid.toFixed(0)}</td>
+                                                <td className="p-2 text-right text-danger">{data.share.toFixed(0)}</td>
+                                                <td className={`p-2 text-right font-bold ${data.net >= 0 ? 'text-green-500' : 'text-red-500'}`}>{data.net.toFixed(0)}</td>
                                             </tr>
                                         ))}
                                     </tbody>

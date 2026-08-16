@@ -275,12 +275,12 @@ export default function EntriesPage() {
                                         <div className="flex items-center space-x-3 rtl:space-x-reverse shrink-0">
                                             <div className="text-right w-24">
                                                 <div className={`text-base font-bold ${parseFloat(entry.amount) < 0 ? 'text-danger' : 'text-success'}`}>
-                                                    {parseFloat(entry.amount).toFixed(2)} {currency}
+                                                    {parseFloat(entry.amount).toFixed(0)} {currency}
                                                 </div>
                                             </div>
                                             <div className="text-right w-24 hidden sm:block">
                                                 <div className={`text-sm font-semibold ${entry.runningBalance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                                    {entry.runningBalance.toFixed(2)} {currency}
+                                                    {entry.runningBalance.toFixed(0)} {currency}
                                                 </div>
                                                 <div className="text-[10px] text-muted-foreground uppercase">{t('myBalance')}</div>
                                             </div>

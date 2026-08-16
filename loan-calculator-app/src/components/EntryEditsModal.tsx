@@ -105,9 +105,9 @@ export default function EntryEditsModal({ isOpen, onClose, entryId, currency }: 
                   <div>
                     <span className="text-[10px] text-muted block uppercase font-bold">{t('amountChange')}</span>
                     <div className="flex items-center gap-1.5 font-mono font-bold mt-0.5">
-                      <span className="line-through text-muted-foreground">{parseFloat(edit.old_amount).toFixed(2)}</span>
+                      <span className="line-through text-muted-foreground">{parseFloat(edit.old_amount).toFixed(0)}</span>
                       <FiArrowRight className="text-muted text-[10px]" />
-                      <span className="text-primary">{parseFloat(edit.new_amount).toFixed(2)} {currency}</span>
+                      <span className="text-primary">{parseFloat(edit.new_amount).toFixed(0)} {currency}</span>
                     </div>
                   </div>
 

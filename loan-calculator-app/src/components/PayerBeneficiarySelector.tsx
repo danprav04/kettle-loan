@@ -159,7 +159,7 @@ export default function PayerBeneficiarySelector({
 
   const sumPercentages = Math.round(shares.reduce((acc, curr) => acc + curr.percentage, 0) * 1e6) / 1e6;
   const isValid = Math.abs(sumPercentages - 100) <= 0.1;
-  const currentSumMonetary = totalAmount > 0 ? ((totalAmount * sumPercentages) / 100).toFixed(2) : '0.00';
+  const currentSumMonetary = totalAmount > 0 ? ((totalAmount * sumPercentages) / 100).toFixed(0) : '0.00';
   const remainingMonetary = totalAmount - parseFloat(currentSumMonetary);
   const hasLeftover = Math.abs(remainingMonetary) > 0.01 && totalAmount > 0;
 
@@ -226,12 +226,12 @@ export default function PayerBeneficiarySelector({
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/80 hover:bg-muted text-foreground font-semibold text-[11px] border border-border transition-colors shadow-2xs cursor-pointer"
               title="Click to auto-assign remaining amount"
             >
-              <span className="text-emerald-500 font-bold">{remainingMonetary > 0 ? `+${remainingMonetary.toFixed(2)}` : remainingMonetary.toFixed(2)} {currency}</span>
+              <span className="text-emerald-500 font-bold">{remainingMonetary > 0 ? `+${remainingMonetary.toFixed(0)}` : remainingMonetary.toFixed(0)} {currency}</span>
               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('autoBalanceBadge')}</span>
             </button>
           )}
           <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${isValid ? 'bg-success/20 text-success border border-success/30' : 'bg-danger/20 text-danger border border-danger/30'}`}>
-            {t('splitMonetarySum', { sum: currentSumMonetary, total: totalAmount.toFixed(2), currency })} {isValid ? '✓' : t('mustEqualTotal')}
+            {t('splitMonetarySum', { sum: currentSumMonetary, total: totalAmount.toFixed(0), currency })} {isValid ? '✓' : t('mustEqualTotal')}
           </span>
         </div>
       </div>
@@ -298,7 +298,7 @@ export default function PayerBeneficiarySelector({
           const isLocked = lockedUserIds.has(member.id);
           const share = shares.find((s) => s.userId === member.id);
           const pct = share ? share.percentage : 0;
-          const computedMonetary = totalAmount > 0 ? ((totalAmount * pct) / 100).toFixed(2) : '0.00';
+          const computedMonetary = totalAmount > 0 ? ((totalAmount * pct) / 100).toFixed(0) : '0.00';
           const displayStr = inputStrs[member.id] !== undefined ? inputStrs[member.id] : computedMonetary;
 
           return (

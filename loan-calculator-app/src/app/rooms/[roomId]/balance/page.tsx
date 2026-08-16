@@ -300,16 +300,16 @@ export default function BalanceDetailsPage() {
         if (balance > 0.005) {
             return {
                 text: isSelf
-                    ? t('owesYou', { amount: absBalance.toFixed(2), currency })
-                    : t('owesMember', { member: targetMemberName, amount: absBalance.toFixed(2), currency }),
+                    ? t('owesYou', { amount: absBalance.toFixed(0), currency })
+                    : t('owesMember', { member: targetMemberName, amount: absBalance.toFixed(0), currency }),
                 color: 'text-success bg-success/15 border-success/30'
             };
         }
         if (balance < -0.005) {
             return {
                 text: isSelf
-                    ? t('youOwe', { amount: absBalance.toFixed(2), currency })
-                    : t('memberOwes', { member: targetMemberName, amount: absBalance.toFixed(2), currency }),
+                    ? t('youOwe', { amount: absBalance.toFixed(0), currency })
+                    : t('memberOwes', { member: targetMemberName, amount: absBalance.toFixed(0), currency }),
                 color: 'text-danger bg-danger/15 border-danger/30'
             };
         }
@@ -379,8 +379,8 @@ export default function BalanceDetailsPage() {
                             <td style="padding:8px 12px;white-space:nowrap">${dateContent}</td>
                             <td style="padding:8px 12px;font-weight:600;color:#1e293b">${esc(tx.description)}</td>
                             <td style="padding:8px 12px;color:#1e293b">${paidByContent}</td>
-                            <td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:${balColor(tx.contribution)}">${tx.contribution > 0.005 ? '+' : ''}${tx.contribution.toFixed(2)} ${esc(currency)}</td>
-                            <td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:#334155">${tx.runningP2PBalance.toFixed(2)} ${esc(currency)}</td>
+                            <td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:${balColor(tx.contribution)}">${tx.contribution > 0.005 ? '+' : ''}${tx.contribution.toFixed(0)} ${esc(currency)}</td>
+                            <td style="padding:8px 12px;text-align:right;font-weight:700;font-family:monospace;color:#334155">${tx.runningP2PBalance.toFixed(0)} ${esc(currency)}</td>
                         </tr>`;
                     }).join('');
                     txRows = `<table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -420,7 +420,7 @@ export default function BalanceDetailsPage() {
                         </div>
                         <div style="background:${balBg(totalBal)};border:1px solid ${balBorder(totalBal)};border-radius:12px;padding:10px 16px;text-align:right">
                             <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">${esc(t('perspectiveTotalBalance'))}</div>
-                            <div style="font-size:18px;font-weight:900;font-family:monospace;color:${balColor(totalBal)}">${totalBal > 0.005 ? '+' : ''}${totalBal.toFixed(2)} ${esc(currency)}</div>
+                            <div style="font-size:18px;font-weight:900;font-family:monospace;color:${balColor(totalBal)}">${totalBal > 0.005 ? '+' : ''}${totalBal.toFixed(0)} ${esc(currency)}</div>
                         </div>
                     </div>
                     <div style="margin-bottom:32px">
@@ -585,7 +585,7 @@ export default function BalanceDetailsPage() {
                             }`}>
                                 <span className="text-[11px] uppercase tracking-wider opacity-85 font-bold">{t('perspectiveTotalBalance') || t('balanceTitle')}:</span>
                                 <span className="text-xs sm:text-sm font-black font-mono">
-                                    {totalPerspectiveBalance > 0.005 ? '+' : ''}{totalPerspectiveBalance.toFixed(2)} {currency}
+                                    {totalPerspectiveBalance > 0.005 ? '+' : ''}{totalPerspectiveBalance.toFixed(0)} {currency}
                                 </span>
                             </div>
                             <button
@@ -675,7 +675,7 @@ export default function BalanceDetailsPage() {
                                                                 className="self-start sm:self-center py-1.5 px-3 rounded-lg border border-card-border bg-card hover:bg-muted text-foreground text-xs font-semibold transition-all shadow-2xs active:scale-95 flex items-center gap-1.5 shrink-0"
                                                             >
                                                                 <FiCheckCircle className="w-3.5 h-3.5 text-success shrink-0" />
-                                                                <span>{t('settleUpBtn', { amount: Math.abs(netBalance).toFixed(2), currency })}</span>
+                                                                <span>{t('settleUpBtn', { amount: Math.abs(netBalance).toFixed(0), currency })}</span>
                                                             </button>
                                                         </div>
                                                     )}
@@ -717,7 +717,7 @@ export default function BalanceDetailsPage() {
                                                                                 <span className={`text-xs sm:text-sm font-bold font-mono px-2 py-0.5 rounded-md ${
                                                                                     isPositive ? 'text-success bg-success/10' : 'text-danger bg-danger/10'
                                                                                 }`}>
-                                                                                    {isPositive ? '+' : ''}{tx.contribution.toFixed(2)} {currency}
+                                                                                    {isPositive ? '+' : ''}{tx.contribution.toFixed(0)} {currency}
                                                                                 </span>
                                                                                 <div className="text-[11px] font-medium font-mono flex items-center justify-end gap-1 px-1">
                                                                                     <span className="text-muted-foreground text-[10px] uppercase font-sans font-semibold">{t('totalAfterLog')}</span>
@@ -728,7 +728,7 @@ export default function BalanceDetailsPage() {
                                                                                                 ? 'text-danger dark:text-danger/90' 
                                                                                                 : 'text-muted-foreground'
                                                                                     }`}>
-                                                                                        {tx.runningP2PBalance > 0.005 ? '+' : ''}{tx.runningP2PBalance.toFixed(2)} {currency}
+                                                                                        {tx.runningP2PBalance > 0.005 ? '+' : ''}{tx.runningP2PBalance.toFixed(0)} {currency}
                                                                                     </span>
                                                                                 </div>
                                                                             </div>
@@ -787,7 +787,7 @@ export default function BalanceDetailsPage() {
                                             <div className={`text-xs sm:text-sm font-bold font-mono shrink-0 px-2.5 py-1 rounded-lg ${
                                                 isNegative ? 'text-danger bg-danger/10' : 'text-success bg-success/10'
                                             }`}>
-                                                {isNegative ? '' : '+'}{amt.toFixed(2)} {currency}
+                                                {isNegative ? '' : '+'}{amt.toFixed(0)} {currency}
                                             </div>
                                         </li>
                                     );

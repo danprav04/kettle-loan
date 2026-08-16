@@ -98,7 +98,7 @@ function getDisabledReason(
 
     if (key === 'canParticipate') {
       if (Math.abs(memberBalance) > 0.01) {
-        return t('reasonActiveBalance', { balance: memberBalance.toFixed(2) });
+        return t('reasonActiveBalance', { balance: memberBalance.toFixed(0) });
       }
     }
   }

@@ -433,7 +433,7 @@ export default function RoomPage() {
                             <div className="text-center mb-3 sm:mb-5">
                                 <div className="text-base sm:text-lg font-medium text-muted-foreground">{t('balanceTitle')}</div>
                                 <div className={`text-3xl sm:text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
-                                    {balance.toFixed(2)} {currency}
+                                    {balance.toFixed(0)} {currency}
                                 </div>
                                 <Link href={`/rooms/${roomId}/balance`} className="text-xs sm:text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
                                     {t('detailed')}
