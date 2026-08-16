@@ -108,23 +108,25 @@ export default function BalanceDetailsPage() {
         setIsLoading(false);
     }, [roomId, router, isOnline, user]);
 
-    const handleSettleUp = async (memberId: number, amountToSettle: number) => {
+    const handleSettleUp = async (payeeId: number, amountToSettle: number, payerId: number) => {
         if (!user || !user.userId) return;
 
         const finalAmount = amountToSettle;
         const description = t('settleUpDescription') || "Settle up";
 
-        const currentUser = members.find(m => m.id === user.userId);
-        if (!currentUser) return;
+        const payerMember = members.find(m => m.id === payerId);
+        if (!payerMember) return;
 
         const optimisticEntry: Entry = {
             id: `temp-${Date.now()}`,
             amount: finalAmount.toFixed(2),
             description,
             created_at: new Date().toISOString(),
-            username: currentUser.username,
-            user_id: user.userId,
-            split_with_user_ids: [memberId],
+            username: payerMember.username,
+            user_id: payerId,
+            split_with_user_ids: [payeeId],
+            payer_shares: [{ userId: payerId, percentage: 100 }],
+            beneficiary_shares: [{ userId: payeeId, percentage: 100 }],
             offline_timestamp: Date.now()
         };
 
@@ -139,7 +141,9 @@ export default function BalanceDetailsPage() {
                     roomId, 
                     amount: finalAmount, 
                     description, 
-                    splitWithUserIds: [memberId],
+                    splitWithUserIds: [payeeId],
+                    payerShares: [{ userId: payerId, percentage: 100 }],
+                    beneficiaryShares: [{ userId: payeeId, percentage: 100 }],
                     createdAt: optimisticEntry.created_at,
                     clientTempId: optimisticEntry.id
                 },
@@ -646,7 +650,7 @@ export default function BalanceDetailsPage() {
                                             </button>
                                             {isExpanded && (
                                                 <div className="bg-background/80 px-4 sm:px-6 pt-2 pb-5 animate-fadeIn border-t border-card-border/60">
-                                                    {netBalance < -0.005 && activePerspectiveUserId === user?.userId && (
+                                                    {netBalance < -0.005 && members.find(m => m.id === user?.userId)?.permissions?.canAddEntries !== false && (
                                                         <div className="mt-2.5 mb-3 py-2 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-card-border/50">
                                                             <div className="flex items-center gap-2 min-w-0 text-xs">
                                                                 <span className="font-semibold text-foreground shrink-0">{t('outstandingDebtTitle')}</span>
@@ -654,7 +658,7 @@ export default function BalanceDetailsPage() {
                                                                 <span className="text-muted-foreground truncate">{t('outstandingDebtSubtitle', { member: member.username })}</span>
                                                             </div>
                                                             <button 
-                                                                onClick={() => handleSettleUp(member.id, Math.abs(netBalance))}
+                                                                onClick={() => handleSettleUp(member.id, Math.abs(netBalance), activePerspectiveUserId)}
                                                                 className="self-start sm:self-center py-1.5 px-3 rounded-lg border border-card-border bg-card hover:bg-muted text-foreground text-xs font-semibold transition-all shadow-2xs active:scale-95 flex items-center gap-1.5 shrink-0"
                                                             >
                                                                 <FiCheckCircle className="w-3.5 h-3.5 text-success shrink-0" />
