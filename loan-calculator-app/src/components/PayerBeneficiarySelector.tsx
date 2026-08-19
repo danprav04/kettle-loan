@@ -212,10 +212,10 @@ export default function PayerBeneficiarySelector({
                   onChange(updatedShares);
                 }
               }}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/80 hover:bg-muted text-foreground font-semibold text-[11px] border border-border transition-colors shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-semibold text-[11px] border border-primary/30 transition-colors shadow-sm cursor-pointer"
               title="Click to update master bill total to match this sum"
             >
-              <span className="text-primary font-bold">↻</span>
+              <span className="font-bold text-sm">↑</span>
               <span>{t('syncTotalBtn', { sum: currentSumMonetary, currency })}</span>
             </button>
           )}
@@ -223,11 +223,11 @@ export default function PayerBeneficiarySelector({
             <button
               type="button"
               onClick={distributeRemaining}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/80 hover:bg-muted text-foreground font-semibold text-[11px] border border-border transition-colors shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold text-[11px] border border-emerald-500/30 transition-colors shadow-sm cursor-pointer"
               title="Click to auto-assign remaining amount"
             >
-              <span className="text-emerald-500 font-bold">{remainingMonetary > 0 ? `+${remainingMonetary.toFixed(0)}` : remainingMonetary.toFixed(0)} {currency}</span>
-              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('autoBalanceBadge')}</span>
+              <span className="font-bold">{remainingMonetary > 0 ? `+${remainingMonetary.toFixed(0)}` : remainingMonetary.toFixed(0)} {currency}</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider">{t('autoBalanceBadge')}</span>
             </button>
           )}
           <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${isValid ? 'bg-success/20 text-success border border-success/30' : 'bg-danger/20 text-danger border border-danger/30'}`}>
