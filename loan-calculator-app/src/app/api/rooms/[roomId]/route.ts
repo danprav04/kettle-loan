@@ -103,7 +103,7 @@ export async function GET(
             if (amount > 0) { // This is an Expense
                 const participants = entry.split_with_user_ids;
                 const activeParticipants = participants && participants.length > 0
-                    ? calcMembers.filter(m => participants.includes(m.id))
+                    ? members.filter(m => participants.includes(m.id))
                     : [];
 
                 if (activeParticipants.length > 0) {
@@ -124,7 +124,7 @@ export async function GET(
 
                 const participants = entry.split_with_user_ids;
                 const lenders = participants && participants.length > 0
-                    ? calcMembers.filter(m => participants.includes(m.id))
+                    ? members.filter(m => participants.includes(m.id))
                     : [];
 
                 if (lenders.length > 0) {

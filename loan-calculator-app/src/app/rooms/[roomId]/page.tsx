@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
-import { FiInfo, FiEdit, FiSave, FiX, FiLoader, FiShield, FiSliders } from 'react-icons/fi';
+import { FiInfo, FiEdit, FiSave, FiX, FiLoader, FiShield, FiSliders, FiLogOut } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
 import { saveRoomData, getRoomData, addLocalEntry, updateLocalRoomName, calculateAllMemberBalances, LocalRoomData, Entry } from '@/lib/offline-sync';
 import { useSync } from '@/components/SyncProvider';
@@ -261,6 +261,36 @@ export default function RoomPage() {
         }
     };
 
+    const handleLeaveRoom = async () => {
+        if (Math.abs(balance) > 0.01) {
+            setNotification('You cannot leave the room while you have a non-zero balance.');
+            return;
+        }
+
+        if (permissions.canAdmin) {
+            const adminCount = members.filter(m => m.permissions?.canAdmin).length;
+            const activeUserCount = members.filter(m => m.permissions?.canView).length;
+            if (adminCount <= 1 && activeUserCount > 1) {
+                setNotification('You are the last admin. Promote someone else first.');
+                return;
+            }
+        }
+
+        if (confirm('Are you sure you want to leave this room?')) {
+            setIsLoading(true);
+            try {
+                await handleApi({
+                    method: 'DELETE',
+                    url: `/api/rooms/${roomId}/members`
+                });
+                router.push('/');
+            } catch (err: any) {
+                setNotification(err.message || 'Failed to leave room.');
+                setIsLoading(false);
+            }
+        }
+    };
+
     const handleStartEditingName = () => {
         setNewName(roomName || '');
         setIsEditingName(true);
@@ -427,6 +457,13 @@ export default function RoomPage() {
                                         <FiShield className="text-purple-400" /> <span className="hidden sm:inline">{t('adminBtn')}</span>
                                     </button>
                                 )}
+                                <button
+                                    onClick={handleLeaveRoom}
+                                    className="absolute left-0 top-0 px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm border border-red-500/20"
+                                    title="Leave Room"
+                                >
+                                    <FiLogOut /> <span className="hidden sm:inline">Leave</span>
+                                </button>
                             </div>
 
                             {/* Balance */}

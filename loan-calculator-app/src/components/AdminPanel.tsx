@@ -258,6 +258,26 @@ export default function AdminPanel({
     }
   };
 
+  const handleKickMember = async (memberId: number) => {
+    if (confirm('Are you sure you want to remove this member from the room?')) {
+      setError('');
+      setSuccess('');
+      setSavingMemberId(memberId);
+      try {
+        await handleApi({
+          url: `/api/rooms/${roomId}/members/${memberId}`,
+          method: 'DELETE',
+        });
+        setSuccess('Member removed successfully');
+        onRefresh();
+      } catch (err: any) {
+        setError(err.message || 'Error removing member');
+      } finally {
+        setSavingMemberId(null);
+      }
+    }
+  };
+
   const permI18nKey: Record<keyof MemberPermissions, string> = {
     canAdmin: 'permAdmin',
     canAddEntries: 'permAddEntries',
@@ -474,6 +494,20 @@ export default function AdminPanel({
                             );
                           })}
                         </div>
+                        
+                        {/* Kick Member Button */}
+                        {!isSelf && (
+                          <div className="mt-3 pt-3 border-t border-card-border/80 dark:border-white/10">
+                            <button
+                              onClick={() => handleKickMember(member.id)}
+                              disabled={isSaving || Math.abs(balances[member.id] || 0) > 0.01}
+                              title={Math.abs(balances[member.id] || 0) > 0.01 ? t('reasonActiveBalance', { balance: balances[member.id]?.toFixed(0) }) : ''}
+                              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                              <span>🚪</span> {t('kickMember', { defaultValue: 'Remove from Room' })}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

@@ -14,7 +14,7 @@ export async function GET(req: Request) {
             `SELECT r.id, r.code, r.name 
              FROM rooms r 
              JOIN room_members rm ON r.id = rm.room_id 
-             WHERE rm.user_id = $1 
+             WHERE rm.user_id = $1 AND rm.can_view = true
              ORDER BY r.id DESC`,
             [user.userId]
         );

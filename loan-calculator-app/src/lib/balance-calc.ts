@@ -61,7 +61,7 @@ export const calculateAllMemberBalances = (
         if (amount > 0) { // Expense
             const participants = entry.split_with_user_ids;
             const activeParticipants = participants && participants.length > 0
-                ? calcMembers.filter(m => participants.includes(m.id))
+                ? members.filter(m => participants.includes(m.id))
                 : (participants === null || participants === undefined ? calcMembers : []);
 
             if (activeParticipants.length > 0) {
@@ -80,7 +80,7 @@ export const calculateAllMemberBalances = (
 
             const participants = entry.split_with_user_ids;
             const lenders = participants && participants.length > 0
-                ? calcMembers.filter(m => participants.includes(m.id))
+                ? members.filter(m => participants.includes(m.id))
                 : (participants === null || participants === undefined ? calcMembers.filter(m => m.id !== borrowerId) : []);
 
             if (lenders.length > 0) {
