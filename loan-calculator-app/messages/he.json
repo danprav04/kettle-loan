@@ -125,6 +125,7 @@
     "reasonViewRequired": "נדרש עבור הרשאת מנהל או עריכה",
     "reasonActiveBalance": "לא ניתן להסיר: לחבר יש יתרה פעילה ({balance})",
     "reasonSelfLockout": "לא ניתן להסיר הרשאת מנהל מעצמך",
+    "kickMember": "הסר מהחדר",
     "balanceBreakdown": "פירוט יתרה",
     "activityHistoryTab": "היסטוריית פעילות",
     "searchFilterPlaceholder": "חפש תיאור או משתתף...",

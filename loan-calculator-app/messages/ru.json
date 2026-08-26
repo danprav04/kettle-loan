@@ -125,6 +125,7 @@
     "reasonViewRequired": "Требуется для прав Админа или Записи",
     "reasonActiveBalance": "Нельзя удалить: у участника активный баланс ({balance})",
     "reasonSelfLockout": "Нельзя снять права админа с себя",
+    "kickMember": "Удалить из комнаты",
     "balanceBreakdown": "Детализация баланса",
     "activityHistoryTab": "История изменений",
     "searchFilterPlaceholder": "Поиск описания или участника...",
