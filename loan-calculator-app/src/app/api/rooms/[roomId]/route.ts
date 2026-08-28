@@ -40,12 +40,12 @@ export async function GET(
         }
 
         const memberCheckResult = await db.query(
-            'SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2',
+            'SELECT can_view FROM room_members WHERE room_id = $1 AND user_id = $2',
             [resolvedId, user.userId]
         );
 
-        if (memberCheckResult.rows.length === 0) {
-            return NextResponse.json({ message: 'Room not found' }, { status: 404 });
+        if (memberCheckResult.rows.length === 0 || !memberCheckResult.rows[0].can_view) {
+            return NextResponse.json({ message: 'Forbidden: You do not have view access to this room' }, { status: 403 });
         }
         
         const roomResult = await db.query('SELECT id, code, name, currency FROM rooms WHERE id = $1', [resolvedId]);

@@ -489,7 +489,7 @@ export default function RoomPage() {
 
                             {/* Entry Form or View-Only Alert */}
                             {isViewOnly ? (
-                                <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center space-y-2 backdrop-blur-md shadow-lg">
+                                <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center space-y-2 backdrop-blur-md shadow-lg mb-4">
                                     <FiShield className="mx-auto text-amber-500 text-3xl animate-pulse" />
                                     <h3 className="font-bold text-foreground text-base">{t('viewOnlyTitle')}</h3>
                                     <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
@@ -497,7 +497,7 @@ export default function RoomPage() {
                                     </p>
                                 </div>
                             ) : (
-                                <div>
+                                <div className="mb-4">
                                     <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2 flex-wrap">
                                         <h2 className="text-lg sm:text-xl font-semibold text-card-foreground">
                                             {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
@@ -663,20 +663,23 @@ export default function RoomPage() {
                                             </div>
                                         )}
 
-                                        <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2 sm:gap-4 pt-2">
-                                            <button type="submit" className="sm:col-span-2 font-bold py-2.5 px-4 rounded-lg focus:outline-none btn-primary disabled:opacity-50" disabled={isSubmitDisabled}>
+                                        <div className="pt-2">
+                                            <button type="submit" className="w-full font-bold py-2.5 px-4 rounded-lg focus:outline-none btn-primary disabled:opacity-50" disabled={isSubmitDisabled}>
                                                 {t('addEntry')}
                                             </button>
-                                            <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2.5 px-4 rounded-lg btn-muted text-center text-xs sm:text-sm">
-                                                {t('allEntries')}
-                                            </Link>
-                                            <Link href={`/rooms/${roomId}/stats`} className="font-bold py-2.5 px-4 rounded-lg btn-muted text-center text-xs sm:text-sm">
-                                                {t('roomStatistics')}
-                                            </Link>
                                         </div>
                                     </form>
                                 </div>
                             )}
+
+                            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2 sm:gap-4 mt-2">
+                                <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2.5 px-4 rounded-lg btn-muted text-center text-xs sm:text-sm">
+                                    {t('allEntries')}
+                                </Link>
+                                <Link href={`/rooms/${roomId}/stats`} className="font-bold py-2.5 px-4 rounded-lg btn-muted text-center text-xs sm:text-sm">
+                                    {t('roomStatistics')}
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 )}

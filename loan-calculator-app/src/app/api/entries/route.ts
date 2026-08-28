@@ -59,6 +59,26 @@ export async function POST(req: Request) {
         const finalBeneficiaryShares = Array.isArray(beneficiaryShares) ? JSON.stringify(beneficiaryShares) : null;
         const finalCreatedAt = createdAt ? new Date(createdAt) : new Date();
 
+        const allParticipantsToValidate = new Set<number>();
+        if (Array.isArray(resolvedSplitWith)) resolvedSplitWith.forEach((id: number) => allParticipantsToValidate.add(id));
+        if (Array.isArray(payerShares)) payerShares.forEach((p: { userId: number }) => allParticipantsToValidate.add(p.userId));
+        if (Array.isArray(beneficiaryShares)) beneficiaryShares.forEach((b: { userId: number }) => allParticipantsToValidate.add(b.userId));
+        allParticipantsToValidate.add(legacyUserId);
+
+        if (allParticipantsToValidate.size > 0) {
+            const participantIds = Array.from(allParticipantsToValidate);
+            const validParticipantsRes = await db.query(
+                'SELECT user_id FROM room_members WHERE room_id = $1 AND can_participate = true AND user_id = ANY($2)',
+                [resolvedId, participantIds]
+            );
+            if (validParticipantsRes.rows.length !== participantIds.length) {
+                return NextResponse.json({
+                    message: 'Forbidden: One or more selected users do not have permission to participate in entries.'
+                }, { status: 403 });
+            }
+        }
+
+
         await db.query(
             'INSERT INTO entries (room_id, user_id, amount, description, split_with_user_ids, payer_shares, beneficiary_shares, created_by_user_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
             [resolvedId, legacyUserId, amount, description, finalSplitWith, finalPayerShares, finalBeneficiaryShares, createdByUserId, finalCreatedAt.toISOString()]
