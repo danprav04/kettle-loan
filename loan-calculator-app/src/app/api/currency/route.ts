@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SUPPORTED_CURRENCIES, getExchangeRate } from '@/lib/currency';
+import { SUPPORTED_CURRENCIES, getExchangeRateDetails } from '@/lib/currency';
 
 /**
  * GET /api/currency
@@ -20,16 +20,20 @@ export async function GET(req: NextRequest) {
         rate?: number;
         from?: string;
         to?: string;
+        lastUpdated?: number;
+        isStale?: boolean;
     } = {
         currencies: SUPPORTED_CURRENCIES,
     };
 
     if (from && to && from !== to) {
         try {
-            const rate = await getExchangeRate(from, to);
-            response.rate = Math.round(rate * 10000) / 10000; // 4 decimal places
+            const details = await getExchangeRateDetails(from, to);
+            response.rate = Math.round(details.rate * 10000) / 10000; // 4 decimal places
             response.from = from;
             response.to = to;
+            response.lastUpdated = details.lastUpdated;
+            response.isStale = details.isStale;
         } catch (err) {
             return NextResponse.json(
                 { 

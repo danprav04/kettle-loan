@@ -140,6 +140,8 @@ export default function AdminPanel({
     { code: 'EUR', name: 'Euro', symbol: '€' },
   ]);
   const [ratePreview, setRatePreview] = useState<number | null>(null);
+  const [rateLastUpdated, setRateLastUpdated] = useState<number | null>(null);
+  const [rateIsStale, setRateIsStale] = useState<boolean>(false);
   const [rateLoading, setRateLoading] = useState(false);
 
   useEffect(() => {
@@ -147,6 +149,8 @@ export default function AdminPanel({
       setEditName(roomName || '');
       setEditCurrency(currency || 'ILS');
       setRatePreview(null);
+      setRateLastUpdated(null);
+      setRateIsStale(false);
       if (memberBalances && Object.keys(memberBalances).length > 0) {
         setBalances(memberBalances);
       } else {
@@ -177,6 +181,8 @@ export default function AdminPanel({
   useEffect(() => {
     if (!isOpen || editCurrency === currency) {
       setRatePreview(null);
+      setRateLastUpdated(null);
+      setRateIsStale(false);
       return;
     }
 
@@ -186,10 +192,16 @@ export default function AdminPanel({
       .then((res) => {
         if (!cancelled && res?.rate) {
           setRatePreview(res.rate);
+          setRateLastUpdated(res.lastUpdated || Date.now());
+          setRateIsStale(res.isStale || false);
         }
       })
       .catch(() => {
-        if (!cancelled) setRatePreview(null);
+        if (!cancelled) {
+          setRatePreview(null);
+          setRateLastUpdated(null);
+          setRateIsStale(false);
+        }
       })
       .finally(() => {
         if (!cancelled) setRateLoading(false);
@@ -404,11 +416,19 @@ export default function AdminPanel({
             </div>
             {/* Rate preview when switching currencies */}
             {editCurrency !== currency && (
-              <div className="text-xs px-1 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-center animate-fadeIn">
+              <div className="text-xs px-2 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-center animate-fadeIn flex flex-col gap-1">
                 {rateLoading ? (
                   <span className="text-muted-foreground">Fetching rate…</span>
                 ) : ratePreview ? (
-                  <span>1 {currency} = {ratePreview} {editCurrency}</span>
+                  <>
+                    <span className="font-bold">1 {currency} = {ratePreview} {editCurrency}</span>
+                    {rateLastUpdated && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {rateIsStale ? '⚠️ Using cached rate from: ' : 'Live rate as of: '}
+                        {new Date(rateLastUpdated).toLocaleString()}
+                      </span>
+                    )}
+                  </>
                 ) : (
                   <span className="text-amber-400">Rate unavailable — will retry on save</span>
                 )}

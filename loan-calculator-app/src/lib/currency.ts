@@ -126,18 +126,32 @@ async function fetchFromExchangeRateFun(base: string): Promise<Record<string, nu
 // Public API
 // ---------------------------------------------------------------------------
 
+export interface ExchangeRatesResult {
+    rates: Record<string, number>;
+    lastUpdated: number;
+    isStale: boolean;
+}
+
+export interface ExchangeRateResult {
+    rate: number;
+    lastUpdated: number;
+    isStale: boolean;
+}
+
 /**
- * Get all exchange rates relative to `base`, trying providers in order
+ * Get all exchange rates relative to `base` (with metadata), trying providers in order
  * with fallback to cache.
  */
-export async function getExchangeRates(base: string): Promise<Record<string, number>> {
+export async function getExchangeRatesDetails(base: string): Promise<ExchangeRatesResult> {
     if (!SUPPORTED_CODES.has(base)) {
         throw new Error(`Unsupported currency: ${base}`);
     }
 
     // 1. Check fresh cache
-    const cached = getCached(base);
-    if (cached) return cached;
+    const cachedEntry = rateCache.get(base);
+    if (cachedEntry && Date.now() - cachedEntry.fetchedAt < CACHE_TTL_MS) {
+        return { rates: cachedEntry.rates, lastUpdated: cachedEntry.fetchedAt, isStale: false };
+    }
 
     // 2. Try providers in order
     const providers = [fetchFromFrankfurter, fetchFromExchangeRateFun];
@@ -147,37 +161,52 @@ export async function getExchangeRates(base: string): Promise<Record<string, num
         try {
             const rates = await provider(base);
             setCache(base, rates);
-            return rates;
+            const newEntry = rateCache.get(base)!;
+            return { rates: newEntry.rates, lastUpdated: newEntry.fetchedAt, isStale: false };
         } catch (err) {
             errors.push(err instanceof Error ? err.message : String(err));
         }
     }
 
     // 3. Fall back to stale cache
-    const stale = getStaleCache(base);
-    if (stale) {
+    if (cachedEntry) {
         console.warn(
             `[currency] All providers failed for base=${base}, using stale cache. Errors: ${errors.join('; ')}`
         );
-        return stale;
+        return { rates: cachedEntry.rates, lastUpdated: cachedEntry.fetchedAt, isStale: true };
     }
 
-    // 4. No cache, no providers — hard fail (never silently use wrong rates)
+    // 4. No cache, no providers — hard fail
     throw new Error(
         `Failed to fetch exchange rates for ${base}. All providers failed: ${errors.join('; ')}. No cached rates available.`
     );
 }
 
 /**
- * Get the exchange rate to convert 1 unit of `from` into `to`.
- * E.g. getExchangeRate('USD', 'ILS') might return 3.72
+ * Get the exchange rate to convert 1 unit of `from` into `to` (with metadata).
  */
-export async function getExchangeRate(from: string, to: string): Promise<number> {
-    if (from === to) return 1;
-    const rates = await getExchangeRates(from);
-    const rate = rates[to];
+export async function getExchangeRateDetails(from: string, to: string): Promise<ExchangeRateResult> {
+    if (from === to) return { rate: 1, lastUpdated: Date.now(), isStale: false };
+    const details = await getExchangeRatesDetails(from);
+    const rate = details.rates[to];
     if (rate === undefined) {
         throw new Error(`Exchange rate not available for ${from} → ${to}`);
     }
-    return rate;
+    return { rate, lastUpdated: details.lastUpdated, isStale: details.isStale };
+}
+
+/**
+ * Get all exchange rates relative to `base` (legacy wrapper)
+ */
+export async function getExchangeRates(base: string): Promise<Record<string, number>> {
+    const details = await getExchangeRatesDetails(base);
+    return details.rates;
+}
+
+/**
+ * Get the exchange rate to convert 1 unit of `from` into `to` (legacy wrapper)
+ */
+export async function getExchangeRate(from: string, to: string): Promise<number> {
+    const details = await getExchangeRateDetails(from, to);
+    return details.rate;
 }
