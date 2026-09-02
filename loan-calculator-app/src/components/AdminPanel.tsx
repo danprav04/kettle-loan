@@ -1,8 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { handleApi } from '@/lib/api';
+
+interface CurrencyOption {
+  code: string;
+  name: string;
+  symbol: string;
+}
 
 interface MemberPermissions {
   canAdmin: boolean;
@@ -127,10 +133,20 @@ export default function AdminPanel({
   const [savingMemberId, setSavingMemberId] = useState<number | null>(null);
   const [balances, setBalances] = useState<{ [userId: number]: number }>(memberBalances || {});
 
-  React.useEffect(() => {
+  // Dynamic currency support
+  const [currencyList, setCurrencyList] = useState<CurrencyOption[]>([
+    { code: 'ILS', name: 'Israeli Shekel', symbol: '₪' },
+    { code: 'USD', name: 'US Dollar', symbol: '$' },
+    { code: 'EUR', name: 'Euro', symbol: '€' },
+  ]);
+  const [ratePreview, setRatePreview] = useState<number | null>(null);
+  const [rateLoading, setRateLoading] = useState(false);
+
+  useEffect(() => {
     if (isOpen) {
       setEditName(roomName || '');
       setEditCurrency(currency || 'ILS');
+      setRatePreview(null);
       if (memberBalances && Object.keys(memberBalances).length > 0) {
         setBalances(memberBalances);
       } else {
@@ -143,8 +159,44 @@ export default function AdminPanel({
           })
           .catch(() => {});
       }
+
+      // Fetch supported currencies
+      handleApi({ url: '/api/currency', method: 'GET' })
+        .then((res) => {
+          if (res?.currencies && Array.isArray(res.currencies)) {
+            setCurrencyList(res.currencies);
+          }
+        })
+        .catch(() => {
+          // Keep fallback list on failure
+        });
     }
   }, [isOpen, roomName, currency, roomId, memberBalances, members]);
+
+  // Fetch rate preview when the user picks a different currency
+  useEffect(() => {
+    if (!isOpen || editCurrency === currency) {
+      setRatePreview(null);
+      return;
+    }
+
+    let cancelled = false;
+    setRateLoading(true);
+    handleApi({ url: `/api/currency?from=${currency}&to=${editCurrency}`, method: 'GET' })
+      .then((res) => {
+        if (!cancelled && res?.rate) {
+          setRatePreview(res.rate);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setRatePreview(null);
+      })
+      .finally(() => {
+        if (!cancelled) setRateLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [isOpen, editCurrency, currency]);
 
   if (!isOpen) return null;
 
@@ -342,12 +394,26 @@ export default function AdminPanel({
                   onChange={(e) => setEditCurrency(e.target.value)}
                   className="w-full themed-input px-3 py-2 text-xs rounded-xl border border-input bg-background font-bold text-center cursor-pointer text-foreground"
                 >
-                  <option value="ILS">ILS (₪)</option>
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
+                  {currencyList.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} ({c.symbol})
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
+            {/* Rate preview when switching currencies */}
+            {editCurrency !== currency && (
+              <div className="text-xs px-1 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-center animate-fadeIn">
+                {rateLoading ? (
+                  <span className="text-muted-foreground">Fetching rate…</span>
+                ) : ratePreview ? (
+                  <span>1 {currency} = {ratePreview} {editCurrency}</span>
+                ) : (
+                  <span className="text-amber-400">Rate unavailable — will retry on save</span>
+                )}
+              </div>
+            )}
             <div className="flex justify-end pt-1">
               <button
                 type="submit"

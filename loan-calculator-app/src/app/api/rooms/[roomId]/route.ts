@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { resolveRoomId } from '@/lib/room-resolver';
+import { getExchangeRate } from '@/lib/currency';
 
 interface Share {
     userId: number;
@@ -204,10 +205,16 @@ export async function PUT(
             const oldCurrency = currentRoom.rows[0]?.currency || 'ILS';
 
             if (oldCurrency !== currency) {
-                const rates: Record<string, number> = { ILS: 1, USD: 3.65, EUR: 4.00 };
-                const oldRate = rates[oldCurrency] || 1;
-                const newRate = rates[currency] || 1;
-                const conversionFactor = oldRate / newRate;
+                let conversionFactor: number;
+                try {
+                    conversionFactor = await getExchangeRate(oldCurrency, currency);
+                } catch (rateErr) {
+                    console.error('Failed to fetch exchange rate:', rateErr);
+                    return NextResponse.json(
+                        { message: 'Unable to fetch current exchange rates. Please try again later.' },
+                        { status: 503 }
+                    );
+                }
 
                 await db.query(`
                     UPDATE entries 
