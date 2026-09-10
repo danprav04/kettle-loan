@@ -189,6 +189,10 @@ export default function EditEntryModal({
           new_amount: finalAmount.toString(),
           old_description: entry.description,
           new_description: description.trim(),
+          old_payer_shares: entry.payer_shares,
+          new_payer_shares: payloadPayerShares,
+          old_beneficiary_shares: entry.beneficiary_shares,
+          new_beneficiary_shares: payloadBeneficiaryShares,
           edited_at: new Date().toISOString(),
         };
         await saveEntryEdits(entry.id, [newEdit, ...existingEdits]);

@@ -182,7 +182,23 @@
     "percentagesMustSum100": "Percentages must sum exactly to 100% on both lists.",
     "loadingEntries": "Loading entries...",
     "noEntries": "No entries have been added to this room yet.",
-    "loggedOnBehalfBy": "Logged on behalf by: {name}"
+    "loggedOnBehalfBy": "Logged on behalf by: {name}",
+    "shareEntry": "Share Entry",
+    "shareModalTitle": "Operation Receipt",
+    "copyImage": "Copy Image",
+    "copiedImage": "Copied!",
+    "downloadImage": "Download PNG",
+    "nativeShare": "Share",
+    "whoPaidLabel": "Paid by",
+    "splitBetweenLabel": "Split between",
+    "recordedByLabel": "Recorded by",
+    "entryTypeExpense": "EXPENSE",
+    "entryTypeLoan": "LOAN",
+    "entryTypeSettlement": "SETTLEMENT",
+    "mutualImpactLabel": "Mutual impact",
+    "runningBalanceAfter": "Balance after",
+    "totalAmountLabel": "Total Amount",
+    "roomBalanceAfter": "Your room balance after"
   },
   "Stats": {
     "title": "Room Statistics",
@@ -248,6 +264,10 @@
     "userFallback": "User #{id}",
     "amountChange": "Amount Change",
     "descriptionChange": "Description Change",
+    "before": "Before",
+    "after": "After",
+    "sharesChange": "Participants / shares updated",
+    "noChanges": "No field changes recorded",
     "closeBtn": "Close"
   }
 }

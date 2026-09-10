@@ -11,9 +11,10 @@ import { useUser } from '@/components/UserProvider';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
 import EditEntryModal from '@/components/EditEntryModal';
 import EntryEditsModal from '@/components/EntryEditsModal';
-import { FiClock, FiTrash2, FiInfo, FiEdit3 } from 'react-icons/fi';
+import { FiClock, FiTrash2, FiInfo, FiEdit3, FiShare2 } from 'react-icons/fi';
 import { Permissions, DEFAULT_PERMISSIONS } from '@/components/PermissionContext';
 import { getEntryDetails } from '@/lib/entry-formatting';
+import ShareEntryModal from '@/components/ShareEntryModal';
 
 interface Member {
     id: number;
@@ -39,6 +40,7 @@ export default function EntriesPage() {
     const [entries, setEntries] = useState<Entry[]>([]);
     const [members, setMembers] = useState<Member[]>([]);
     const [currency, setCurrency] = useState('ILS');
+    const [roomName, setRoomName] = useState<string | null>(null);
     const [currentUserPermissions, setCurrentUserPermissions] = useState<Permissions>(DEFAULT_PERMISSIONS);
 
     const [isLoading, setIsLoading] = useState(true);
@@ -49,6 +51,7 @@ export default function EntriesPage() {
     // Modals state
     const [entryToEdit, setEntryToEdit] = useState<Entry | null>(null);
     const [entryForHistory, setEntryForHistory] = useState<number | string | null>(null);
+    const [entryToShare, setEntryToShare] = useState<ProcessedEntry | null>(null);
 
     const router = useRouter();
 
@@ -64,6 +67,7 @@ export default function EntriesPage() {
         if (localData) {
             setEntries(localData.entries);
             setMembers(localData.members);
+            if (localData.name) setRoomName(localData.name);
             if (localData.currency) setCurrency(localData.currency);
             if (localData.currentUserPermissions) setCurrentUserPermissions(localData.currentUserPermissions);
         }
@@ -78,6 +82,7 @@ export default function EntriesPage() {
                     await saveRoomData(roomId, data);
                     setEntries(data.entries);
                     setMembers(data.members);
+                    if (data.name) setRoomName(data.name);
                     if (data.currency) setCurrency(data.currency);
                     if (data.currentUserPermissions) setCurrentUserPermissions(data.currentUserPermissions);
                 } else if (res.status === 401) {
@@ -287,6 +292,13 @@ export default function EntriesPage() {
 
                                             <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                                                 <button
+                                                    onClick={() => setEntryToShare(entry)}
+                                                    className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
+                                                    title={t('shareEntry')}
+                                                >
+                                                    <FiShare2 size={16} />
+                                                </button>
+                                                <button
                                                     onClick={() => setEntryForHistory(entry.id)}
                                                     className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
                                                     title={t('viewEditHistory')}
@@ -352,6 +364,18 @@ export default function EntriesPage() {
                 onClose={() => setEntryForHistory(null)}
                 entryId={entryForHistory}
                 currency={currency}
+            />
+
+            <ShareEntryModal
+                isOpen={!!entryToShare}
+                onClose={() => setEntryToShare(null)}
+                entry={entryToShare}
+                currency={currency}
+                members={members}
+                currentUserId={user?.userId}
+                roomName={roomName}
+                roomId={roomId}
+                userRunningBalance={entryToShare?.runningBalance}
             />
         </div>
     );

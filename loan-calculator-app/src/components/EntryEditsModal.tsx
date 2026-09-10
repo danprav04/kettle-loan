@@ -16,6 +16,10 @@ interface EditRecord {
   old_description: string;
   new_description: string;
   edited_at: string;
+  old_payer_shares?: unknown;
+  new_payer_shares?: unknown;
+  old_beneficiary_shares?: unknown;
+  new_beneficiary_shares?: unknown;
 }
 
 interface EntryEditsModalProps {
@@ -24,6 +28,13 @@ interface EntryEditsModalProps {
   entryId: number | string | null;
   currency: string;
 }
+
+const formatAmount = (val: string | number | undefined | null) => {
+  if (val === undefined || val === null || val === '') return '0';
+  const num = typeof val === 'string' ? parseFloat(val) : val;
+  if (isNaN(num)) return '0';
+  return Number.isInteger(num) ? num.toString() : num.toFixed(2);
+};
 
 export default function EntryEditsModal({ isOpen, onClose, entryId, currency }: EntryEditsModalProps) {
   const t = useTranslations('AuditTrail');
@@ -74,12 +85,16 @@ export default function EntryEditsModal({ isOpen, onClose, entryId, currency }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-      <div className="w-full max-w-lg overflow-hidden bg-card border border-border rounded-xl shadow-2xl flex flex-col max-h-[85vh]">
+      <div className="w-full max-w-lg sm:max-w-xl overflow-hidden bg-card border border-border rounded-xl shadow-2xl flex flex-col max-h-[85vh]">
         <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
-          <h2 className="text-base font-bold flex items-center gap-2">
-            <FiClock className="text-primary" /> {t('title')}
+          <h2 className="text-base font-bold flex items-center gap-2 text-foreground">
+            <FiClock className="text-primary text-lg shrink-0" /> {t('title')}
           </h2>
-          <button onClick={onClose} className="p-1 rounded-lg text-muted hover:text-foreground">
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            aria-label={t('closeBtn')}
+          >
             <FiX size={18} />
           </button>
         </div>
@@ -92,36 +107,101 @@ export default function EntryEditsModal({ isOpen, onClose, entryId, currency }: 
           )}
 
           {!isLoading &&
-            edits.map((edit) => (
-              <div key={edit.id} className="p-3 bg-background rounded-lg border border-border/70 space-y-2 text-xs">
-                <div className="flex items-center justify-between border-b border-border/50 pb-1.5 text-muted-foreground">
-                  <span className="flex items-center gap-1 font-semibold text-foreground">
-                    <FiUser className="text-primary" /> {edit.edited_by_username || t('userFallback', { id: edit.edited_by_user_id })}
-                  </span>
-                  <span>{new Date(edit.edited_at).toLocaleString()}</span>
-                </div>
+            edits.map((edit) => {
+              const oldAmtNum = parseFloat(edit.old_amount);
+              const newAmtNum = parseFloat(edit.new_amount);
+              const isAmountChanged =
+                !isNaN(oldAmtNum) && !isNaN(newAmtNum)
+                  ? Math.abs(oldAmtNum - newAmtNum) > 0.0001
+                  : (edit.old_amount ?? '') !== (edit.new_amount ?? '');
 
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <div>
-                    <span className="text-[10px] text-muted block uppercase font-bold">{t('amountChange')}</span>
-                    <div className="flex items-center gap-1.5 font-mono font-bold mt-0.5">
-                      <span className="line-through text-muted-foreground">{parseFloat(edit.old_amount).toFixed(0)}</span>
-                      <FiArrowRight className="text-muted text-[10px]" />
-                      <span className="text-primary">{parseFloat(edit.new_amount).toFixed(0)} {currency}</span>
-                    </div>
+              const oldDesc = (edit.old_description || '').trim();
+              const newDesc = (edit.new_description || '').trim();
+              const isDescriptionChanged = oldDesc !== newDesc;
+
+              const hasShares = Boolean(
+                edit.old_payer_shares || edit.new_payer_shares || edit.old_beneficiary_shares || edit.new_beneficiary_shares
+              );
+              const isSharesChanged =
+                hasShares &&
+                (JSON.stringify(edit.old_payer_shares) !== JSON.stringify(edit.new_payer_shares) ||
+                  JSON.stringify(edit.old_beneficiary_shares) !== JSON.stringify(edit.new_beneficiary_shares));
+
+              const noChangesDetected = !isAmountChanged && !isDescriptionChanged && !isSharesChanged;
+
+              return (
+                <div key={edit.id} className="p-3.5 bg-background rounded-lg border border-border/70 space-y-3 text-xs shadow-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2 text-muted-foreground">
+                    <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                      <FiUser className="text-primary shrink-0" size={14} />
+                      {edit.edited_by_username || t('userFallback', { id: edit.edited_by_user_id })}
+                    </span>
+                    <span className="text-[11px]">{new Date(edit.edited_at).toLocaleString()}</span>
                   </div>
 
-                  <div>
-                    <span className="text-[10px] text-muted block uppercase font-bold">{t('descriptionChange')}</span>
-                    <div className="flex items-center gap-1.5 mt-0.5 truncate">
-                      <span className="line-through text-muted-foreground truncate max-w-[80px]">{edit.old_description}</span>
-                      <FiArrowRight className="text-muted text-[10px] shrink-0" />
-                      <span className="font-semibold text-foreground truncate max-w-[100px]">{edit.new_description}</span>
+                  {isAmountChanged && (
+                    <div className="space-y-1">
+                      <span className="text-[11px] text-muted-foreground block uppercase font-bold tracking-wider">
+                        {t('amountChange')}
+                      </span>
+                      <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-card/60 border border-border/60 text-xs font-mono">
+                        <span className="line-through text-muted-foreground/90 font-medium">
+                          {formatAmount(edit.old_amount)} {currency}
+                        </span>
+                        <FiArrowRight className="text-muted-foreground text-xs shrink-0" />
+                        <span className="font-bold text-primary">
+                          {formatAmount(edit.new_amount)} {currency}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {isDescriptionChanged && (
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] text-muted-foreground block uppercase font-bold tracking-wider">
+                        {t('descriptionChange')}
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50">
+                          <span className="text-[10px] uppercase font-bold text-muted-foreground/80 block mb-1">
+                            {t('before')}
+                          </span>
+                          <p className="line-through text-muted-foreground break-words font-normal text-xs sm:text-sm leading-relaxed">
+                            {edit.old_description || '—'}
+                          </p>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+                          <span className="text-[10px] uppercase font-bold text-primary block mb-1">
+                            {t('after')}
+                          </span>
+                          <p className="font-semibold text-foreground break-words text-xs sm:text-sm leading-relaxed">
+                            {edit.new_description || '—'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {isSharesChanged && (
+                    <div className="pt-0.5">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/40 border border-border/50 text-xs text-muted-foreground">
+                        <span>👥</span>
+                        <span>{t('sharesChange')}</span>
+                      </span>
+                    </div>
+                  )}
+
+                  {noChangesDetected && (
+                    <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-muted-foreground">
+                      <span className="italic">{t('noChanges')}</span>
+                      {edit.new_description && (
+                        <span className="font-medium text-foreground">({edit.new_description})</span>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
         </div>
 
         <div className="p-3 border-t border-border bg-muted/20 flex justify-end">
