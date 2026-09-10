@@ -174,32 +174,43 @@ export default function ShareEntryModal({
     const safeDesc = (entry.description || 'entry').replace(/[/\\?%*:|"<>]/g, '_').substring(0, 30).trim();
     const filename = `${safeDesc}_receipt`;
 
-    // Canvas capture function
+    // Canvas capture function: uses browser native rendering via html-to-image
     const captureCanvas = async (): Promise<Blob | null> => {
         if (!cardRef.current) return null;
-        const html2canvas = (await import('html2canvas')).default;
         const el = cardRef.current;
 
-        const canvas = await html2canvas(el, {
-            scale: 2, // High DPI / Retina
-            useCORS: true,
-            backgroundColor: '#0f172a',
-            logging: false,
-            onclone: (clonedDoc: Document) => {
-                // Ensure no active CSS animations or transforms skew bounds in cloned iframe
-                const allElements = clonedDoc.querySelectorAll('*');
-                allElements.forEach((node: any) => {
-                    if (node.style) {
-                        node.style.animation = 'none';
-                        node.style.transition = 'none';
-                    }
-                });
-            },
-        } as any);
+        try {
+            const { toCanvas } = await import('html-to-image');
+            const canvas = await toCanvas(el, {
+                pixelRatio: 2, // High-DPI crisp 2x render
+                backgroundColor: '#0f172a',
+                skipFonts: true,
+                cacheBust: true,
+            });
+            const blob = await new Promise<Blob | null>(resolve => {
+                canvas.toBlob(b => resolve(b), 'image/png');
+            });
+            if (blob && blob.size > 0) return blob;
+        } catch (err) {
+            console.warn('html-to-image capture failed, trying html2canvas fallback:', err);
+        }
 
-        return new Promise(resolve => {
-            canvas.toBlob(blob => resolve(blob), 'image/png');
-        });
+        // Fallback: html2canvas if html-to-image is unavailable
+        try {
+            const html2canvas = (await import('html2canvas')).default;
+            const canvas = await html2canvas(el, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#0f172a',
+                logging: false,
+            } as any);
+            return new Promise(resolve => {
+                canvas.toBlob(blob => resolve(blob), 'image/png');
+            });
+        } catch (err) {
+            console.error('All canvas capture methods failed:', err);
+            return null;
+        }
     };
 
     const downloadBlob = (blob: Blob) => {
@@ -325,7 +336,9 @@ export default function ShareEntryModal({
                             </div>
                             <span
                                 style={{
-                                    display: 'inline-block',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
                                     fontSize: '11px',
                                     fontWeight: 800,
                                     letterSpacing: '0.06em',
@@ -335,8 +348,7 @@ export default function ShareEntryModal({
                                     backgroundColor: typeBadgeBg,
                                     color: typeBadgeColor,
                                     border: `1px solid ${typeBadgeBorder}`,
-                                    lineHeight: '14px',
-                                    verticalAlign: 'middle',
+                                    lineHeight: '1.2',
                                 }}
                             >
                                 {typeBadgeLabel}
@@ -347,10 +359,10 @@ export default function ShareEntryModal({
                         <div style={{ paddingBottom: '16px', marginBottom: '16px', borderBottom: '1px solid #1e293b' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 <div style={{ flex: 1, minWidth: 0, paddingRight: '16px' }}>
-                                    <div style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff', lineHeight: '1.4', wordBreak: 'break-word' }}>
+                                    <div style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff', lineHeight: '1.3', wordBreak: 'break-word' }}>
                                         {entry.description}
                                     </div>
-                                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px', lineHeight: '1.4' }}>
+                                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px', lineHeight: '1.3' }}>
                                         {t('recordedByLabel')}: <span style={{ color: '#cbd5e1', fontWeight: 600 }}>{authorName}</span>
                                         {showProxy && recorderName && (
                                             <span style={{ color: '#c084fc', marginLeft: '6px' }}>
@@ -360,10 +372,10 @@ export default function ShareEntryModal({
                                     </div>
                                 </div>
                                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                    <div style={{ fontSize: '22px', fontWeight: 800, color: isLoan ? '#f87171' : '#4ade80', lineHeight: '1.4', whiteSpace: 'nowrap' }}>
+                                    <div style={{ fontSize: '22px', fontWeight: 800, color: isLoan ? '#f87171' : '#4ade80', lineHeight: '1.2', whiteSpace: 'nowrap' }}>
                                         {absAmount.toFixed(0)} {currency}
                                     </div>
-                                    <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, marginTop: '3px', letterSpacing: '0.04em', lineHeight: '1.4' }}>
+                                    <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, marginTop: '3px', letterSpacing: '0.04em', lineHeight: '1.2' }}>
                                         {t('totalAmountLabel')}
                                     </div>
                                 </div>
@@ -393,26 +405,28 @@ export default function ShareEntryModal({
                                                 boxSizing: 'border-box',
                                             }}
                                         >
-                                            <div style={{ display: 'flex', alignItems: 'baseline', minWidth: 0 }}>
-                                                <span style={{ fontWeight: 600, color: '#f1f5f9', fontSize: '13px', lineHeight: '1.6' }}>{p.name}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                                                <span style={{ fontWeight: 600, color: '#f1f5f9', fontSize: '13px', lineHeight: '1.3' }}>{p.name}</span>
                                                 {p.percentage && (
                                                     <span style={{
-                                                        display: 'inline-block',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
                                                         fontSize: '10px',
-                                                        lineHeight: '14px',
+                                                        fontWeight: 600,
+                                                        lineHeight: '1.2',
                                                         color: '#94a3b8',
                                                         backgroundColor: '#0f172a',
                                                         padding: '2px 6px',
                                                         borderRadius: '4px',
                                                         border: '1px solid #334155',
                                                         marginLeft: '8px',
-                                                        verticalAlign: 'middle',
                                                     }}>
                                                         {p.percentage}
                                                     </span>
                                                 )}
                                             </div>
-                                            <span style={{ fontWeight: 700, color: '#4ade80', fontSize: '13px', lineHeight: '1.6', marginLeft: '8px', flexShrink: 0 }}>
+                                            <span style={{ fontWeight: 700, color: '#4ade80', fontSize: '13px', lineHeight: '1.3', marginLeft: '8px', flexShrink: 0 }}>
                                                 {p.amount.toFixed(0)} {currency}
                                             </span>
                                         </div>
@@ -442,29 +456,31 @@ export default function ShareEntryModal({
                                                 boxSizing: 'border-box',
                                             }}
                                         >
-                                            <div style={{ display: 'flex', alignItems: 'baseline', minWidth: 0 }}>
-                                                <span style={{ fontWeight: 600, color: '#f1f5f9', fontSize: '12px', lineHeight: '1.6' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                                                <span style={{ fontWeight: 600, color: '#f1f5f9', fontSize: '12px', lineHeight: '1.3' }}>
                                                     {b.name}
                                                 </span>
                                                 {b.percentage && (
                                                     <span style={{
-                                                        display: 'inline-block',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
                                                         fontSize: '10px',
-                                                        lineHeight: '14px',
+                                                        fontWeight: 600,
+                                                        lineHeight: '1.2',
                                                         color: '#94a3b8',
                                                         backgroundColor: '#0f172a',
                                                         padding: '2px 6px',
                                                         borderRadius: '4px',
                                                         border: '1px solid #334155',
                                                         marginLeft: '8px',
-                                                        verticalAlign: 'middle',
                                                         flexShrink: 0,
                                                     }}>
                                                         {b.percentage}
                                                     </span>
                                                 )}
                                             </div>
-                                            <span style={{ fontWeight: 700, color: '#cbd5e1', fontSize: '13px', lineHeight: '1.6', marginLeft: '8px', flexShrink: 0 }}>
+                                            <span style={{ fontWeight: 700, color: '#cbd5e1', fontSize: '13px', lineHeight: '1.3', marginLeft: '8px', flexShrink: 0 }}>
                                                 {b.amount.toFixed(0)} {currency}
                                             </span>
                                         </div>
@@ -552,7 +568,7 @@ export default function ShareEntryModal({
                         onClick={onClose}
                         className="py-2 px-3.5 rounded-xl border border-card-border bg-card hover:bg-muted text-card-foreground text-xs sm:text-sm font-semibold transition-all shadow-2xs"
                     >
-                        {t('resetFilters') || 'Close'}
+                        {t('closeBtn') || 'Close'}
                     </button>
 
                     <button
