@@ -178,11 +178,27 @@ export default function ShareEntryModal({
     const captureCanvas = async (): Promise<Blob | null> => {
         if (!cardRef.current) return null;
         const html2canvas = (await import('html2canvas')).default;
-        const canvas = await html2canvas(cardRef.current, {
+        const el = cardRef.current;
+        const width = el.offsetWidth;
+        const height = el.offsetHeight;
+
+        const canvas = await html2canvas(el, {
             scale: 2, // High DPI / Retina
             useCORS: true,
             backgroundColor: '#0f172a',
             logging: false,
+            width: width,
+            height: height,
+            onclone: (clonedDoc: Document) => {
+                // Ensure no active CSS animations or transforms skew bounds in cloned iframe
+                const allElements = clonedDoc.querySelectorAll('*');
+                allElements.forEach((node: any) => {
+                    if (node.style) {
+                        node.style.animation = 'none';
+                        node.style.transition = 'none';
+                    }
+                });
+            },
         } as any);
 
         return new Promise(resolve => {
@@ -261,11 +277,11 @@ export default function ShareEntryModal({
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto animate-fadeIn"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto"
             role="dialog"
             aria-modal="true"
         >
-            <div className="bg-card border border-card-border rounded-2xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden animate-scaleIn max-h-[92vh]">
+            <div className="bg-card border border-card-border rounded-2xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden max-h-[92vh]">
                 {/* Modal Header */}
                 <div className="p-4 sm:px-6 border-b border-card-border flex items-center justify-between shrink-0 bg-card">
                     <div className="flex items-center gap-2">
@@ -283,14 +299,14 @@ export default function ShareEntryModal({
                     </button>
                 </div>
 
-                {/* Preview Container */}
-                <div className="overflow-y-auto p-4 sm:p-6 flex justify-center bg-background/50">
+                {/* Preview Container - items-start prevents card height stretching */}
+                <div className="overflow-y-auto p-4 sm:p-6 flex justify-center items-start bg-background/50">
                     {/* The Card Element to be converted to PNG */}
                     <div
                         ref={cardRef}
                         style={{
-                            width: '100%',
-                            maxWidth: '520px',
+                            width: '520px',
+                            maxWidth: '100%',
                             backgroundColor: '#0f172a',
                             color: '#f8fafc',
                             borderRadius: '16px',
@@ -302,40 +318,44 @@ export default function ShareEntryModal({
                         }}
                     >
                         {/* Card Header: Room & Operation Badge */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', borderBottom: '1px solid #1e293b', paddingBottom: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '16px', marginBottom: '16px' }}>
                             <div>
-                                <div style={{ fontSize: '15px', fontWeight: 800, color: '#38bdf8', letterSpacing: '-0.01em' }}>
+                                <div style={{ fontSize: '15px', fontWeight: 800, color: '#38bdf8', letterSpacing: '-0.01em', lineHeight: '1.2' }}>
                                     {displayRoom}
                                 </div>
-                                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px', fontWeight: 500 }}>
+                                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', fontWeight: 500, lineHeight: '1.2' }}>
                                     {dateStr} • {timeStr}
                                 </div>
                             </div>
-                            <span
+                            <div
                                 style={{
-                                    fontSize: '10px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '11px',
                                     fontWeight: 800,
                                     letterSpacing: '0.06em',
                                     textTransform: 'uppercase',
-                                    padding: '4px 10px',
+                                    padding: '4px 12px',
                                     borderRadius: '9999px',
                                     backgroundColor: typeBadgeBg,
                                     color: typeBadgeColor,
                                     border: `1px solid ${typeBadgeBorder}`,
+                                    lineHeight: '1.2',
                                 }}
                             >
                                 {typeBadgeLabel}
-                            </span>
+                            </div>
                         </div>
 
                         {/* Hero Section: Description & Main Amount */}
-                        <div style={{ padding: '18px 0', borderBottom: '1px solid #1e293b' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: '19px', fontWeight: 800, color: '#ffffff', lineHeight: 1.3, wordBreak: 'break-word' }}>
+                        <div style={{ paddingBottom: '16px', marginBottom: '16px', borderBottom: '1px solid #1e293b' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <div style={{ flex: 1, minWidth: 0, paddingRight: '16px' }}>
+                                    <div style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff', lineHeight: '1.3', wordBreak: 'break-word' }}>
                                         {entry.description}
                                     </div>
-                                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>
+                                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px', lineHeight: '1.2' }}>
                                         {t('recordedByLabel')}: <span style={{ color: '#cbd5e1', fontWeight: 600 }}>{authorName}</span>
                                         {showProxy && recorderName && (
                                             <span style={{ color: '#c084fc', marginLeft: '6px' }}>
@@ -345,10 +365,10 @@ export default function ShareEntryModal({
                                     </div>
                                 </div>
                                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                    <div style={{ fontSize: '24px', fontWeight: 900, fontFamily: 'monospace', color: isLoan ? '#f87171' : '#4ade80', letterSpacing: '-0.02em' }}>
+                                    <div style={{ fontSize: '22px', fontWeight: 800, color: isLoan ? '#f87171' : '#4ade80', lineHeight: '1.2', whiteSpace: 'nowrap' }}>
                                         {absAmount.toFixed(0)} {currency}
                                     </div>
-                                    <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, marginTop: '2px', letterSpacing: '0.04em' }}>
+                                    <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, marginTop: '3px', letterSpacing: '0.04em', lineHeight: '1.2' }}>
                                         {t('totalAmountLabel')}
                                     </div>
                                 </div>
@@ -356,13 +376,13 @@ export default function ShareEntryModal({
                         </div>
 
                         {/* Payers & Beneficiaries Breakdown */}
-                        <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div style={{ marginBottom: '16px' }}>
                             {/* Who Paid */}
-                            <div>
+                            <div style={{ marginBottom: '16px' }}>
                                 <div style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
                                     {t('whoPaidLabel')}
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
                                     {payers.map((p, idx) => (
                                         <div
                                             key={idx}
@@ -371,21 +391,35 @@ export default function ShareEntryModal({
                                                 justifyContent: 'space-between',
                                                 alignItems: 'center',
                                                 backgroundColor: '#1e293b',
-                                                padding: '8px 12px',
+                                                padding: '9px 12px',
                                                 borderRadius: '8px',
                                                 fontSize: '12px',
                                                 border: '1px solid #334155',
+                                                marginBottom: idx === payers.length - 1 ? '0' : '6px',
+                                                boxSizing: 'border-box',
                                             }}
                                         >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <span style={{ fontWeight: 600, color: '#f1f5f9' }}>{p.name}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                <span style={{ fontWeight: 600, color: '#f1f5f9', lineHeight: '1.2' }}>{p.name}</span>
                                                 {p.percentage && (
-                                                    <span style={{ fontSize: '10px', color: '#94a3b8', backgroundColor: '#0f172a', padding: '1px 6px', borderRadius: '4px', border: '1px solid #334155' }}>
+                                                    <span style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '10px',
+                                                        lineHeight: '1',
+                                                        color: '#94a3b8',
+                                                        backgroundColor: '#0f172a',
+                                                        padding: '2px 6px',
+                                                        borderRadius: '4px',
+                                                        border: '1px solid #334155',
+                                                        marginLeft: '8px',
+                                                    }}>
                                                         {p.percentage}
                                                     </span>
                                                 )}
                                             </div>
-                                            <span style={{ fontWeight: 700, fontFamily: 'monospace', color: '#4ade80' }}>
+                                            <span style={{ fontWeight: 700, color: '#4ade80', fontSize: '13px', lineHeight: '1.2', marginLeft: '8px' }}>
                                                 {p.amount.toFixed(0)} {currency}
                                             </span>
                                         </div>
@@ -398,30 +432,48 @@ export default function ShareEntryModal({
                                 <div style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
                                     {t('splitBetweenLabel')}
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: beneficiaries.length > 2 ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap: '6px' }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                                     {beneficiaries.map((b, idx) => (
                                         <div
                                             key={idx}
                                             style={{
+                                                width: beneficiaries.length > 2 ? '48.5%' : '100%',
                                                 display: 'flex',
                                                 justifyContent: 'space-between',
                                                 alignItems: 'center',
                                                 backgroundColor: '#1e293b',
-                                                padding: '8px 12px',
+                                                padding: '9px 12px',
                                                 borderRadius: '8px',
                                                 fontSize: '12px',
                                                 border: '1px solid #334155',
+                                                marginBottom: '8px',
+                                                boxSizing: 'border-box',
                                             }}
                                         >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
-                                                <span style={{ fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{b.name}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, overflow: 'hidden' }}>
+                                                <span style={{ fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', lineHeight: '1.2' }}>
+                                                    {b.name}
+                                                </span>
                                                 {b.percentage && (
-                                                    <span style={{ fontSize: '9px', color: '#94a3b8', backgroundColor: '#0f172a', padding: '1px 5px', borderRadius: '4px', border: '1px solid #334155', flexShrink: 0 }}>
+                                                    <span style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '10px',
+                                                        lineHeight: '1',
+                                                        color: '#94a3b8',
+                                                        backgroundColor: '#0f172a',
+                                                        padding: '2px 6px',
+                                                        borderRadius: '4px',
+                                                        border: '1px solid #334155',
+                                                        marginLeft: '8px',
+                                                        flexShrink: 0,
+                                                    }}>
                                                         {b.percentage}
                                                     </span>
                                                 )}
                                             </div>
-                                            <span style={{ fontWeight: 700, fontFamily: 'monospace', color: '#cbd5e1', flexShrink: 0, marginLeft: '6px' }}>
+                                            <span style={{ fontWeight: 700, color: '#cbd5e1', fontSize: '13px', lineHeight: '1.2', marginLeft: '8px', flexShrink: 0 }}>
                                                 {b.amount.toFixed(0)} {currency}
                                             </span>
                                         </div>
@@ -434,23 +486,25 @@ export default function ShareEntryModal({
                         {peerMember && contribution !== undefined && (
                             <div
                                 style={{
-                                    marginTop: '8px',
+                                    marginBottom: '16px',
                                     padding: '12px 14px',
                                     borderRadius: '10px',
                                     backgroundColor: '#1e293b',
                                     border: '1px solid #334155',
+                                    boxSizing: 'border-box',
                                 }}
                             >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', lineHeight: '1.2' }}>
                                         {t('mutualImpactLabel')} ({perspectiveMemberName || t('me')} &bull; {peerMember.username})
                                     </span>
                                     <span
                                         style={{
-                                            fontSize: '12px',
+                                            fontSize: '13px',
                                             fontWeight: 800,
-                                            fontFamily: 'monospace',
                                             color: contribution >= 0 ? '#4ade80' : '#f87171',
+                                            lineHeight: '1.2',
+                                            marginLeft: '8px',
                                         }}
                                     >
                                         {contribution >= 0 ? '+' : ''}{contribution.toFixed(0)} {currency}
@@ -458,10 +512,10 @@ export default function ShareEntryModal({
                                 </div>
                                 {runningP2PBalance !== undefined && (
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #334155', paddingTop: '6px', marginTop: '6px' }}>
-                                        <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                        <span style={{ fontSize: '11px', color: '#64748b', lineHeight: '1.2' }}>
                                             {t('runningBalanceAfter')}:
                                         </span>
-                                        <span style={{ fontSize: '12px', fontWeight: 800, fontFamily: 'monospace', color: runningP2PBalance >= 0.5 ? '#4ade80' : runningP2PBalance <= -0.5 ? '#f87171' : '#94a3b8' }}>
+                                        <span style={{ fontSize: '13px', fontWeight: 800, color: runningP2PBalance >= 0.5 ? '#4ade80' : runningP2PBalance <= -0.5 ? '#f87171' : '#94a3b8', lineHeight: '1.2' }}>
                                             {runningP2PBalance >= 0.5 ? '+' : ''}{runningP2PBalance.toFixed(0)} {currency}
                                         </span>
                                     </div>
@@ -473,7 +527,7 @@ export default function ShareEntryModal({
                         {!peerMember && userRunningBalance !== undefined && (
                             <div
                                 style={{
-                                    marginTop: '8px',
+                                    marginBottom: '16px',
                                     padding: '10px 14px',
                                     borderRadius: '10px',
                                     backgroundColor: '#1e293b',
@@ -481,19 +535,20 @@ export default function ShareEntryModal({
                                     display: 'flex',
                                     justifyContent: 'space-between',
                                     alignItems: 'center',
+                                    boxSizing: 'border-box',
                                 }}
                             >
-                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', lineHeight: '1.2' }}>
                                     {t('roomBalanceAfter')}
                                 </span>
-                                <span style={{ fontSize: '12px', fontWeight: 800, fontFamily: 'monospace', color: userRunningBalance >= 0.5 ? '#4ade80' : userRunningBalance <= -0.5 ? '#f87171' : '#94a3b8' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: userRunningBalance >= 0.5 ? '#4ade80' : userRunningBalance <= -0.5 ? '#f87171' : '#94a3b8', lineHeight: '1.2', marginLeft: '8px' }}>
                                     {userRunningBalance >= 0.5 ? '+' : ''}{userRunningBalance.toFixed(0)} {currency}
                                 </span>
                             </div>
                         )}
 
                         {/* Card Footer Brand */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #1e293b', fontSize: '10px', color: '#475569' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '12px', borderTop: '1px solid #1e293b', fontSize: '10px', color: '#475569', lineHeight: '1.2' }}>
                             <span>Kettle Split</span>
                             <span>{new Date().toLocaleDateString()}</span>
                         </div>
