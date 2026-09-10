@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { handleApi } from '@/lib/api';
 import { Entry, updateLocalEntry, getEntryEdits, saveEntryEdits, updateOutboxCreateEntry } from '@/lib/offline-sync';
 import PayerBeneficiarySelector, { ShareItem } from './PayerBeneficiarySelector';
+import { useSplitPresets } from '@/lib/hooks/useSplitPresets';
 
 interface Member {
   id: number;
@@ -39,6 +40,7 @@ export default function EditEntryModal({
   onSuccess,
 }: EditEntryModalProps) {
   const t = useTranslations('Room');
+  const { presets: splitPresets, savePreset, deletePreset } = useSplitPresets(roomId);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [isMultiParty, setIsMultiParty] = useState(true);
@@ -308,6 +310,9 @@ export default function EditEntryModal({
                       label={t('list1WhoPaid')}
                       currentUserId={currentUserId || null}
                       onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
+                      presets={splitPresets}
+                      onSavePreset={savePreset}
+                      onDeletePreset={deletePreset}
                     />
                     <PayerBeneficiarySelector
                       members={members}
@@ -318,6 +323,9 @@ export default function EditEntryModal({
                       label={t('list2SplitForWhom')}
                       currentUserId={currentUserId || null}
                       onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
+                      presets={splitPresets}
+                      onSavePreset={savePreset}
+                      onDeletePreset={deletePreset}
                     />
                   </div>
                 ) : (

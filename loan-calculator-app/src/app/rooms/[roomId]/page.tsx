@@ -13,6 +13,7 @@ import { useSync } from '@/components/SyncProvider';
 import { PermissionProvider, Permissions, DEFAULT_PERMISSIONS } from '@/components/PermissionContext';
 import AdminPanel from '@/components/AdminPanel';
 import PayerBeneficiarySelector, { ShareItem, SelectorMember } from '@/components/PayerBeneficiarySelector';
+import { useSplitPresets } from '@/lib/hooks/useSplitPresets';
 
 interface Member {
     id: number;
@@ -36,6 +37,7 @@ export default function RoomPage() {
     const t = useTranslations('Room');
     const { isSimplified } = useSimplifiedLayout();
     const { isOnline } = useSync();
+    const { presets: splitPresets, savePreset, deletePreset } = useSplitPresets(roomId);
 
     const [balance, setBalance] = useState(0);
     const [roomCode, setRoomCode] = useState('');
@@ -567,6 +569,9 @@ export default function RoomPage() {
                                                     label={t('list1WhoPaid')}
                                                     currentUserId={currentUserId}
                                                     onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
+                                                    presets={splitPresets}
+                                                    onSavePreset={savePreset}
+                                                    onDeletePreset={deletePreset}
                                                 />
                                                 <PayerBeneficiarySelector
                                                     members={members}
@@ -577,6 +582,9 @@ export default function RoomPage() {
                                                     label={t('list2SplitForWhom')}
                                                     currentUserId={currentUserId}
                                                     onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
+                                                    presets={splitPresets}
+                                                    onSavePreset={savePreset}
+                                                    onDeletePreset={deletePreset}
                                                 />
                                             </div>
                                         )}

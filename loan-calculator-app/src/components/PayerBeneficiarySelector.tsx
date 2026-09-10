@@ -3,6 +3,8 @@
 import React, { useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { SplitPreset } from '@/lib/hooks/useSplitPresets';
+
 export interface ShareItem {
   userId: number;
   percentage: number;
@@ -29,6 +31,9 @@ interface PayerBeneficiarySelectorProps {
   currentUserId: number | null;
   allowQuickActions?: boolean;
   onUpdateTotal?: (newTotal: number) => void;
+  presets?: SplitPreset[];
+  onSavePreset?: (name: string, shares: ShareItem[]) => Promise<any>;
+  onDeletePreset?: (presetId: number) => Promise<any>;
 }
 
 export default function PayerBeneficiarySelector({
@@ -41,11 +46,17 @@ export default function PayerBeneficiarySelector({
   currentUserId,
   allowQuickActions = true,
   onUpdateTotal,
+  presets = [],
+  onSavePreset,
+  onDeletePreset,
 }: PayerBeneficiarySelectorProps) {
   const t = useTranslations('Room');
   const [search, setSearch] = useState('');
   const [lockedUserIds, setLockedUserIds] = useState<Set<number>>(new Set());
   const [inputStrs, setInputStrs] = useState<Record<number, string>>({});
+  const [isAddingPreset, setIsAddingPreset] = useState(false);
+  const [presetNameInput, setPresetNameInput] = useState('');
+  const [isSavingPreset, setIsSavingPreset] = useState(false);
   const initialSelectedUserIdsRef = useRef<Set<number>>(new Set(shares.map((s) => s.userId)));
 
   const isMemberActiveParticipant = (m: SelectorMember) => {
@@ -84,6 +95,51 @@ export default function PayerBeneficiarySelector({
       percentage: index === 0 ? Math.round((basePct + remainder) * 1e6) / 1e6 : basePct,
     }));
     onChange(nextShares);
+  };
+
+  const applyPreset = (preset: SplitPreset) => {
+    setLockedUserIds(new Set());
+    setInputStrs({});
+
+    const eligibleSet = new Set(eligibleMembers.map((m) => m.id));
+    const matchedShares = preset.shares.filter((s) => eligibleSet.has(s.userId));
+
+    if (matchedShares.length === 0) return;
+
+    const sumPct = matchedShares.reduce((acc, s) => acc + s.percentage, 0);
+    if (sumPct <= 0) {
+      rebalanceEqual(matchedShares.map((s) => s.userId));
+      return;
+    }
+
+    const factor = 100 / sumPct;
+    const nextShares: ShareItem[] = matchedShares.map((s) => ({
+      userId: s.userId,
+      percentage: Math.round(s.percentage * factor * 1e6) / 1e6,
+    }));
+
+    const totalPct = nextShares.reduce((acc, s) => acc + s.percentage, 0);
+    const diffPct = Math.round((100 - totalPct) * 1e6) / 1e6;
+    if (nextShares.length > 0 && Math.abs(diffPct) > 1e-8) {
+      nextShares[0].percentage = Math.round((nextShares[0].percentage + diffPct) * 1e6) / 1e6;
+    }
+
+    onChange(nextShares);
+  };
+
+  const handleSavePreset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onSavePreset || !presetNameInput.trim() || shares.length === 0) return;
+    setIsSavingPreset(true);
+    try {
+      await onSavePreset(presetNameInput.trim(), shares);
+      setPresetNameInput('');
+      setIsAddingPreset(false);
+    } catch (err) {
+      console.error('Failed to save preset:', err);
+    } finally {
+      setIsSavingPreset(false);
+    }
   };
 
   const handleAmountChange = (userId: number, newAmountStr: string) => {
@@ -278,6 +334,97 @@ export default function PayerBeneficiarySelector({
             >
               {t('unlockAllBtn')}
             </button>
+          )}
+        </div>
+      )}
+
+      {allowQuickActions && (presets.length > 0 || onSavePreset) && (
+        <div className="flex items-center gap-1.5 text-xs flex-wrap pt-1 border-t border-card-border/40 dark:border-white/5">
+          <span className="text-muted-foreground font-medium text-[11px] flex items-center gap-1">
+            <span className="text-primary font-bold">★</span>
+            {t('presets')}
+          </span>
+
+          {presets.map((preset) => {
+            const tooltipText = preset.shares
+              .map((s) => {
+                const m = members.find((mem) => mem.id === s.userId);
+                return `${m ? m.username : `ID:${s.userId}`}: ${s.percentage}%`;
+              })
+              .join(', ');
+
+            return (
+              <div
+                key={preset.id}
+                className="group inline-flex items-center bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 rounded-lg text-[11px] font-medium transition-all shadow-sm"
+                title={tooltipText}
+              >
+                <button
+                  type="button"
+                  onClick={() => applyPreset(preset)}
+                  className="px-2 py-0.5 cursor-pointer font-medium hover:underline flex items-center gap-1"
+                >
+                  {preset.name}
+                </button>
+                {onDeletePreset && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(t('deletePresetConfirm', { name: preset.name }))) {
+                        onDeletePreset(preset.id);
+                      }
+                    }}
+                    className="pr-1.5 pl-0.5 py-0.5 text-muted-foreground hover:text-danger opacity-60 group-hover:opacity-100 transition-opacity cursor-pointer text-[10px]"
+                    title={t('deletePreset')}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          {onSavePreset && (
+            !isAddingPreset ? (
+              <button
+                type="button"
+                onClick={() => setIsAddingPreset(true)}
+                disabled={shares.length === 0 || !isValid}
+                className="px-2 py-0.5 bg-muted/40 hover:bg-primary/20 hover:text-primary text-muted-foreground font-medium rounded-lg transition-all border border-dashed border-card-border/80 dark:border-white/10 text-[11px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                title={!isValid ? t('mustEqualTotal') : t('savePresetBtn')}
+              >
+                {t('savePresetBtn')}
+              </button>
+            ) : (
+              <form onSubmit={handleSavePreset} className="inline-flex items-center gap-1">
+                <input
+                  type="text"
+                  autoFocus
+                  value={presetNameInput}
+                  onChange={(e) => setPresetNameInput(e.target.value)}
+                  placeholder={t('presetPlaceholder')}
+                  className="px-2 py-0.5 text-[11px] rounded-lg themed-input border border-primary/50 w-28 bg-card shadow-inner"
+                />
+                <button
+                  type="submit"
+                  disabled={isSavingPreset || !presetNameInput.trim()}
+                  className="px-2 py-0.5 bg-primary text-primary-foreground font-medium rounded-lg text-[11px] disabled:opacity-50 cursor-pointer shadow-sm"
+                >
+                  {isSavingPreset ? '...' : '✓'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddingPreset(false);
+                    setPresetNameInput('');
+                  }}
+                  className="px-1.5 py-0.5 text-muted-foreground hover:text-foreground text-[11px] cursor-pointer"
+                >
+                  ✕
+                </button>
+              </form>
+            )
           )}
         </div>
       )}
