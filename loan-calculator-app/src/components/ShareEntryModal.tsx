@@ -183,9 +183,11 @@ export default function ShareEntryModal({
             const { toCanvas } = await import('html-to-image');
             const canvas = await toCanvas(el, {
                 pixelRatio: 2, // High-DPI crisp 2x render
-                backgroundColor: '#0f172a',
                 skipFonts: true,
                 cacheBust: true,
+                style: {
+                    boxShadow: 'none',
+                },
             });
             const blob = await new Promise<Blob | null>(resolve => {
                 canvas.toBlob(b => resolve(b), 'image/png');
@@ -201,7 +203,7 @@ export default function ShareEntryModal({
             const canvas = await html2canvas(el, {
                 scale: 2,
                 useCORS: true,
-                backgroundColor: '#0f172a',
+                backgroundColor: null, // Transparent background outside rounded card
                 logging: false,
             } as any);
             return new Promise(resolve => {
@@ -322,6 +324,7 @@ export default function ShareEntryModal({
                             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
                             boxSizing: 'border-box',
                             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+                            overflow: 'hidden',
                         }}
                     >
                         {/* Card Header: Room & Operation Badge */}
