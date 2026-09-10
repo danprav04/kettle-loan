@@ -232,7 +232,17 @@
     "exportAmount": "Сумма",
     "exportParticipants": "Участники",
     "exportTypeExpense": "Расход",
-    "exportTypeLoan": "Заём"
+    "exportTypeLoan": "Заём",
+    "exportTypeSettlement": "Расчет",
+    "totalSettlements": "Всего расчетов",
+    "averageExpense": "В среднем на участника",
+    "settledBadge": "В расчете",
+    "summarySheet": "Сводка",
+    "entriesSheet": "Записи",
+    "paidShareOfTotal": "{percent}% от оплат",
+    "observerBadge": "Наблюдатель",
+    "settlementsLabel": "Погашено",
+    "roomOverview": "Обзор комнаты"
   },
   "Dialog": {
     "cancel": "Отмена",

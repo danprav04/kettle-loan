@@ -232,7 +232,17 @@
     "exportAmount": "Amount",
     "exportParticipants": "Participants",
     "exportTypeExpense": "Expense",
-    "exportTypeLoan": "Loan"
+    "exportTypeLoan": "Loan",
+    "exportTypeSettlement": "Settlement",
+    "totalSettlements": "Total Settlements",
+    "averageExpense": "Avg. per Member",
+    "settledBadge": "Settled up",
+    "summarySheet": "Summary",
+    "entriesSheet": "Entries",
+    "paidShareOfTotal": "{percent}% of paid",
+    "observerBadge": "Observer",
+    "settlementsLabel": "Settled",
+    "roomOverview": "Room Overview"
   },
   "Dialog": {
     "cancel": "Cancel",

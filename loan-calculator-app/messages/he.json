@@ -232,7 +232,17 @@
     "exportAmount": "סכום",
     "exportParticipants": "משתתפים",
     "exportTypeExpense": "הוצאה",
-    "exportTypeLoan": "הלוואה"
+    "exportTypeLoan": "הלוואה",
+    "exportTypeSettlement": "התחשבנות",
+    "totalSettlements": "סך כל ההתחשבנויות",
+    "averageExpense": "ממוצע למשתתף",
+    "settledBadge": "התחשבנו",
+    "summarySheet": "סיכום",
+    "entriesSheet": "רשומות",
+    "paidShareOfTotal": "{percent}% מהתשלומים",
+    "observerBadge": "צופה",
+    "settlementsLabel": "התחשבנות",
+    "roomOverview": "סקירת חדר"
   },
   "Dialog": {
     "cancel": "ביטול",
