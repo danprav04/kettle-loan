@@ -187,6 +187,7 @@ export default function ShareEntryModal({
                 cacheBust: true,
                 style: {
                     boxShadow: 'none',
+                    backgroundColor: '#0f172a',
                 },
             });
             const blob = await new Promise<Blob | null>(resolve => {
