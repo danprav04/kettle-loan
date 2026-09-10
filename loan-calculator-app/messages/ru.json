@@ -97,7 +97,7 @@
     "lockedBadge": "🔒 ЗАФИКС.",
     "presets": "Пресеты:",
     "savePresetBtn": "+ Сохранить",
-    "presetPlaceholder": "Название (напр. 60/40)",
+    "presetPlaceholder": "Название...",
     "deletePreset": "Удалить пресет",
     "deletePresetConfirm": "Удалить пресет \"{name}\"?",
     "editEntryTitle": "Редактирование записи",

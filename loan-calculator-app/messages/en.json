@@ -97,7 +97,7 @@
     "lockedBadge": "🔒 LOCKED",
     "presets": "Presets:",
     "savePresetBtn": "+ Save split",
-    "presetPlaceholder": "Name (e.g. 60/40)",
+    "presetPlaceholder": "Name...",
     "deletePreset": "Delete preset",
     "deletePresetConfirm": "Delete preset \"{name}\"?",
     "editEntryTitle": "Edit Entry Details",

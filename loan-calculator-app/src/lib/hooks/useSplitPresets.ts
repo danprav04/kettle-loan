@@ -29,7 +29,11 @@ export function useSplitPresets(roomId?: string | number | null) {
         url: `/api/split-presets?roomId=${encodeURIComponent(String(roomId))}`,
       });
       if (Array.isArray(data)) {
-        setPresets(data);
+        const normalized = data.map((p: any) => ({
+          ...p,
+          shares: typeof p.shares === 'string' ? JSON.parse(p.shares) : (p.shares || []),
+        }));
+        setPresets(normalized);
       }
     } catch (err) {
       console.error('Failed to fetch split presets:', err);
@@ -56,7 +60,11 @@ export function useSplitPresets(roomId?: string | number | null) {
           },
         });
         if (result && result.id) {
-          setPresets((prev) => [...prev.filter((p) => p.id !== result.id), result]);
+          const normalized = {
+            ...result,
+            shares: typeof result.shares === 'string' ? JSON.parse(result.shares) : (result.shares || []),
+          };
+          setPresets((prev) => [...prev.filter((p) => p.id !== normalized.id), normalized]);
         } else {
           await fetchPresets();
         }

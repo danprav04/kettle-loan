@@ -8,8 +8,32 @@ interface ShareItem {
   percentage: number;
 }
 
+let tableEnsured = false;
+async function ensurePresetsTable() {
+  if (tableEnsured) return;
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS split_presets (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        shares JSONB NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_split_presets_user_room ON split_presets(user_id, room_id);
+    `);
+    tableEnsured = true;
+  } catch (err) {
+    console.error('Failed to ensure split_presets table:', err);
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
+    await ensurePresetsTable();
+
     const token = req.headers.get('authorization')?.split(' ')[1];
     const user = verifyToken(token);
     if (!user) {
@@ -41,7 +65,11 @@ export async function GET(req: NextRequest) {
          ORDER BY id ASC`,
         [user.userId, resolvedRoomId]
       );
-      return NextResponse.json(res.rows);
+      const rows = res.rows.map((r) => ({
+        ...r,
+        shares: typeof r.shares === 'string' ? JSON.parse(r.shares) : r.shares,
+      }));
+      return NextResponse.json(rows);
     }
 
     // If no room specified, return all presets belonging to this user
@@ -52,7 +80,11 @@ export async function GET(req: NextRequest) {
        ORDER BY id ASC`,
       [user.userId]
     );
-    return NextResponse.json(res.rows);
+    const rows = res.rows.map((r) => ({
+      ...r,
+      shares: typeof r.shares === 'string' ? JSON.parse(r.shares) : r.shares,
+    }));
+    return NextResponse.json(rows);
   } catch (error) {
     console.error('Failed to fetch split presets:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
@@ -61,6 +93,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    await ensurePresetsTable();
+
     const token = req.headers.get('authorization')?.split(' ')[1];
     const user = verifyToken(token);
     if (!user) {
@@ -111,7 +145,10 @@ export async function POST(req: NextRequest) {
       [user.userId, resolvedRoomId, trimmedName, JSON.stringify(shares)]
     );
 
-    return NextResponse.json(insertRes.rows[0], { status: 201 });
+    const row = insertRes.rows[0];
+    const sharesParsed = typeof row.shares === 'string' ? JSON.parse(row.shares) : row.shares;
+
+    return NextResponse.json({ ...row, shares: sharesParsed }, { status: 201 });
   } catch (error) {
     console.error('Failed to create split preset:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
@@ -120,6 +157,8 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    await ensurePresetsTable();
+
     const token = req.headers.get('authorization')?.split(' ')[1];
     const user = verifyToken(token);
     if (!user) {

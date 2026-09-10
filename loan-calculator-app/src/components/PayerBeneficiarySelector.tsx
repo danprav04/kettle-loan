@@ -127,12 +127,16 @@ export default function PayerBeneficiarySelector({
     onChange(nextShares);
   };
 
-  const handleSavePreset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!onSavePreset || !presetNameInput.trim() || shares.length === 0) return;
+  const handleSavePreset = async (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!onSavePreset || !presetNameInput.trim() || shares.length === 0 || isSavingPreset) return;
     setIsSavingPreset(true);
     try {
-      await onSavePreset(presetNameInput.trim(), shares);
+      const activeShares = shares.filter((s) => s.percentage > 0);
+      await onSavePreset(presetNameInput.trim(), activeShares.length > 0 ? activeShares : shares);
       setPresetNameInput('');
       setIsAddingPreset(false);
     } catch (err) {
@@ -397,17 +401,34 @@ export default function PayerBeneficiarySelector({
                 {t('savePresetBtn')}
               </button>
             ) : (
-              <form onSubmit={handleSavePreset} className="inline-flex items-center gap-1">
+              <div className="inline-flex items-center gap-1">
                 <input
                   type="text"
                   autoFocus
                   value={presetNameInput}
                   onChange={(e) => setPresetNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSavePreset();
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsAddingPreset(false);
+                      setPresetNameInput('');
+                    }
+                  }}
                   placeholder={t('presetPlaceholder')}
-                  className="px-2 py-0.5 text-[11px] rounded-lg themed-input border border-primary/50 w-28 bg-card shadow-inner"
+                  className="px-2 py-0.5 text-[11px] rounded-lg themed-input border border-primary/50 w-28 sm:w-36 bg-card shadow-inner"
                 />
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSavePreset();
+                  }}
                   disabled={isSavingPreset || !presetNameInput.trim()}
                   className="px-2 py-0.5 bg-primary text-primary-foreground font-medium rounded-lg text-[11px] disabled:opacity-50 cursor-pointer shadow-sm"
                 >
@@ -415,7 +436,9 @@ export default function PayerBeneficiarySelector({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     setIsAddingPreset(false);
                     setPresetNameInput('');
                   }}
@@ -423,7 +446,7 @@ export default function PayerBeneficiarySelector({
                 >
                   ✕
                 </button>
-              </form>
+              </div>
             )
           )}
         </div>

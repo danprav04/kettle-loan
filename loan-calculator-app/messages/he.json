@@ -97,7 +97,7 @@
     "lockedBadge": "🔒 נעול",
     "presets": "תבניות:",
     "savePresetBtn": "+ שמור חלוקה",
-    "presetPlaceholder": "שם (לדוגמה 60/40)",
+    "presetPlaceholder": "שם...",
     "deletePreset": "מחק תבנית",
     "deletePresetConfirm": "למחוק את התבנית \"{name}\"?",
     "editEntryTitle": "עריכת פרטי רשומה",
