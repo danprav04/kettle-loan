@@ -198,7 +198,14 @@
     "mutualImpactLabel": "השפעה הדדית",
     "runningBalanceAfter": "יתרה לאחר מכן",
     "totalAmountLabel": "סכום כולל",
-    "roomBalanceAfter": "היתרה שלך בחדר לאחר מכן"
+    "roomBalanceAfter": "היתרה שלך בחדר לאחר מכן",
+    "convertedAmount": "סכום מומר",
+    "liveRateAsOf": "שער עדכני נכון ל-{time}",
+    "cachedRateAsOf": "שער שמור מ-{time}",
+    "fetchingRate": "טוען שער חליפין…",
+    "rateUnavailable": "שער חליפין אינו זמין",
+    "rateNotAvailableError": "שער החליפין טרם נטען. אנא המתן.",
+    "appendNoteToDescription": "הוסף סכום מקורי לתיאור"
   },
   "Stats": {
     "title": "סטטיסטיקות חדר",

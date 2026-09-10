@@ -198,7 +198,14 @@
     "mutualImpactLabel": "Mutual impact",
     "runningBalanceAfter": "Balance after",
     "totalAmountLabel": "Total Amount",
-    "roomBalanceAfter": "Your room balance after"
+    "roomBalanceAfter": "Your room balance after",
+    "convertedAmount": "Converted",
+    "liveRateAsOf": "Live rate as of {time}",
+    "cachedRateAsOf": "Cached rate from {time}",
+    "fetchingRate": "Fetching rate…",
+    "rateUnavailable": "Rate unavailable",
+    "rateNotAvailableError": "Exchange rate not ready. Please wait.",
+    "appendNoteToDescription": "Append original amount to description"
   },
   "Stats": {
     "title": "Room Statistics",

@@ -14,6 +14,7 @@ import { PermissionProvider, Permissions, DEFAULT_PERMISSIONS } from '@/componen
 import AdminPanel from '@/components/AdminPanel';
 import PayerBeneficiarySelector, { ShareItem, SelectorMember } from '@/components/PayerBeneficiarySelector';
 import { useSplitPresets } from '@/lib/hooks/useSplitPresets';
+import CurrencyAmountInput from '@/components/CurrencyAmountInput';
 
 interface Member {
     id: number;
@@ -58,6 +59,24 @@ export default function RoomPage() {
 
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
+    const [inputCurrency, setInputCurrency] = useState('ILS');
+    const [appendToDescription, setAppendToDescription] = useState(true);
+    const [conversionInfo, setConversionInfo] = useState<{
+        convertedAmount: number;
+        rate: number | null;
+        rateLastUpdated: number | null;
+        rateIsStale: boolean;
+        isRateLoading: boolean;
+        isRateReady: boolean;
+    }>({
+        convertedAmount: 0,
+        rate: 1,
+        rateLastUpdated: null,
+        rateIsStale: false,
+        isRateLoading: false,
+        isRateReady: true,
+    });
+    const currencyInitializedRef = useRef(false);
     const [entryType, setEntryType] = useState<'expense' | 'loan'>('expense');
     const [isMultiPartyMode, setIsMultiPartyMode] = useState(true);
 
@@ -87,7 +106,13 @@ export default function RoomPage() {
         setMembers(data.members || []);
         setEntries(data.entries || []);
         setCurrentUserId(data.currentUserId || null);
-        if (data.currency) setCurrency(data.currency);
+        if (data.currency) {
+            setCurrency(data.currency);
+            if (!currencyInitializedRef.current) {
+                currencyInitializedRef.current = true;
+                setInputCurrency(data.currency);
+            }
+        }
         if (data.currentUserPermissions) {
             setPermissions(data.currentUserPermissions);
         }
@@ -305,6 +330,27 @@ export default function RoomPage() {
         const currentUser = members.find((m: Member) => m.id === currentUserId);
         if (isNaN(parsedAmount) || parsedAmount <= 0 || !currentUserId || !currentUser) return;
 
+        const isDifferentCurrency = inputCurrency.toUpperCase() !== currency.toUpperCase();
+        if (isDifferentCurrency) {
+            if (conversionInfo.isRateLoading) {
+                setNotification(t('rateNotAvailableError'));
+                return;
+            }
+            if (!conversionInfo.rate) {
+                setNotification(t('rateUnavailable'));
+                return;
+            }
+        }
+
+        const convertedAmount = isDifferentCurrency && conversionInfo.rate
+            ? Math.round(parsedAmount * conversionInfo.rate * 100) / 100
+            : parsedAmount;
+
+        let finalDescription = description;
+        if (isDifferentCurrency && appendToDescription && conversionInfo.rate) {
+            finalDescription = `${description} (${parsedAmount.toFixed(2)} ${inputCurrency} @ ${conversionInfo.rate})`;
+        }
+
         let finalSplitWithIds: number[] | null = null;
         let finalPayerShares: ShareItem[] | null = null;
         let finalBeneficiaryShares: ShareItem[] | null = null;
@@ -332,12 +378,12 @@ export default function RoomPage() {
             }
         }
 
-        const finalAmount = isMultiPartyMode ? parsedAmount : (entryType === 'loan' ? -parsedAmount : parsedAmount);
+        const finalAmount = isMultiPartyMode ? convertedAmount : (entryType === 'loan' ? -convertedAmount : convertedAmount);
 
         const optimisticEntry: Entry = {
             id: `temp-${Date.now()}`,
             amount: finalAmount.toFixed(2),
-            description,
+            description: finalDescription,
             created_at: new Date().toISOString(),
             username: currentUser.username,
             user_id: finalPayerShares && finalPayerShares.length > 0 ? finalPayerShares[0].userId : currentUserId,
@@ -361,7 +407,7 @@ export default function RoomPage() {
                 body: { 
                     roomId, 
                     amount: finalAmount, 
-                    description, 
+                    description: finalDescription, 
                     splitWithUserIds: finalSplitWithIds,
                     payerShares: finalPayerShares,
                     beneficiaryShares: finalBeneficiaryShares,
@@ -392,7 +438,8 @@ export default function RoomPage() {
         setSelectedMemberIds(newSelection);
     };
 
-    const isSubmitDisabled = amount === '' || description === '';
+    const isDifferentCurrency = inputCurrency.toUpperCase() !== currency.toUpperCase();
+    const isSubmitDisabled = amount === '' || description === '' || (isDifferentCurrency && !conversionInfo.isRateReady);
     const isViewOnly = !permissions.canAddEntries;
 
     return (
@@ -548,8 +595,17 @@ export default function RoomPage() {
                                         {/* Amount & Description Inputs */}
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                             <div className="sm:col-span-1">
-                                                <label className="block text-muted-foreground text-xs font-bold mb-1 tracking-wide uppercase" htmlFor="amount">{t('amount')} ({currency})</label>
-                                                <input id="amount" type="text" inputMode="decimal" value={amount} onFocus={(e) => e.target.select()} onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setAmount(e.target.value); }} className="w-full px-3 py-2 leading-tight rounded-xl themed-input font-bold text-base" required placeholder="0.00" />
+                                                <CurrencyAmountInput
+                                                    id="amount"
+                                                    amount={amount}
+                                                    onAmountChange={setAmount}
+                                                    roomCurrency={currency}
+                                                    inputCurrency={inputCurrency}
+                                                    onInputCurrencyChange={setInputCurrency}
+                                                    appendToDescription={appendToDescription}
+                                                    onAppendToDescriptionChange={setAppendToDescription}
+                                                    onConversionChange={setConversionInfo}
+                                                />
                                             </div>
                                             <div className="sm:col-span-2">
                                                 <label className="block text-muted-foreground text-xs font-bold mb-1 tracking-wide uppercase" htmlFor="description">{t('description')}</label>
@@ -565,7 +621,7 @@ export default function RoomPage() {
                                                     shares={payerShares}
                                                     onChange={setPayerShares}
                                                     totalAmount={parseFloat(amount) || 0}
-                                                    currency={currency}
+                                                    currency={inputCurrency}
                                                     label={t('list1WhoPaid')}
                                                     currentUserId={currentUserId}
                                                     onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
@@ -578,7 +634,7 @@ export default function RoomPage() {
                                                     shares={beneficiaryShares}
                                                     onChange={setBeneficiaryShares}
                                                     totalAmount={parseFloat(amount) || 0}
-                                                    currency={currency}
+                                                    currency={inputCurrency}
                                                     label={t('list2SplitForWhom')}
                                                     currentUserId={currentUserId}
                                                     onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}

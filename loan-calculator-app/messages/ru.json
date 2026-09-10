@@ -198,7 +198,14 @@
     "mutualImpactLabel": "Взаимное изменение",
     "runningBalanceAfter": "Остаток после",
     "totalAmountLabel": "Общая сумма",
-    "roomBalanceAfter": "Ваш баланс в комнате после"
+    "roomBalanceAfter": "Ваш баланс в комнате после",
+    "convertedAmount": "Конвертировано",
+    "liveRateAsOf": "Курс на {time}",
+    "cachedRateAsOf": "Курс из кэша от {time}",
+    "fetchingRate": "Получение курса…",
+    "rateUnavailable": "Курс недоступен",
+    "rateNotAvailableError": "Курс обмена еще не готов. Пожалуйста, подождите.",
+    "appendNoteToDescription": "Добавить исходную сумму в описание"
   },
   "Stats": {
     "title": "Статистика комнаты",
