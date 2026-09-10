@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl';
 import { handleApi } from '@/lib/api';
 import { Entry, updateLocalEntry, getEntryEdits, saveEntryEdits, updateOutboxCreateEntry } from '@/lib/offline-sync';
 import PayerBeneficiarySelector, { ShareItem } from './PayerBeneficiarySelector';
+import { useSplitPresets } from '@/lib/hooks/useSplitPresets';
+import CurrencyAmountInput from './CurrencyAmountInput';
 
 interface Member {
   id: number;
@@ -39,8 +41,26 @@ export default function EditEntryModal({
   onSuccess,
 }: EditEntryModalProps) {
   const t = useTranslations('Room');
+  const { presets: splitPresets, savePreset, deletePreset } = useSplitPresets(roomId);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [inputCurrency, setInputCurrency] = useState(currency || 'ILS');
+  const [appendToDescription, setAppendToDescription] = useState(true);
+  const [conversionInfo, setConversionInfo] = useState<{
+    convertedAmount: number;
+    rate: number | null;
+    rateLastUpdated: number | null;
+    rateIsStale: boolean;
+    isRateLoading: boolean;
+    isRateReady: boolean;
+  }>({
+    convertedAmount: 0,
+    rate: 1,
+    rateLastUpdated: null,
+    rateIsStale: false,
+    isRateLoading: false,
+    isRateReady: true,
+  });
   const [isMultiParty, setIsMultiParty] = useState(true);
   const [payerShares, setPayerShares] = useState<ShareItem[]>([]);
   const [beneficiaryShares, setBeneficiaryShares] = useState<ShareItem[]>([]);
@@ -59,6 +79,7 @@ export default function EditEntryModal({
 
   useEffect(() => {
     if (entry) {
+      setInputCurrency(currency || 'ILS');
       setAmount(Math.abs(parseFloat(entry.amount) || 0).toString());
       setDescription(entry.description || '');
 
@@ -135,6 +156,31 @@ export default function EditEntryModal({
     setIsLoading(true);
     setError('');
 
+    const isDifferentCurrency = inputCurrency.toUpperCase() !== currency.toUpperCase();
+    if (isDifferentCurrency) {
+      if (conversionInfo.isRateLoading) {
+        setError(t('rateNotAvailableError'));
+        setIsLoading(false);
+        return;
+      }
+      if (!conversionInfo.rate) {
+        setError(t('rateUnavailable'));
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    const convertedAmount = isDifferentCurrency && conversionInfo.rate
+      ? Math.round(numAmount * conversionInfo.rate * 100) / 100
+      : numAmount;
+
+    let finalDescription = description.trim();
+    if (isDifferentCurrency && appendToDescription && conversionInfo.rate) {
+      finalDescription = `${finalDescription} (${numAmount.toFixed(2)} ${inputCurrency} @ ${conversionInfo.rate})`;
+    }
+
+    const submitFinalAmount = isMultiParty ? convertedAmount : (isPositive ? convertedAmount : -convertedAmount);
+
     try {
       let payloadPayerShares: ShareItem[] | undefined = undefined;
       let payloadBeneficiaryShares: ShareItem[] | undefined = undefined;
@@ -169,8 +215,8 @@ export default function EditEntryModal({
 
       if (roomId && entry) {
         await updateLocalEntry(roomId, entry.id, {
-          amount: finalAmount.toString(),
-          description: description.trim(),
+          amount: submitFinalAmount.toString(),
+          description: finalDescription,
           payer_shares: payloadPayerShares,
           beneficiary_shares: payloadBeneficiaryShares,
           split_with_user_ids: payloadSplitWith,
@@ -184,9 +230,13 @@ export default function EditEntryModal({
           edited_by_user_id: currentUserId || 0,
           edited_by_username: editorUsername,
           old_amount: entry.amount,
-          new_amount: finalAmount.toString(),
+          new_amount: submitFinalAmount.toString(),
           old_description: entry.description,
-          new_description: description.trim(),
+          new_description: finalDescription,
+          old_payer_shares: entry.payer_shares,
+          new_payer_shares: payloadPayerShares,
+          old_beneficiary_shares: entry.beneficiary_shares,
+          new_beneficiary_shares: payloadBeneficiaryShares,
           edited_at: new Date().toISOString(),
         };
         await saveEntryEdits(entry.id, [newEdit, ...existingEdits]);
@@ -196,8 +246,8 @@ export default function EditEntryModal({
       let didUpdateOutboxCreate = false;
       if (isUnsyncedOffline && entry) {
         didUpdateOutboxCreate = await updateOutboxCreateEntry(entry.id, {
-          amount: finalAmount,
-          description: description.trim(),
+          amount: submitFinalAmount,
+          description: finalDescription,
           payerShares: payloadPayerShares,
           beneficiaryShares: payloadBeneficiaryShares,
           splitWithUserIds: payloadSplitWith,
@@ -209,8 +259,8 @@ export default function EditEntryModal({
           url: `/api/entries/${entry.id}`,
           method: 'PUT',
           body: {
-            amount: finalAmount,
-            description: description.trim(),
+            amount: submitFinalAmount,
+            description: finalDescription,
             payerShares: payloadPayerShares,
             beneficiaryShares: payloadBeneficiaryShares,
             splitWithUserIds: payloadSplitWith,
@@ -249,16 +299,16 @@ export default function EditEntryModal({
           <form id="edit-entry-form" onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">{t('amount')} ({currency})</label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={amount}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => { if (/^\d*\.?\d*$/.test(e.target.value)) setAmount(e.target.value); }}
-                  className="w-full themed-input px-3.5 py-2 text-sm font-bold rounded-xl border border-input bg-background text-foreground"
-                  required
-                  placeholder="0.00"
+                <CurrencyAmountInput
+                  id="edit-amount"
+                  amount={amount}
+                  onAmountChange={setAmount}
+                  roomCurrency={currency}
+                  inputCurrency={inputCurrency}
+                  onInputCurrencyChange={setInputCurrency}
+                  appendToDescription={appendToDescription}
+                  onAppendToDescriptionChange={setAppendToDescription}
+                  onConversionChange={setConversionInfo}
                 />
               </div>
 
@@ -304,20 +354,26 @@ export default function EditEntryModal({
                       shares={payerShares}
                       onChange={setPayerShares}
                       totalAmount={numAmount}
-                      currency={currency}
+                      currency={inputCurrency}
                       label={t('list1WhoPaid')}
                       currentUserId={currentUserId || null}
                       onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
+                      presets={splitPresets}
+                      onSavePreset={savePreset}
+                      onDeletePreset={deletePreset}
                     />
                     <PayerBeneficiarySelector
                       members={members}
                       shares={beneficiaryShares}
                       onChange={setBeneficiaryShares}
                       totalAmount={numAmount}
-                      currency={currency}
+                      currency={inputCurrency}
                       label={t('list2SplitForWhom')}
                       currentUserId={currentUserId || null}
                       onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
+                      presets={splitPresets}
+                      onSavePreset={savePreset}
+                      onDeletePreset={deletePreset}
                     />
                   </div>
                 ) : (
@@ -385,7 +441,7 @@ export default function EditEntryModal({
             form="edit-entry-form"
             type="submit"
             className="btn-primary text-xs px-5 py-2 rounded-xl font-bold shadow-md flex items-center gap-2"
-            disabled={isLoading}
+            disabled={isLoading || (inputCurrency.toUpperCase() !== currency.toUpperCase() && !conversionInfo.isRateReady)}
           >
             <span>💾</span> {isLoading ? '...' : 'Save Edits'}
           </button>

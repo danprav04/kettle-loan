@@ -10,6 +10,7 @@ import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
 import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign, FiArrowDownLeft, FiArrowUpRight, FiCheckCircle, FiUsers, FiActivity, FiShare2 } from 'react-icons/fi';
 import { getEntryDetails, getEntryPayerAndParticipantStrings } from '@/lib/entry-formatting';
+import ShareEntryModal from '@/components/ShareEntryModal';
 
 interface Member {
     id: number;
@@ -35,6 +36,16 @@ export default function BalanceDetailsPage() {
     const [expandedMemberId, setExpandedMemberId] = useState<number | null>(null);
     const [perspectiveUserId, setPerspectiveUserId] = useState<number | null>(null);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [shareModalState, setShareModalState] = useState<{
+        isOpen: boolean;
+        entry: Entry | null;
+        peerMember?: Member | null;
+        contribution?: number;
+        runningP2PBalance?: number;
+    }>({
+        isOpen: false,
+        entry: null,
+    });
 
     // Dashboard features state
     const [viewMode, setViewMode] = useState<'balance' | 'history'>('balance');
@@ -713,24 +724,39 @@ export default function BalanceDetailsPage() {
                                                                                     </p>
                                                                                 </div>
                                                                             </div>
-                                                                            <div className="text-right shrink-0 flex flex-col items-end justify-center gap-1">
-                                                                                <span className={`text-xs sm:text-sm font-bold font-mono px-2 py-0.5 rounded-md ${
-                                                                                    isPositive ? 'text-success bg-success/10' : 'text-danger bg-danger/10'
-                                                                                }`}>
-                                                                                    {isPositive ? '+' : ''}{tx.contribution.toFixed(0)} {currency}
-                                                                                </span>
-                                                                                <div className="text-[11px] font-medium font-mono flex items-center justify-end gap-1 px-1">
-                                                                                    <span className="text-muted-foreground text-[10px] uppercase font-sans font-semibold">{t('totalAfterLog')}</span>
-                                                                                    <span className={`font-bold ${
-                                                                                        tx.runningP2PBalance >= 0.5 
-                                                                                            ? 'text-success dark:text-success/90' 
-                                                                                            : tx.runningP2PBalance <= -0.5 
-                                                                                                ? 'text-danger dark:text-danger/90' 
-                                                                                                : 'text-muted-foreground'
+                                                                            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                                                                                <div className="text-right flex flex-col items-end justify-center gap-1">
+                                                                                    <span className={`text-xs sm:text-sm font-bold font-mono px-2 py-0.5 rounded-md ${
+                                                                                        isPositive ? 'text-success bg-success/10' : 'text-danger bg-danger/10'
                                                                                     }`}>
-                                                                                        {tx.runningP2PBalance >= 0.5 ? '+' : ''}{tx.runningP2PBalance.toFixed(0)} {currency}
+                                                                                        {isPositive ? '+' : ''}{tx.contribution.toFixed(0)} {currency}
                                                                                     </span>
+                                                                                    <div className="text-[11px] font-medium font-mono flex items-center justify-end gap-1 px-1">
+                                                                                        <span className="text-muted-foreground text-[10px] uppercase font-sans font-semibold">{t('totalAfterLog')}</span>
+                                                                                        <span className={`font-bold ${
+                                                                                            tx.runningP2PBalance >= 0.5 
+                                                                                                ? 'text-success dark:text-success/90' 
+                                                                                                : tx.runningP2PBalance <= -0.5 
+                                                                                                    ? 'text-danger dark:text-danger/90' 
+                                                                                                    : 'text-muted-foreground'
+                                                                                        }`}>
+                                                                                            {tx.runningP2PBalance >= 0.5 ? '+' : ''}{tx.runningP2PBalance.toFixed(0)} {currency}
+                                                                                        </span>
+                                                                                    </div>
                                                                                 </div>
+                                                                                <button
+                                                                                    onClick={() => setShareModalState({
+                                                                                        isOpen: true,
+                                                                                        entry: tx,
+                                                                                        peerMember: member,
+                                                                                        contribution: tx.contribution,
+                                                                                        runningP2PBalance: tx.runningP2PBalance,
+                                                                                    })}
+                                                                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+                                                                                    title={t('shareEntry')}
+                                                                                >
+                                                                                    <FiShare2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                                                                </button>
                                                                             </div>
                                                                         </div>
                                                                     );
@@ -784,10 +810,22 @@ export default function BalanceDetailsPage() {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className={`text-xs sm:text-sm font-bold font-mono shrink-0 px-2.5 py-1 rounded-lg ${
-                                                isNegative ? 'text-danger bg-danger/10' : 'text-success bg-success/10'
-                                            }`}>
-                                                {isNegative ? '' : '+'}{amt.toFixed(0)} {currency}
+                                            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                                                <div className={`text-xs sm:text-sm font-bold font-mono px-2.5 py-1 rounded-lg ${
+                                                    isNegative ? 'text-danger bg-danger/10' : 'text-success bg-success/10'
+                                                }`}>
+                                                    {isNegative ? '' : '+'}{amt.toFixed(0)} {currency}
+                                                </div>
+                                                <button
+                                                    onClick={() => setShareModalState({
+                                                        isOpen: true,
+                                                        entry: entry,
+                                                    })}
+                                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+                                                    title={t('shareEntry')}
+                                                >
+                                                    <FiShare2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                                </button>
                                             </div>
                                         </li>
                                     );
@@ -797,6 +835,21 @@ export default function BalanceDetailsPage() {
                     )}
                 </div>
             </div>
+
+            <ShareEntryModal
+                isOpen={shareModalState.isOpen}
+                onClose={() => setShareModalState({ isOpen: false, entry: null })}
+                entry={shareModalState.entry}
+                currency={currency}
+                members={members}
+                currentUserId={user?.userId}
+                roomName={roomName}
+                roomId={roomId}
+                peerMember={shareModalState.peerMember}
+                contribution={shareModalState.contribution}
+                runningP2PBalance={shareModalState.runningP2PBalance}
+                perspectiveMemberName={activePerspectiveMember?.username}
+            />
         </div>
     );
 }
