@@ -26,6 +26,9 @@ describe('Room Statistics Calculations', () => {
         expect(isSettlementEntry({ description: 'סגירת חוב' })).toBe(true);
         expect(isSettlementEntry({ description: 'סגור חוב' })).toBe(true);
         expect(isSettlementEntry({ description: 'התחשבנות' })).toBe(true);
+        expect(isSettlementEntry({ description: 'Возврат за ElAl' })).toBe(true);
+        expect(isSettlementEntry({ description: 'Банковский перевод' })).toBe(true);
+        expect(isSettlementEntry({ description: 'Bank transfer' })).toBe(true);
         expect(isSettlementEntry({ description: 'Dinner with team' })).toBe(false);
         expect(isSettlementEntry({ description: 'Groceries' })).toBe(false);
     });

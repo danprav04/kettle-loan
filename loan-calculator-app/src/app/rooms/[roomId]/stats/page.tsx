@@ -28,6 +28,7 @@ import {
     RoomStatsResult
 } from '@/lib/stats-calc';
 import { getEntryPayerAndParticipantStrings } from '@/lib/entry-formatting';
+import InfoTooltip from '@/components/InfoTooltip';
 
 interface Member extends StatsMember {
     permissions?: {
@@ -303,8 +304,11 @@ export default function StatsPage() {
                             {/* Total Expenses */}
                             <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 shadow-sm flex flex-col justify-between">
                                 <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-between mb-1">
-                                    <span>{t('totalExpenses')}</span>
-                                    <FiTrendingUp className="w-4 h-4 opacity-75" />
+                                    <span className="flex items-center gap-1.5">
+                                        <span>{t('totalExpenses')}</span>
+                                        <InfoTooltip content={t('tooltipTotalExpenses')} align="left" />
+                                    </span>
+                                    <FiTrendingUp className="w-4 h-4 opacity-75 shrink-0" />
                                 </div>
                                 <div className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">
                                     {formatCurrencyAmount(stats.totalExpenses)}{' '}
@@ -315,8 +319,11 @@ export default function StatsPage() {
                             {/* Total Loans */}
                             <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-sm flex flex-col justify-between">
                                 <div className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center justify-between mb-1">
-                                    <span>{t('totalLoans')}</span>
-                                    <FiDollarSign className="w-4 h-4 opacity-75" />
+                                    <span className="flex items-center gap-1.5">
+                                        <span>{t('totalLoans')}</span>
+                                        <InfoTooltip content={t('tooltipTotalLoans')} align="left" />
+                                    </span>
+                                    <FiDollarSign className="w-4 h-4 opacity-75 shrink-0" />
                                 </div>
                                 <div className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 font-mono mt-1">
                                     {formatCurrencyAmount(stats.totalLoans)}{' '}
@@ -327,8 +334,11 @@ export default function StatsPage() {
                             {/* Total Settled */}
                             <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 shadow-sm flex flex-col justify-between">
                                 <div className="text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center justify-between mb-1">
-                                    <span>{t('totalSettlements')}</span>
-                                    <FiRepeat className="w-4 h-4 opacity-75" />
+                                    <span className="flex items-center gap-1.5">
+                                        <span>{t('totalSettlements')}</span>
+                                        <InfoTooltip content={t('tooltipTotalSettlements')} align="right" />
+                                    </span>
+                                    <FiRepeat className="w-4 h-4 opacity-75 shrink-0" />
                                 </div>
                                 <div className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400 font-mono mt-1">
                                     {formatCurrencyAmount(stats.totalSettlements)}{' '}
@@ -339,8 +349,11 @@ export default function StatsPage() {
                             {/* Average per Member */}
                             <div className="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/20 shadow-sm flex flex-col justify-between">
                                 <div className="text-xs font-bold text-sky-600 dark:text-sky-400 flex items-center justify-between mb-1">
-                                    <span>{t('averageExpense')}</span>
-                                    <FiUsers className="w-4 h-4 opacity-75" />
+                                    <span className="flex items-center gap-1.5">
+                                        <span>{t('averageExpense')}</span>
+                                        <InfoTooltip content={t('tooltipAverageExpense')} align="right" />
+                                    </span>
+                                    <FiUsers className="w-4 h-4 opacity-75 shrink-0" />
                                 </div>
                                 <div className="text-xl sm:text-2xl font-black text-sky-600 dark:text-sky-400 font-mono mt-1">
                                     {formatCurrencyAmount(stats.averageExpensePerMember)}{' '}
@@ -357,8 +370,9 @@ export default function StatsPage() {
                                         <FiAward className="w-4 h-4" />
                                     </div>
                                     <div className="min-w-0">
-                                        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                                            {t('biggestExpense')}
+                                        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                            <span>{t('biggestExpense')}</span>
+                                            <InfoTooltip content={t('tooltipBiggestExpense')} align="left" />
                                         </div>
                                         <div className="text-sm sm:text-base font-extrabold text-foreground truncate">
                                             <span className="font-mono text-primary">
@@ -404,12 +418,32 @@ export default function StatsPage() {
                                     <thead>
                                         <tr className="border-b border-card-border bg-muted/50 text-[11px] font-extrabold text-muted-foreground uppercase tracking-wider">
                                             <th className="p-3 sm:p-4 text-start">{t('memberHeader')}</th>
-                                            <th className="p-3 sm:p-4 text-end">{t('paid')} ({currency})</th>
-                                            <th className="p-3 sm:p-4 text-end">{t('owes')} ({currency})</th>
+                                            <th className="p-3 sm:p-4 text-end">
+                                                <div className="inline-flex items-center justify-end gap-1">
+                                                    <span>{t('paid')} ({currency})</span>
+                                                    <InfoTooltip content={t('tooltipPaid')} align="right" />
+                                                </div>
+                                            </th>
+                                            <th className="p-3 sm:p-4 text-end">
+                                                <div className="inline-flex items-center justify-end gap-1">
+                                                    <span>{t('owes')} ({currency})</span>
+                                                    <InfoTooltip content={t('tooltipOwes')} align="right" />
+                                                </div>
+                                            </th>
                                             {hasSettlements && (
-                                                <th className="p-3 sm:p-4 text-end">{t('settlementsLabel')} ({currency})</th>
+                                                <th className="p-3 sm:p-4 text-end">
+                                                    <div className="inline-flex items-center justify-end gap-1">
+                                                        <span>{t('settlementsLabel')} ({currency})</span>
+                                                        <InfoTooltip content={t('tooltipSettled')} align="right" />
+                                                    </div>
+                                                </th>
                                             )}
-                                            <th className="p-3 sm:p-4 text-end">{t('net')} ({currency})</th>
+                                            <th className="p-3 sm:p-4 text-end">
+                                                <div className="inline-flex items-center justify-end gap-1">
+                                                    <span>{t('net')} ({currency})</span>
+                                                    <InfoTooltip content={t('tooltipNet')} align="right" />
+                                                </div>
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-card-border/60">

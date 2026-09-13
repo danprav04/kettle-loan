@@ -248,7 +248,17 @@
     "paidShareOfTotal": "{percent}% of paid",
     "observerBadge": "Observer",
     "settlementsLabel": "Settled",
-    "roomOverview": "Room Overview"
+    "roomOverview": "Room Overview",
+    "tooltipNotePrefix": "Important Note:",
+    "tooltipTotalExpenses": "Sum of all shared group expenses in the room. If debt repayments or transfers between members were recorded as regular expenses, they artificially inflate this total.",
+    "tooltipTotalLoans": "Sum of direct cash loans between members (negative amount entries). Normal shared expenses with shares are not counted here.",
+    "tooltipTotalSettlements": "Sum of direct debt repayments and transfers (matching keywords like settle, repayment, return, transfer, etc.). These settle existing debts and are not counted as room expenses.",
+    "tooltipAverageExpense": "Total expenses divided equally by the number of active participants. If members have unequal share weights (e.g. 1 individual vs a couple with 2 shares), this average does not represent personal expected spending.",
+    "tooltipBiggestExpense": "Single largest expense record in the room. Loans and debt settlements are excluded.",
+    "tooltipPaid": "How much money this member physically paid out of pocket for the group (including paying for others and any repayments recorded as expenses).",
+    "tooltipOwes": "Member's allocated share of expenses ('consumption') based on entry percentages. If someone repaid a debt to you via an expense entry, your 'owes' temporarily increases, though your net balance remains accurate.",
+    "tooltipSettled": "Debt settlement balance. Positive (+) means the member repaid debt to others; negative (−) means the member received debt repayment.",
+    "tooltipNet": "Final net balance (Paid − Owes + Settled). Green (+) means the group owes this amount back to you. Red (−) means you owe this amount to others. The sum of all member nets strictly equals 0."
   },
   "Dialog": {
     "cancel": "Cancel",

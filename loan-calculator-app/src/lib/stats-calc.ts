@@ -63,7 +63,10 @@ export function isSettlementEntry(entry: { description?: string | null }): boole
         'расчёт',
         'סגירת חוב',
         'סגור חוב',
-        'התחשב'
+        'התחשב',
+        'возврат',
+        'перевод',
+        'transfer'
     ];
     return settlementKeywords.some(kw => desc.includes(kw));
 }
