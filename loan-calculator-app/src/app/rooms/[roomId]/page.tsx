@@ -290,7 +290,7 @@ export default function RoomPage() {
 
     const handleLeaveRoom = async () => {
         if (Math.abs(balance) > 0.01) {
-            setNotification('You cannot leave the room while you have a non-zero balance.');
+            setNotification(t('leaveRoomNonZeroBalance'));
             return;
         }
 
@@ -298,12 +298,12 @@ export default function RoomPage() {
             const adminCount = members.filter(m => m.permissions?.canAdmin).length;
             const activeUserCount = members.filter(m => m.permissions?.canView).length;
             if (adminCount <= 1 && activeUserCount > 1) {
-                setNotification('You are the last admin. Promote someone else first.');
+                setNotification(t('leaveRoomLastAdmin'));
                 return;
             }
         }
 
-        if (confirm('Are you sure you want to leave this room?')) {
+        if (confirm(t('leaveRoomConfirm'))) {
             setIsLoading(true);
             try {
                 await handleApi({
@@ -312,7 +312,7 @@ export default function RoomPage() {
                 });
                 router.push('/');
             } catch (err: any) {
-                setNotification(err.message || 'Failed to leave room.');
+                setNotification(err.message || t('leaveRoomFailed'));
                 setIsLoading(false);
             }
         }
@@ -501,7 +501,7 @@ export default function RoomPage() {
                                     <button
                                         onClick={() => setIsAdminPanelOpen(true)}
                                         className="absolute right-0 top-0 px-2.5 py-1.5 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 text-purple-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md border border-purple-500/30 hover:scale-105"
-                                        title="Room Administration"
+                                        title={t('adminTitle')}
                                     >
                                         <FiShield className="text-purple-400" /> <span className="hidden sm:inline">{t('adminBtn')}</span>
                                     </button>
@@ -509,9 +509,9 @@ export default function RoomPage() {
                                 <button
                                     onClick={handleLeaveRoom}
                                     className="absolute left-0 top-0 px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm border border-red-500/20"
-                                    title="Leave Room"
+                                    title={t('leaveRoomTitle')}
                                 >
-                                    <FiLogOut /> <span className="hidden sm:inline">Leave</span>
+                                    <FiLogOut /> <span className="hidden sm:inline">{t('leaveBtn')}</span>
                                 </button>
                             </div>
 
