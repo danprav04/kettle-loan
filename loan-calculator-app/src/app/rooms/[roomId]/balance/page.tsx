@@ -218,7 +218,7 @@ export default function BalanceDetailsPage() {
             return {
                 text: isSelf
                     ? t('owesYou', { amount: absBalance.toFixed(0), currency })
-                    : t('owesMember', { member: targetMemberName, amount: absBalance.toFixed(0), currency }),
+                    : t('memberOwes', { member: targetMemberName, amount: absBalance.toFixed(0), currency }),
                 color: 'text-success bg-success/15 border-success/30'
             };
         }
@@ -226,7 +226,7 @@ export default function BalanceDetailsPage() {
             return {
                 text: isSelf
                     ? t('youOwe', { amount: absBalance.toFixed(0), currency })
-                    : t('memberOwes', { member: targetMemberName, amount: absBalance.toFixed(0), currency }),
+                    : t('owesMember', { member: targetMemberName, amount: absBalance.toFixed(0), currency }),
                 color: 'text-danger bg-danger/15 border-danger/30'
             };
         }
