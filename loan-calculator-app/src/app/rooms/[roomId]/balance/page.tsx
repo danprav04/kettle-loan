@@ -210,9 +210,12 @@ export default function BalanceDetailsPage() {
         });
     }, [entries, searchQuery, filterType]);
 
+    const activePerspectiveMember = members.find(m => m.id === activePerspectiveUserId);
+
     const getBalanceText = (balance: number, targetMemberName: string) => {
         const absBalance = Math.abs(balance);
         const isSelf = activePerspectiveUserId === user?.userId;
+        const perspectiveName = activePerspectiveMember?.username || t('me');
 
         if (balance >= 0.5) {
             return {
@@ -226,14 +229,12 @@ export default function BalanceDetailsPage() {
             return {
                 text: isSelf
                     ? t('youOwe', { amount: absBalance.toFixed(0), currency })
-                    : t('owesMember', { member: targetMemberName, amount: absBalance.toFixed(0), currency }),
+                    : t('memberOwes', { member: perspectiveName, amount: absBalance.toFixed(0), currency }),
                 color: 'text-danger bg-danger/15 border-danger/30'
             };
         }
         return { text: t('settledUp'), color: 'text-muted-foreground bg-muted/50 border-card-border' };
     };
-
-    const activePerspectiveMember = members.find(m => m.id === activePerspectiveUserId);
 
     const handleShareAsPdf = async () => {
         setIsGeneratingPdf(true);

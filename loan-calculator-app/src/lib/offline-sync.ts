@@ -1,6 +1,6 @@
 // src/lib/offline-sync.ts
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { calculateAllMemberBalances, calculatePeerToPeerBalances, PeerToPeerTransaction, PeerBreakdown } from './balance-calc';
+import { calculateAllMemberBalances, calculatePeerToPeerBalances, calculateSimplifiedDebts, PeerToPeerTransaction, PeerBreakdown, SimplifiedTransfer } from './balance-calc';
 
 const DB_NAME = 'loan-calculator-db';
 const DB_VERSION = 5;
@@ -174,7 +174,7 @@ export async function getOutboxCount(): Promise<number> {
     return db.count(OUTBOX_STORE);
 }
 
-export { calculateAllMemberBalances, calculatePeerToPeerBalances, type PeerToPeerTransaction, type PeerBreakdown };
+export { calculateAllMemberBalances, calculatePeerToPeerBalances, calculateSimplifiedDebts, type PeerToPeerTransaction, type PeerBreakdown, type SimplifiedTransfer };
 
 export const recalculateBalances = (entries: Entry[], members: Member[], currentUserId: number) => {
     const finalBalances = calculateAllMemberBalances(entries, members);

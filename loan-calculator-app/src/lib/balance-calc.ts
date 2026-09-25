@@ -110,11 +110,63 @@ export interface PeerBreakdown<T = BalanceCalcEntry> {
     transactions: PeerToPeerTransaction<T>[];
 }
 
+export interface SimplifiedTransfer {
+    fromUserId: number;
+    toUserId: number;
+    amount: number;
+}
+
+export function calculateSimplifiedDebts(
+    canonicalBalances: { [userId: number]: number },
+    memberIds: number[]
+): SimplifiedTransfer[] {
+    const creditors: { userId: number; amount: number }[] = [];
+    const debtors: { userId: number; amount: number }[] = [];
+
+    memberIds.forEach(id => {
+        const bal = canonicalBalances[id] || 0;
+        if (bal > 0.005) {
+            creditors.push({ userId: id, amount: bal });
+        } else if (bal < -0.005) {
+            debtors.push({ userId: id, amount: -bal });
+        }
+    });
+
+    creditors.sort((a, b) => b.amount - a.amount);
+    debtors.sort((a, b) => b.amount - a.amount);
+
+    const transfers: SimplifiedTransfer[] = [];
+    let cIdx = 0;
+    let dIdx = 0;
+
+    while (cIdx < creditors.length && dIdx < debtors.length) {
+        const creditor = creditors[cIdx];
+        const debtor = debtors[dIdx];
+
+        const settleAmount = Math.min(creditor.amount, debtor.amount);
+        if (settleAmount > 0.005) {
+            transfers.push({
+                fromUserId: debtor.userId,
+                toUserId: creditor.userId,
+                amount: Math.round(settleAmount * 100) / 100
+            });
+        }
+
+        creditor.amount -= settleAmount;
+        debtor.amount -= settleAmount;
+
+        if (creditor.amount < 0.005) cIdx++;
+        if (debtor.amount < 0.005) dIdx++;
+    }
+
+    return transfers;
+}
+
 export const calculatePeerToPeerBalances = <T extends BalanceCalcEntry = BalanceCalcEntry>(
     entries: T[],
     members: BalanceCalcMember[],
     perspectiveUserId: number,
-    options?: { isChronological?: boolean }
+    options?: { isChronological?: boolean; simplifyDebts?: boolean }
 ): Map<number, PeerBreakdown<T>> => {
     const breakdown = new Map<number, PeerBreakdown<T>>();
     if (!perspectiveUserId || !members.length || !entries.length) {
@@ -269,6 +321,34 @@ export const calculatePeerToPeerBalances = <T extends BalanceCalcEntry = Balance
                 });
             }
         }
+    }
+
+    if (options?.simplifyDebts !== false) {
+        const canonicalBalances = calculateAllMemberBalances(entries, members);
+        const simplifiedTransfers = calculateSimplifiedDebts(
+            canonicalBalances,
+            calcMembers.map(m => m.id)
+        );
+
+        otherMembers.forEach(other => {
+            const data = breakdown.get(other.id);
+            if (data) {
+                const iOweOther = simplifiedTransfers.find(
+                    t => t.fromUserId === perspectiveUserId && t.toUserId === other.id
+                );
+                const otherOwesMe = simplifiedTransfers.find(
+                    t => t.fromUserId === other.id && t.toUserId === perspectiveUserId
+                );
+
+                if (iOweOther) {
+                    data.netBalance = -iOweOther.amount;
+                } else if (otherOwesMe) {
+                    data.netBalance = otherOwesMe.amount;
+                } else {
+                    data.netBalance = 0;
+                }
+            }
+        });
     }
 
     breakdown.forEach(value => value.transactions.reverse());

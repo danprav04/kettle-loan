@@ -48,8 +48,8 @@ describe('calculatePeerToPeerBalances', () => {
             expect(p2pSum).toBeCloseTo(canonical[m.id], 1);
         }
 
-        // Specific assertions for Inna (userId: 1)
-        const innaP2P = calculatePeerToPeerBalances([entry], members, 1);
+        // Specific assertions for Inna (userId: 1) with prorating (unsimplified)
+        const innaP2P = calculatePeerToPeerBalances([entry], members, 1, { simplifyDebts: false });
         const innaToElvira = innaP2P.get(4)?.netBalance ?? 0;
         const innaToMarina = innaP2P.get(3)?.netBalance ?? 0;
         const innaToIra = innaP2P.get(2)?.netBalance ?? 0;
@@ -63,14 +63,53 @@ describe('calculatePeerToPeerBalances', () => {
         expect(innaToMarina).toBeLessThan(0); // owes Marina
 
         // Verify skew symmetry: Marina looking at Inna
-        const marinaP2P = calculatePeerToPeerBalances([entry], members, 3);
+        const marinaP2P = calculatePeerToPeerBalances([entry], members, 3, { simplifyDebts: false });
         const marinaToInna = marinaP2P.get(1)?.netBalance ?? 0;
         expect(marinaToInna).toBeCloseTo(-innaToMarina, 2);
 
         // Verify skew symmetry: Elvira looking at Inna
-        const elviraP2P = calculatePeerToPeerBalances([entry], members, 4);
+        const elviraP2P = calculatePeerToPeerBalances([entry], members, 4, { simplifyDebts: false });
         const elviraToInna = elviraP2P.get(1)?.netBalance ?? 0;
         expect(elviraToInna).toBeCloseTo(-innaToElvira, 2);
+    });
+
+    it('should simplify multi-party room debts so net debtors directly owe net creditors', () => {
+        // Scenario matching user trip:
+        // Marina paid for hotels/activities (Creditor: +4000)
+        // Elvira is small debtor (-400)
+        // Ira is debtor (-1600)
+        // Inna is debtor (-2000)
+        const entries: BalanceCalcEntry[] = [
+            {
+                amount: 4000,
+                user_id: 3, // Marina
+                description: 'Big trip expense',
+                payer_shares: [{ userId: 3, percentage: 100 }],
+                beneficiary_shares: [
+                    { userId: 1, percentage: 50 },  // Inna: 2000
+                    { userId: 2, percentage: 40 },  // Ira: 1600
+                    { userId: 4, percentage: 10 },  // Elvira: 400
+                ],
+            },
+        ];
+
+        // Inna's perspective: owes Marina 2000, settled with Elvira and Ira
+        const innaP2P = calculatePeerToPeerBalances(entries, members, 1);
+        expect(innaP2P.get(3)?.netBalance).toBe(-2000); // owes Marina
+        expect(innaP2P.get(2)?.netBalance).toBe(0); // settled with Ira
+        expect(innaP2P.get(4)?.netBalance).toBe(0); // settled with Elvira
+
+        // Elvira's perspective: owes Marina 400, settled with Inna and Ira
+        const elviraP2P = calculatePeerToPeerBalances(entries, members, 4);
+        expect(elviraP2P.get(3)?.netBalance).toBe(-400); // owes Marina
+        expect(elviraP2P.get(1)?.netBalance).toBe(0); // settled with Inna
+        expect(elviraP2P.get(2)?.netBalance).toBe(0); // settled with Ira
+
+        // Marina's perspective: owed by Inna, Ira, and Elvira
+        const marinaP2P = calculatePeerToPeerBalances(entries, members, 3);
+        expect(marinaP2P.get(1)?.netBalance).toBe(2000); // Inna owes Marina
+        expect(marinaP2P.get(2)?.netBalance).toBe(1600); // Ira owes Marina
+        expect(marinaP2P.get(4)?.netBalance).toBe(400);  // Elvira owes Marina
     });
 
     it('should correctly handle multi-payer cruise where one person pays their exact share (Entry #3 reproduction)', () => {
