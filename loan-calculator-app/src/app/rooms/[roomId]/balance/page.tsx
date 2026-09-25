@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
-import { getRoomData, Entry, addLocalEntry, saveRoomData, calculateAllMemberBalances } from '@/lib/offline-sync';
+import { getRoomData, Entry, addLocalEntry, saveRoomData, calculateAllMemberBalances, calculatePeerToPeerBalances, PeerBreakdown } from '@/lib/offline-sync';
 import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
 import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign, FiArrowDownLeft, FiArrowUpRight, FiCheckCircle, FiUsers, FiActivity, FiShare2 } from 'react-icons/fi';
@@ -17,8 +17,6 @@ interface Member {
     username: string;
     permissions?: { canAdmin?: boolean; canAddEntries?: boolean; canParticipate?: boolean; canView?: boolean };
 }
-
-type PeerToPeerTransaction = Entry & { contribution: number; runningP2PBalance: number };
 
 export default function BalanceDetailsPage() {
     const params = useParams<{ roomId: string }>();
@@ -190,104 +188,12 @@ export default function BalanceDetailsPage() {
 
     const peerToPeerBalances = useMemo(() => {
         if (!user?.userId || !members.length || !entries.length) {
-            return new Map<number, { netBalance: number; transactions: PeerToPeerTransaction[] }>();
+            return new Map<number, PeerBreakdown<Entry>>();
         }
 
-        const calcMembers = members.filter(m => m.permissions?.canParticipate !== false);
-        const breakdown = new Map<number, { netBalance: number; transactions: PeerToPeerTransaction[] }>();
-        const currentUserId = activePerspectiveUserId;
+        return calculatePeerToPeerBalances<Entry>(entries, members as any, activePerspectiveUserId);
+    }, [entries, members, user?.userId, activePerspectiveUserId]);
 
-        otherMembers.forEach(member => {
-            breakdown.set(member.id, { netBalance: 0, transactions: [] });
-        });
-
-        const chronologicalEntries = [...entries].reverse();
-
-        for (const entry of chronologicalEntries) {
-            const amount = parseFloat(entry.amount);
-
-            if (entry.payer_shares && entry.beneficiary_shares && Array.isArray(entry.payer_shares) && Array.isArray(entry.beneficiary_shares)) {
-                const myPayer = entry.payer_shares.find(p => p.userId === currentUserId);
-                const myBen = entry.beneficiary_shares.find(b => b.userId === currentUserId);
-                const myPaid = myPayer ? amount * (myPayer.percentage / 100) : 0;
-                const myOwed = myBen ? amount * (myBen.percentage / 100) : 0;
-                const netMe = myPaid - myOwed;
-
-                otherMembers.forEach(other => {
-                    if (breakdown.has(other.id)) {
-                        const oPayer = entry.payer_shares!.find(p => p.userId === other.id);
-                        const oBen = entry.beneficiary_shares!.find(b => b.userId === other.id);
-                        const oPaid = oPayer ? amount * (oPayer.percentage / 100) : 0;
-                        const oOwed = oBen ? amount * (oBen.percentage / 100) : 0;
-                        const netOther = oPaid - oOwed;
-
-                        if (Math.abs(netOther) > 0.001 || Math.abs(netMe) > 0.001) {
-                            const data = breakdown.get(other.id)!;
-                            const contrib = netMe > 0 && netOther < 0 ? Math.min(netMe, Math.abs(netOther)) : (netMe < 0 && netOther > 0 ? -Math.min(Math.abs(netMe), netOther) : 0);
-                            if (Math.abs(contrib) > 0.001) {
-                                data.netBalance += contrib;
-                                data.transactions.push({ ...entry, contribution: contrib, runningP2PBalance: data.netBalance });
-                            }
-                        }
-                    }
-                });
-                continue;
-            }
-
-            const payerId = entry.user_id;
-
-            if (amount > 0) { // Expense
-                const participants = entry.split_with_user_ids;
-                if (!participants || participants.length === 0) continue;
-                const share = amount / participants.length;
-
-                if (payerId === currentUserId) {
-                    participants.forEach(pId => {
-                        if (pId !== currentUserId && breakdown.has(pId)) {
-                            const data = breakdown.get(pId)!;
-                            const contribution = share;
-                            data.netBalance += contribution;
-                            data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
-                        }
-                    });
-                } else if (participants.includes(currentUserId) && breakdown.has(payerId)) {
-                    const data = breakdown.get(payerId)!;
-                    const contribution = -share;
-                    data.netBalance += contribution;
-                    data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
-                }
-            } else if (amount < 0) { // Loan
-                const loanAmount = Math.abs(amount);
-                const borrowerId = payerId;
-                const participants = entry.split_with_user_ids;
-                const lenders = participants && participants.length > 0
-                    ? calcMembers.filter(m => participants.includes(m.id))
-                    : [];
-
-                if (lenders.length === 0) continue;
-                const creditPerLender = loanAmount / lenders.length;
-
-                if (borrowerId === currentUserId) {
-                    lenders.forEach(lender => {
-                        if (breakdown.has(lender.id)) {
-                            const data = breakdown.get(lender.id)!;
-                            const contribution = -creditPerLender;
-                            data.netBalance += contribution;
-                            data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
-                        }
-                    });
-                } else if (lenders.some(l => l.id === currentUserId) && breakdown.has(borrowerId)) {
-                    const data = breakdown.get(borrowerId)!;
-                    const contribution = creditPerLender;
-                    data.netBalance += contribution;
-                    data.transactions.push({ ...entry, contribution, runningP2PBalance: data.netBalance });
-                }
-            }
-        }
-
-        breakdown.forEach(value => value.transactions.reverse());
-        return breakdown;
-    }, [entries, members, user, otherMembers]);
 
     // Filtered history list
     const filteredHistory = useMemo(() => {
