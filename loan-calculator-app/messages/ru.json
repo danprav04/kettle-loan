@@ -292,6 +292,7 @@
     "settlementMapSubtitleDirect": "Прямой баланс по совместным тратам между каждой парой участников",
     "comparisonBadge": "⚡ {simplifiedCount} вместо {directCount} прямых переводов (-{savedCount} перевода, {savedVolume} {currency} транзитных оплат исключено)",
     "comparisonBadgeEqual": "Прямые расчеты и упрощение совпадают (нет транзитных посредников)",
+    "directTransfersNotice": "В прямых расчетах",
     "directVolumeLabel": "В прямых расчетах: {amount} {currency}",
     "simplifiedVolumeLabel": "При упрощении: {amount} {currency}",
     "savingsLabel": "Экономия: -{count} {count, plural, one{перевод} few{перевода} many{переводов} other{перевода}}"

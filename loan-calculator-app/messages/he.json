@@ -292,6 +292,7 @@
     "settlementMapSubtitleDirect": "מאזן הדדי ישיר של הוצאות משותפות בין כל זוג משתתפים",
     "comparisonBadge": "⚡ {simplifiedCount} במקום {directCount} העברות ישירות (-{savedCount} העברות, נחסכו {savedVolume} {currency} בתשלומי מעבר)",
     "comparisonBadgeEqual": "ההעברות הישירות והמפושטות זהות (ללא מתווכים)",
+    "directTransfersNotice": "בהעברות ישירות",
     "directVolumeLabel": "בהתחשבנות ישירה: {amount} {currency}",
     "simplifiedVolumeLabel": "בפישוט חובות: {amount} {currency}",
     "savingsLabel": "חיסכון: -{count} {count, plural, one{העברה} other{העברות}}"
