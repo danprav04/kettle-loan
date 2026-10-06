@@ -8,6 +8,7 @@ import {
     StatsMember
 } from '../lib/stats-calc';
 import { Entry } from '../lib/offline-sync';
+import { calculateSimplifiedDebts } from '../lib/balance-calc';
 
 describe('Room Statistics Calculations', () => {
     const members: StatsMember[] = [
@@ -260,5 +261,50 @@ describe('Room Statistics Calculations', () => {
 
         // Sum of all member nets must be 0
         expect(Math.abs(sumNet)).toBeLessThan(0.01);
+    });
+
+    it('should generate optimal simplified debt transfers for room settlement', () => {
+        // Kettle Room real test case:
+        // Marina (+16,333), Ira (-12,298), Inna (-2,518), Elvira (-1,517)
+        const canonicalBalances = {
+            1: 16333,   // Marina
+            2: -12298,  // Ira
+            3: -2518,   // Inna
+            4: -1517    // Elvira
+        };
+        const memberIds = [1, 2, 3, 4];
+
+        const transfers = calculateSimplifiedDebts(canonicalBalances, memberIds);
+
+        // Exactly 3 transfers clear all debts across 4 people directly to Marina
+        expect(transfers).toHaveLength(3);
+
+        const totalTransferAmount = transfers.reduce((sum: number, t: any) => sum + t.amount, 0);
+        expect(totalTransferAmount).toBe(16333);
+
+        // Verify each transfer goes to Marina (1)
+        expect(transfers.every((t: any) => t.toUserId === 1)).toBe(true);
+
+        // Ira (2) pays 12298 to Marina (1)
+        const iraTransfer = transfers.find((t: any) => t.fromUserId === 2);
+        expect(iraTransfer).toEqual({ fromUserId: 2, toUserId: 1, amount: 12298 });
+
+        // Inna (3) pays 2518 to Marina (1)
+        const innaTransfer = transfers.find((t: any) => t.fromUserId === 3);
+        expect(innaTransfer).toEqual({ fromUserId: 3, toUserId: 1, amount: 2518 });
+
+        // Elvira (4) pays 1517 to Marina (1)
+        const elviraTransfer = transfers.find((t: any) => t.fromUserId === 4);
+        expect(elviraTransfer).toEqual({ fromUserId: 4, toUserId: 1, amount: 1517 });
+    });
+
+    it('should return empty transfers when all balances are fully settled', () => {
+        const settledBalances = {
+            1: 0,
+            2: 0,
+            3: 0
+        };
+        const transfers = calculateSimplifiedDebts(settledBalances, [1, 2, 3]);
+        expect(transfers).toEqual([]);
     });
 });

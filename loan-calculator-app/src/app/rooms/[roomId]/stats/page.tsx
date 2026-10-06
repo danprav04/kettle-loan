@@ -29,6 +29,7 @@ import {
 } from '@/lib/stats-calc';
 import { getEntryPayerAndParticipantStrings } from '@/lib/entry-formatting';
 import InfoTooltip from '@/components/InfoTooltip';
+import DebtSettlementMap from '@/components/DebtSettlementMap';
 
 interface Member extends StatsMember {
     permissions?: {
@@ -400,6 +401,14 @@ export default function StatsPage() {
                                 </span>
                             </div>
                         </div>
+
+                        {/* Visual Debt Simplification Map */}
+                        <DebtSettlementMap
+                            memberContributions={stats.memberContributions}
+                            members={members}
+                            currency={currency}
+                            currentUserId={user?.userId}
+                        />
 
                         {/* Member Contributions Table */}
                         <div className="space-y-3 pt-2">
