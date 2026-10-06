@@ -97,6 +97,11 @@ export const calculateAllMemberBalances = (
         }
     });
 
+    Object.keys(finalBalances).forEach(key => {
+        const id = parseInt(key, 10);
+        finalBalances[id] = Math.round(finalBalances[id] * 100) / 100;
+    });
+
     return finalBalances;
 };
 
@@ -107,6 +112,9 @@ export type PeerToPeerTransaction<T = BalanceCalcEntry> = T & {
 
 export interface PeerBreakdown<T = BalanceCalcEntry> {
     netBalance: number;
+    directNetBalance: number;
+    simplifiedNetBalance: number;
+    reallocatedAmount: number;
     transactions: PeerToPeerTransaction<T>[];
 }
 
@@ -184,7 +192,13 @@ export const calculatePeerToPeerBalances = <T extends BalanceCalcEntry = Balance
     const otherMembers = members.filter(m => m.id !== perspectiveUserId && isParticipating(m));
 
     otherMembers.forEach(member => {
-        breakdown.set(member.id, { netBalance: 0, transactions: [] });
+        breakdown.set(member.id, {
+            netBalance: 0,
+            directNetBalance: 0,
+            simplifiedNetBalance: 0,
+            reallocatedAmount: 0,
+            transactions: []
+        });
     });
 
     const chronologicalEntries = [...entries];
@@ -242,8 +256,8 @@ export const calculatePeerToPeerBalances = <T extends BalanceCalcEntry = Balance
                             data.netBalance += contrib;
                             data.transactions.push({
                                 ...entry,
-                                contribution: contrib,
-                                runningP2PBalance: data.netBalance
+                                contribution: Math.round(contrib * 100) / 100,
+                                runningP2PBalance: Math.round(data.netBalance * 100) / 100
                             });
                         }
                     }
@@ -271,8 +285,8 @@ export const calculatePeerToPeerBalances = <T extends BalanceCalcEntry = Balance
                         data.netBalance += contribution;
                         data.transactions.push({
                             ...entry,
-                            contribution,
-                            runningP2PBalance: data.netBalance
+                            contribution: Math.round(contribution * 100) / 100,
+                            runningP2PBalance: Math.round(data.netBalance * 100) / 100
                         });
                     }
                 });
@@ -282,8 +296,8 @@ export const calculatePeerToPeerBalances = <T extends BalanceCalcEntry = Balance
                 data.netBalance += contribution;
                 data.transactions.push({
                     ...entry,
-                    contribution,
-                    runningP2PBalance: data.netBalance
+                    contribution: Math.round(contribution * 100) / 100,
+                    runningP2PBalance: Math.round(data.netBalance * 100) / 100
                 });
             }
         } else if (amount < 0) { // Legacy Loan
@@ -305,8 +319,8 @@ export const calculatePeerToPeerBalances = <T extends BalanceCalcEntry = Balance
                         data.netBalance += contribution;
                         data.transactions.push({
                             ...entry,
-                            contribution,
-                            runningP2PBalance: data.netBalance
+                            contribution: Math.round(contribution * 100) / 100,
+                            runningP2PBalance: Math.round(data.netBalance * 100) / 100
                         });
                     }
                 });
@@ -316,40 +330,49 @@ export const calculatePeerToPeerBalances = <T extends BalanceCalcEntry = Balance
                 data.netBalance += contribution;
                 data.transactions.push({
                     ...entry,
-                    contribution,
-                    runningP2PBalance: data.netBalance
+                    contribution: Math.round(contribution * 100) / 100,
+                    runningP2PBalance: Math.round(data.netBalance * 100) / 100
                 });
             }
         }
     }
 
-    if (options?.simplifyDebts !== false) {
-        const canonicalBalances = calculateAllMemberBalances(entries, members);
-        const simplifiedTransfers = calculateSimplifiedDebts(
-            canonicalBalances,
-            calcMembers.map(m => m.id)
-        );
+    const canonicalBalances = calculateAllMemberBalances(entries, members);
+    const simplifiedTransfers = calculateSimplifiedDebts(
+        canonicalBalances,
+        calcMembers.map(m => m.id)
+    );
 
-        otherMembers.forEach(other => {
-            const data = breakdown.get(other.id);
-            if (data) {
-                const iOweOther = simplifiedTransfers.find(
-                    t => t.fromUserId === perspectiveUserId && t.toUserId === other.id
-                );
-                const otherOwesMe = simplifiedTransfers.find(
-                    t => t.fromUserId === other.id && t.toUserId === perspectiveUserId
-                );
+    otherMembers.forEach(other => {
+        const data = breakdown.get(other.id);
+        if (data) {
+            const direct = Math.round(data.netBalance * 100) / 100;
+            data.directNetBalance = direct;
 
-                if (iOweOther) {
-                    data.netBalance = -iOweOther.amount;
-                } else if (otherOwesMe) {
-                    data.netBalance = otherOwesMe.amount;
-                } else {
-                    data.netBalance = 0;
-                }
+            const iOweOther = simplifiedTransfers.find(
+                t => t.fromUserId === perspectiveUserId && t.toUserId === other.id
+            );
+            const otherOwesMe = simplifiedTransfers.find(
+                t => t.fromUserId === other.id && t.toUserId === perspectiveUserId
+            );
+
+            let simplified = 0;
+            if (iOweOther) {
+                simplified = -iOweOther.amount;
+            } else if (otherOwesMe) {
+                simplified = otherOwesMe.amount;
             }
-        });
-    }
+
+            data.simplifiedNetBalance = simplified;
+            data.reallocatedAmount = Math.round((simplified - direct) * 100) / 100;
+
+            if (options?.simplifyDebts !== false) {
+                data.netBalance = simplified;
+            } else {
+                data.netBalance = direct;
+            }
+        }
+    });
 
     breakdown.forEach(value => value.transactions.reverse());
     return breakdown;

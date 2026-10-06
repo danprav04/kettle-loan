@@ -8,7 +8,7 @@ import { useSync } from '@/components/SyncProvider';
 import { getRoomData, Entry, addLocalEntry, saveRoomData, calculateAllMemberBalances, calculatePeerToPeerBalances, PeerBreakdown } from '@/lib/offline-sync';
 import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
-import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign, FiArrowDownLeft, FiArrowUpRight, FiCheckCircle, FiUsers, FiActivity, FiShare2 } from 'react-icons/fi';
+import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign, FiArrowDownLeft, FiArrowUpRight, FiCheckCircle, FiUsers, FiActivity, FiShare2, FiZap, FiLayers, FiInfo } from 'react-icons/fi';
 import { getEntryDetails, getEntryPayerAndParticipantStrings } from '@/lib/entry-formatting';
 import ShareEntryModal from '@/components/ShareEntryModal';
 
@@ -50,13 +50,23 @@ export default function BalanceDetailsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterType, setFilterType] = useState<'all' | 'expense' | 'loan' | 'settlement'>('all');
     const [defaultViewSaved, setDefaultViewSaved] = useState(false);
+    const [settlementMode, setSettlementMode] = useState<'simplified' | 'direct'>('simplified');
 
     useEffect(() => {
         const pref = localStorage.getItem(`defaultRoomDashboardView_${roomId}`);
         if (pref && (pref === 'balance' || pref === 'history')) {
             setViewMode(pref);
         }
+        const modePref = localStorage.getItem(`roomSettlementMode_${roomId}`);
+        if (modePref === 'simplified' || modePref === 'direct') {
+            setSettlementMode(modePref);
+        }
     }, [roomId]);
+
+    const handleSettlementModeChange = (mode: 'simplified' | 'direct') => {
+        setSettlementMode(mode);
+        localStorage.setItem(`roomSettlementMode_${roomId}`, mode);
+    };
 
     const handleSetDefaultView = () => {
         localStorage.setItem(`defaultRoomDashboardView_${roomId}`, viewMode);
@@ -191,8 +201,13 @@ export default function BalanceDetailsPage() {
             return new Map<number, PeerBreakdown<Entry>>();
         }
 
-        return calculatePeerToPeerBalances<Entry>(entries, members as any, activePerspectiveUserId);
-    }, [entries, members, user?.userId, activePerspectiveUserId]);
+        return calculatePeerToPeerBalances<Entry>(
+            entries,
+            members as any,
+            activePerspectiveUserId,
+            { simplifyDebts: settlementMode === 'simplified' }
+        );
+    }, [entries, members, user?.userId, activePerspectiveUserId, settlementMode]);
 
 
     // Filtered history list
@@ -313,9 +328,16 @@ export default function BalanceDetailsPage() {
                     </table>`;
                 }
 
+                const reallocHtml = (settlementMode === 'simplified' && Math.abs(p2pData?.reallocatedAmount ?? 0) >= 0.5)
+                    ? `<div style="font-size:11px;color:#64748b;margin-top:2px;font-weight:600">${esc(t('directMutualBalanceLabel'))}: ${(p2pData?.directNetBalance ?? 0).toFixed(0)} ${esc(currency)} &bull; ${esc(t('reallocatedDebtLabel'))}: ${((p2pData?.reallocatedAmount ?? 0) >= 0 ? '+' : '')}${(p2pData?.reallocatedAmount ?? 0).toFixed(0)} ${esc(currency)}</div>`
+                    : '';
+
                 return `<div style="margin-bottom:24px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;page-break-inside:avoid;break-inside:avoid">
                     <div style="background:#f8fafc;padding:12px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
-                        <div style="font-size:15px;font-weight:700;color:#0f172a">${esc(member.username)}</div>
+                        <div>
+                            <div style="font-size:15px;font-weight:700;color:#0f172a">${esc(member.username)}</div>
+                            ${reallocHtml}
+                        </div>
                         <div style="font-size:13px;font-weight:700;color:${balColor(netBalance)}">${esc(balanceInfo.text)}</div>
                     </div>
                     ${txRows}
@@ -334,7 +356,7 @@ export default function BalanceDetailsPage() {
                         <div>
                             <h1 style="font-size:22px;font-weight:800;margin:0;color:#0f172a">${esc(t('pdfReportTitle', { name: displayRoomName }))}</h1>
                             <p style="font-size:14px;color:#64748b;margin-top:4px;margin-bottom:0;font-weight:600">${esc(t('pdfPerspectiveHeader', { name: perspectiveName }))}</p>
-                            <p style="font-size:12px;color:#94a3b8;margin-top:4px;margin-bottom:0;font-weight:500">${esc(generatedAtText)}</p>
+                            <p style="font-size:12px;color:#94a3b8;margin-top:4px;margin-bottom:0;font-weight:500">${esc(generatedAtText)} &bull; ${esc(settlementMode === 'simplified' ? t('settlementModeSimplified') : t('settlementModeDirect'))}</p>
                         </div>
                         <div style="background:${balBg(totalBal)};border:1px solid ${balBorder(totalBal)};border-radius:12px;padding:10px 16px;text-align:right">
                             <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">${esc(t('perspectiveTotalBalance'))}</div>
@@ -494,6 +516,32 @@ export default function BalanceDetailsPage() {
                                     </select>
                                 </div>
                             )}
+                            <div className="flex items-center p-0.5 bg-background rounded-xl border border-card-border shadow-xs shrink-0 text-xs font-bold">
+                                <button
+                                    onClick={() => handleSettlementModeChange('simplified')}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all text-xs font-semibold ${
+                                        settlementMode === 'simplified'
+                                            ? 'bg-primary text-primary-foreground shadow-xs'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                    title={t('simplifiedModeTooltip')}
+                                >
+                                    <FiZap className="w-3.5 h-3.5 shrink-0" />
+                                    <span>{t('settlementModeSimplified')}</span>
+                                </button>
+                                <button
+                                    onClick={() => handleSettlementModeChange('direct')}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all text-xs font-semibold ${
+                                        settlementMode === 'direct'
+                                            ? 'bg-primary text-primary-foreground shadow-xs'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                    title={t('directModeTooltip')}
+                                >
+                                    <FiLayers className="w-3.5 h-3.5 shrink-0" />
+                                    <span>{t('settlementModeDirect')}</span>
+                                </button>
+                            </div>
                             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-extrabold text-xs shadow-sm transition-all ${
                                 totalPerspectiveBalance >= 0.5
                                     ? 'bg-success/15 text-success border-success/30'
@@ -595,6 +643,45 @@ export default function BalanceDetailsPage() {
                                                                 <FiCheckCircle className="w-3.5 h-3.5 text-success shrink-0" />
                                                                 <span>{t('settleUpBtn', { amount: Math.abs(netBalance).toFixed(0), currency })}</span>
                                                             </button>
+                                                        </div>
+                                                    )}
+                                                    {settlementMode === 'simplified' && Math.abs(p2pData?.reallocatedAmount ?? 0) >= 0.5 && (
+                                                        <div className="mt-2.5 mb-3 p-3 sm:p-3.5 rounded-xl bg-primary/10 border border-primary/20 text-xs shadow-xs">
+                                                            <div className="flex items-center justify-between font-bold text-foreground mb-1.5">
+                                                                <span className="flex items-center gap-1.5 text-primary">
+                                                                    <FiInfo className="w-3.5 h-3.5 shrink-0" />
+                                                                    {t('settlementBreakdownTitle')}
+                                                                </span>
+                                                                <span className="font-mono text-primary font-extrabold">
+                                                                    {netBalance >= 0.5 ? '+' : netBalance <= -0.5 ? '-' : ''}{Math.abs(netBalance).toFixed(0)} {currency}
+                                                                </span>
+                                                            </div>
+                                                            <div className="space-y-1 text-muted-foreground text-[11px]">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span>{t('directMutualBalanceLabel')}:</span>
+                                                                    <span className="font-mono font-semibold text-foreground">
+                                                                        {(p2pData?.directNetBalance ?? 0) >= 0.5 ? '+' : ''}{(p2pData?.directNetBalance ?? 0).toFixed(0)} {currency}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center justify-between">
+                                                                    <span>{t('reallocatedDebtLabel')}:</span>
+                                                                    <span className="font-mono font-semibold text-foreground">
+                                                                        {(p2pData?.reallocatedAmount ?? 0) >= 0.5 ? '+' : ''}{(p2pData?.reallocatedAmount ?? 0).toFixed(0)} {currency}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {settlementMode === 'simplified' && Math.abs(netBalance) < 0.5 && Math.abs(p2pData?.directNetBalance ?? 0) >= 0.5 && (
+                                                        <div className="mt-2.5 mb-3 p-3 rounded-xl bg-muted/60 border border-card-border text-xs text-muted-foreground flex items-start gap-2 shadow-xs">
+                                                            <FiInfo className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                                                            <p className="text-[11px] leading-relaxed">
+                                                                {t('debtTransferredNotice', {
+                                                                    amount: Math.abs(p2pData?.directNetBalance ?? 0).toFixed(0),
+                                                                    currency,
+                                                                    direction: (p2pData?.directNetBalance ?? 0) < 0 ? t('youOweDirection') : t('owesYouDirection')
+                                                                })}
+                                                            </p>
                                                         </div>
                                                     )}
                                                     {p2pData?.transactions && p2pData.transactions.length > 0 ? (

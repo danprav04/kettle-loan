@@ -283,4 +283,66 @@ describe('calculatePeerToPeerBalances', () => {
             expect(p2pSum).toBeCloseTo(canonical[m.id], 2);
         });
     });
+
+    it('should provide transparent directNetBalance and reallocatedAmount in simplified and direct modes', () => {
+        // Marina pays 300 for Marina (100), Ira (100), and Elvira (100).
+        // Elvira pays 100 for Elvira (50) and Ira (50).
+        // Total positions:
+        // Marina: +200 creditor
+        // Ira: -150 debtor
+        // Elvira: -50 debtor
+        const entries: BalanceCalcEntry[] = [
+            {
+                amount: 300,
+                user_id: 3, // Marina
+                description: 'Hotel with Marina',
+                payer_shares: [{ userId: 3, percentage: 100 }],
+                beneficiary_shares: [
+                    { userId: 3, percentage: 33.333333 },
+                    { userId: 2, percentage: 33.333333 }, // Ira: 100
+                    { userId: 4, percentage: 33.333334 }, // Elvira: 100
+                ],
+            },
+            {
+                amount: 100,
+                user_id: 4, // Elvira
+                description: 'Dinner with Elvira',
+                payer_shares: [{ userId: 4, percentage: 100 }],
+                beneficiary_shares: [
+                    { userId: 4, percentage: 50 },
+                    { userId: 2, percentage: 50 }, // Ira: 50
+                ],
+            },
+        ];
+
+        // Ira (2) looking in Simplified mode (default):
+        const simplified = calculatePeerToPeerBalances(entries, members, 2, { simplifyDebts: true });
+        const marinaData = simplified.get(3)!;
+        const elviraData = simplified.get(4)!;
+
+        // In simplified mode: Ira pays Marina 150 (direct 100 + 50 reallocated from Elvira)
+        expect(marinaData.netBalance).toBe(-150);
+        expect(marinaData.directNetBalance).toBe(-100);
+        expect(marinaData.simplifiedNetBalance).toBe(-150);
+        expect(marinaData.reallocatedAmount).toBe(-50);
+        expect(marinaData.transactions[0].runningP2PBalance).toBe(-100);
+
+        // Elvira is settled under simplification, but directNetBalance (-50) and reallocatedAmount (+50) are preserved:
+        expect(elviraData.netBalance).toBe(0);
+        expect(elviraData.directNetBalance).toBe(-50);
+        expect(elviraData.simplifiedNetBalance).toBe(0);
+        expect(elviraData.reallocatedAmount).toBe(50);
+        expect(elviraData.transactions[0].runningP2PBalance).toBe(-50);
+
+        // Ira (2) looking in Direct mode (simplifyDebts: false):
+        const direct = calculatePeerToPeerBalances(entries, members, 2, { simplifyDebts: false });
+        const marinaDirect = direct.get(3)!;
+        const elviraDirect = direct.get(4)!;
+
+        // In direct mode: netBalance equals directNetBalance and matches running transaction balance
+        expect(marinaDirect.netBalance).toBe(-100);
+        expect(marinaDirect.transactions[0].runningP2PBalance).toBe(-100);
+        expect(elviraDirect.netBalance).toBe(-50);
+        expect(elviraDirect.transactions[0].runningP2PBalance).toBe(-50);
+    });
 });
