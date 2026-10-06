@@ -404,6 +404,7 @@ export default function StatsPage() {
 
                         {/* Visual Debt Simplification Map */}
                         <DebtSettlementMap
+                            entries={entries}
                             memberContributions={stats.memberContributions}
                             members={members}
                             currency={currency}

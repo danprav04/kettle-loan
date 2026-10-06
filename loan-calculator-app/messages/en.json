@@ -284,7 +284,17 @@
     "clearMemberFilter": "Clear filter",
     "copyPayment": "Copy",
     "copiedPayment": "Copied!",
-    "youTag": "you"
+    "youTag": "you",
+    "settlementModeSimplified": "Simplified",
+    "settlementModeDirect": "Direct",
+    "simplifiedModeTooltip": "Debt simplification: consolidates debt chains for minimal transfers",
+    "directModeTooltip": "Direct settlements: pairwise net balance of shared expenses between each pair",
+    "settlementMapSubtitleDirect": "Direct pairwise balances between each pair of members",
+    "comparisonBadge": "⚡ {simplifiedCount} instead of {directCount} direct transfers (-{savedCount} transfers, {savedVolume} {currency} in transit payments eliminated)",
+    "comparisonBadgeEqual": "Direct and simplified transfers are identical (no transit intermediaries)",
+    "directVolumeLabel": "In direct transfers: {amount} {currency}",
+    "simplifiedVolumeLabel": "Under simplification: {amount} {currency}",
+    "savingsLabel": "Efficiency: -{count} {count, plural, one{transfer} other{transfers}}"
   },
   "Dialog": {
     "cancel": "Cancel",

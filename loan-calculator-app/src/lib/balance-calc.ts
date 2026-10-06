@@ -143,6 +143,14 @@ export function calculateSimplifiedDebts(
     creditors.sort((a, b) => b.amount - a.amount);
     debtors.sort((a, b) => b.amount - a.amount);
 
+    // Minor cent-rounding normalization: ensure total debtors equals total creditors
+    const totalCred = creditors.reduce((sum, c) => sum + c.amount, 0);
+    const totalDeb = debtors.reduce((sum, d) => sum + d.amount, 0);
+    const roundingDiff = Math.round((totalCred - totalDeb) * 100) / 100;
+    if (Math.abs(roundingDiff) > 0.005 && Math.abs(roundingDiff) < 2 && debtors.length > 0) {
+        debtors[debtors.length - 1].amount = Math.round((debtors[debtors.length - 1].amount + roundingDiff) * 100) / 100;
+    }
+
     const transfers: SimplifiedTransfer[] = [];
     let cIdx = 0;
     let dIdx = 0;
@@ -377,4 +385,52 @@ export const calculatePeerToPeerBalances = <T extends BalanceCalcEntry = Balance
     breakdown.forEach(value => value.transactions.reverse());
     return breakdown;
 };
+
+export function calculateDirectTransfers<T extends BalanceCalcEntry = BalanceCalcEntry>(
+    entries: T[],
+    members: BalanceCalcMember[]
+): SimplifiedTransfer[] {
+    if (!entries.length || !members.length) return [];
+
+    const isParticipating = (m: BalanceCalcMember) => {
+        if (m.role === 'observer') return false;
+        if (m.can_participate !== undefined) return m.can_participate !== false;
+        if (m.permissions?.canParticipate !== undefined) return m.permissions.canParticipate !== false;
+        return true;
+    };
+
+    const calcMembers = members.filter(isParticipating);
+    const directTransfers: SimplifiedTransfer[] = [];
+
+    for (let i = 0; i < calcMembers.length; i++) {
+        const memberA = calcMembers[i];
+        const p2p = calculatePeerToPeerBalances(entries, members, memberA.id, { simplifyDebts: false });
+
+        for (let j = i + 1; j < calcMembers.length; j++) {
+            const memberB = calcMembers[j];
+            const data = p2p.get(memberB.id);
+            if (!data) continue;
+
+            const bal = data.directNetBalance;
+            if (bal > 0.005) {
+                // From perspective of A: B has positive balance, so B owes A
+                directTransfers.push({
+                    fromUserId: memberB.id,
+                    toUserId: memberA.id,
+                    amount: Math.round(bal * 100) / 100
+                });
+            } else if (bal < -0.005) {
+                // A owes B
+                directTransfers.push({
+                    fromUserId: memberA.id,
+                    toUserId: memberB.id,
+                    amount: Math.round(-bal * 100) / 100
+                });
+            }
+        }
+    }
+
+    directTransfers.sort((a, b) => b.amount - a.amount);
+    return directTransfers;
+}
 

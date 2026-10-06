@@ -8,7 +8,7 @@ import {
     StatsMember
 } from '../lib/stats-calc';
 import { Entry } from '../lib/offline-sync';
-import { calculateSimplifiedDebts } from '../lib/balance-calc';
+import { calculateSimplifiedDebts, calculateDirectTransfers } from '../lib/balance-calc';
 
 describe('Room Statistics Calculations', () => {
     const members: StatsMember[] = [
@@ -306,5 +306,72 @@ describe('Room Statistics Calculations', () => {
         };
         const transfers = calculateSimplifiedDebts(settledBalances, [1, 2, 3]);
         expect(transfers).toEqual([]);
+    });
+
+    it('should calculate direct pairwise transfers and demonstrate simplification optimization', () => {
+        // Scenario:
+        // Alice (1) pays 100 for Bob (2) only. -> Bob owes Alice 100 directly.
+        // Bob (2) pays 100 for Charlie (3) only. -> Charlie owes Bob 100 directly.
+        const testMembers: StatsMember[] = [
+            { id: 1, username: 'Alice', can_participate: true },
+            { id: 2, username: 'Bob', can_participate: true },
+            { id: 3, username: 'Charlie', can_participate: true }
+        ];
+
+        const testEntries: Entry[] = [
+            {
+                id: 1,
+                amount: '100.00',
+                description: 'Alice paid for Bob',
+                created_at: new Date('2026-01-01').toISOString(),
+                username: 'Alice',
+                user_id: 1,
+                split_with_user_ids: [2],
+                payer_shares: [{ userId: 1, percentage: 100 }],
+                beneficiary_shares: [{ userId: 2, percentage: 100 }]
+            },
+            {
+                id: 2,
+                amount: '100.00',
+                description: 'Bob paid for Charlie',
+                created_at: new Date('2026-01-02').toISOString(),
+                username: 'Bob',
+                user_id: 2,
+                split_with_user_ids: [3],
+                payer_shares: [{ userId: 2, percentage: 100 }],
+                beneficiary_shares: [{ userId: 3, percentage: 100 }]
+            }
+        ];
+
+        // 1. Direct pairwise calculation:
+        // Bob owes Alice 100, Charlie owes Bob 100.
+        // Bob is an intermediary with net 0, but involved in 2 transfers.
+        const directTransfers = calculateDirectTransfers(testEntries, testMembers as any);
+        expect(directTransfers).toHaveLength(2);
+
+        // Bob (2) -> Alice (1) for 100
+        const bobToAlice = directTransfers.find(t => t.fromUserId === 2 && t.toUserId === 1);
+        expect(bobToAlice).toEqual({ fromUserId: 2, toUserId: 1, amount: 100 });
+
+        // Charlie (3) -> Bob (2) for 100
+        const charlieToBob = directTransfers.find(t => t.fromUserId === 3 && t.toUserId === 2);
+        expect(charlieToBob).toEqual({ fromUserId: 3, toUserId: 2, amount: 100 });
+
+        // Total direct transfer volume = 200
+        const totalDirectVolume = directTransfers.reduce((sum, t) => sum + t.amount, 0);
+        expect(totalDirectVolume).toBe(200);
+
+        // 2. Simplified group calculation:
+        // Canonical balances: Alice = +100, Bob = 0, Charlie = -100
+        const canonical = { 1: 100, 2: 0, 3: -100 };
+        const simplifiedTransfers = calculateSimplifiedDebts(canonical, [1, 2, 3]);
+
+        // Only 1 transfer! Charlie (3) pays Alice (1) directly 100!
+        expect(simplifiedTransfers).toHaveLength(1);
+        expect(simplifiedTransfers[0]).toEqual({ fromUserId: 3, toUserId: 1, amount: 100 });
+
+        // Total simplified volume = 100 (halved! 100 eliminated in transit payments)
+        const totalSimplifiedVolume = simplifiedTransfers.reduce((sum, t) => sum + t.amount, 0);
+        expect(totalSimplifiedVolume).toBe(100);
     });
 });

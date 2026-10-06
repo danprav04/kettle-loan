@@ -284,7 +284,17 @@
     "clearMemberFilter": "נקה סינון",
     "copyPayment": "העתק",
     "copiedPayment": "הועתק!",
-    "youTag": "אתה"
+    "youTag": "אתה",
+    "settlementModeSimplified": "מפושט",
+    "settlementModeDirect": "ישיר",
+    "simplifiedModeTooltip": "פישוט חובות: מאחד שרשראות חובות למינימום העברות",
+    "directModeTooltip": "התחשבנות ישירה: מאזן נטו של הוצאות משותפות בין כל זוג משתתפים",
+    "settlementMapSubtitleDirect": "מאזן הדדי ישיר של הוצאות משותפות בין כל זוג משתתפים",
+    "comparisonBadge": "⚡ {simplifiedCount} במקום {directCount} העברות ישירות (-{savedCount} העברות, נחסכו {savedVolume} {currency} בתשלומי מעבר)",
+    "comparisonBadgeEqual": "ההעברות הישירות והמפושטות זהות (ללא מתווכים)",
+    "directVolumeLabel": "בהתחשבנות ישירה: {amount} {currency}",
+    "simplifiedVolumeLabel": "בפישוט חובות: {amount} {currency}",
+    "savingsLabel": "חיסכון: -{count} {count, plural, one{העברה} other{העברות}}"
   },
   "Dialog": {
     "cancel": "ביטול",
