@@ -6,10 +6,9 @@ import { useTranslations } from 'next-intl';
 import { SplitPreset } from '@/lib/hooks/useSplitPresets';
 import { useCustomization } from '@/components/CustomizationProvider';
 
-export interface ShareItem {
-  userId: number;
-  percentage: number;
-}
+import { ShareItem, rebalanceSharesWithLocks } from '@/lib/split-calc';
+export type { ShareItem };
+export { rebalanceSharesWithLocks };
 
 export interface SelectorMember {
   id: number;
@@ -73,29 +72,20 @@ export default function PayerBeneficiarySelector({
   const displayableMembers = members.filter((m) => isMemberActiveParticipant(m) || initialSelectedUserIdsRef.current.has(m.id) || selectedUserIds.has(m.id));
 
   const toggleMember = (userId: number) => {
-    setLockedUserIds(new Set());
-    if (selectedUserIds.has(userId)) {
-      onChange(shares.filter((s) => s.userId !== userId));
-    } else {
-      const nextShares = [...shares, { userId, percentage: 0 }];
-      rebalanceEqual(nextShares.map((s) => s.userId));
-    }
+    setInputStrs({});
+    const nextUserIds = selectedUserIds.has(userId)
+      ? shares.map((s) => s.userId).filter((id) => id !== userId)
+      : [...shares.map((s) => s.userId), userId];
+
+    const { nextShares, nextLocked } = rebalanceSharesWithLocks(nextUserIds, lockedUserIds, shares);
+    setLockedUserIds(nextLocked);
+    onChange(nextShares);
   };
 
   const rebalanceEqual = (userIds: number[]) => {
-    setLockedUserIds(new Set());
-    if (userIds.length === 0) {
-      onChange([]);
-      return;
-    }
-    const count = userIds.length;
-    const basePct = Math.floor((100 / count) * 1e6) / 1e6;
-    const remainder = Math.round((100 - basePct * count) * 1e6) / 1e6;
-
-    const nextShares: ShareItem[] = userIds.map((id, index) => ({
-      userId: id,
-      percentage: index === 0 ? Math.round((basePct + remainder) * 1e6) / 1e6 : basePct,
-    }));
+    setInputStrs({});
+    const { nextShares, nextLocked } = rebalanceSharesWithLocks(userIds, new Set(), []);
+    setLockedUserIds(nextLocked);
     onChange(nextShares);
   };
 
@@ -193,11 +183,15 @@ export default function PayerBeneficiarySelector({
       return { ...s, percentage: Math.round(pct * 1e6) / 1e6 };
     });
 
-    // Fix rounding discrepancies on index 0 (only if <= 0.05% floating point error)
+    // Fix rounding discrepancies on first unlocked share (or index 0 if all locked, only if <= 0.05% floating point error)
     const currTotPct = nextShares.reduce((a, b) => a + b.percentage, 0);
     const diffPct = Math.round((100 - currTotPct) * 1e6) / 1e6;
     if (nextShares.length > 0 && Math.abs(diffPct) > 1e-8 && Math.abs(diffPct) <= 0.05) {
-      nextShares[0].percentage = Math.round((nextShares[0].percentage + diffPct) * 1e6) / 1e6;
+      const firstUnlocked = nextShares.find((s) => !nextLocked.has(s.userId));
+      const targetShare = firstUnlocked || nextShares[0];
+      if (targetShare) {
+        targetShare.percentage = Math.round((targetShare.percentage + diffPct) * 1e6) / 1e6;
+      }
     }
 
     onChange(nextShares);
@@ -334,7 +328,7 @@ export default function PayerBeneficiarySelector({
           {lockedUserIds.size > 0 && (
             <button
               type="button"
-              onClick={() => setLockedUserIds(new Set())}
+              onClick={() => rebalanceEqual(shares.map((s) => s.userId))}
               className="px-2 py-1 bg-warning/20 hover:bg-warning/30 text-warning font-medium rounded-lg transition-all border border-warning/30 text-[11px] ml-auto cursor-pointer"
               title="Click to unlock all custom amounts"
             >
@@ -501,7 +495,13 @@ export default function PayerBeneficiarySelector({
                       e.stopPropagation();
                       const next = new Set(lockedUserIds);
                       next.delete(member.id);
-                      setLockedUserIds(next);
+                      const { nextShares, nextLocked } = rebalanceSharesWithLocks(
+                        shares.map((s) => s.userId),
+                        next,
+                        shares
+                      );
+                      setLockedUserIds(nextLocked);
+                      onChange(nextShares);
                     }}
                   >
                     {t('lockedBadge')}
