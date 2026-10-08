@@ -42,20 +42,73 @@ describe('Customization Settings & Label Logic', () => {
     expect(settings.premadePresets).toBe(false);
   });
 
-  it('defaults custom list labels to empty string and resolves to From and To', () => {
+  it('defaults custom list labels to empty string and resolves to localized defaults', () => {
     expect(DEFAULT_CUSTOMIZATIONS.payerListLabel).toBe('');
     expect(DEFAULT_CUSTOMIZATIONS.beneficiaryListLabel).toBe('');
 
+    // English defaults
     expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.payerListLabel, 'From')).toBe('From');
     expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.beneficiaryListLabel, 'To')).toBe('To');
     expect(resolveListLabel('   ', 'From')).toBe('From');
+
+    // Russian defaults
+    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.payerListLabel, 'От кого')).toBe('От кого');
+    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.beneficiaryListLabel, 'Кому')).toBe('Кому');
+
+    // Hebrew defaults
+    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.payerListLabel, 'ממי')).toBe('ממי');
+    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.beneficiaryListLabel, 'למי')).toBe('למי');
   });
 
   it('uses raw custom user text without modification when specified', () => {
     expect(resolveListLabel('Who paid the bill?', 'From')).toBe('Who paid the bill?');
-    expect(resolveListLabel('Плательщик', 'From')).toBe('Плательщик');
-    expect(resolveListLabel('עבור מי', 'To')).toBe('עבור מי');
+    expect(resolveListLabel('Плательщик', 'От кого')).toBe('Плательщик');
+    expect(resolveListLabel('עבור מי', 'למי')).toBe('עבור מי');
     expect(resolveListLabel('  Borrowers  ', 'To')).toBe('Borrowers');
+  });
+
+  it('correctly computes isAllActive and isMinimalActive profile states', () => {
+    const ALL_FEATURE_KEYS: Array<keyof Omit<CustomizationSettings, 'payerListLabel' | 'beneficiaryListLabel'>> = [
+      'customPresets',
+      'premadePresets',
+      'autoBalance',
+      'syncTotal',
+      'currencyConverter',
+      'detailedBalance',
+      'roomStats',
+      'debtSettlementMap',
+      'exportReports',
+      'entryEditsHistory',
+      'entryShareModal',
+    ];
+
+    // Default state: all active
+    const defaultState = { ...DEFAULT_CUSTOMIZATIONS };
+    expect(ALL_FEATURE_KEYS.every(k => defaultState[k] === true)).toBe(true);
+    expect(ALL_FEATURE_KEYS.every(k => defaultState[k] === false)).toBe(false);
+
+    // Minimal state: minimal active, all inactive
+    const minimalState: CustomizationSettings = {
+      ...DEFAULT_CUSTOMIZATIONS,
+      customPresets: false,
+      premadePresets: false,
+      autoBalance: false,
+      syncTotal: false,
+      currencyConverter: false,
+      detailedBalance: false,
+      roomStats: false,
+      debtSettlementMap: false,
+      exportReports: false,
+      entryEditsHistory: false,
+      entryShareModal: false,
+    };
+    expect(ALL_FEATURE_KEYS.every(k => minimalState[k] === true)).toBe(false);
+    expect(ALL_FEATURE_KEYS.every(k => minimalState[k] === false)).toBe(true);
+
+    // Mixed/custom state: neither is active
+    const mixedState = { ...minimalState, customPresets: true };
+    expect(ALL_FEATURE_KEYS.every(k => mixedState[k] === true)).toBe(false);
+    expect(ALL_FEATURE_KEYS.every(k => mixedState[k] === false)).toBe(false);
   });
 
   it('applies minimal profile by turning all non-core features off', () => {
