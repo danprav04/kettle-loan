@@ -4,6 +4,7 @@ import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import IntlProvider from "@/components/IntlProvider";
 import ThemeProvider from "@/components/ThemeProvider";
 import SimplifiedLayoutProvider from "@/components/SimplifiedLayoutProvider";
+import CustomizationProvider from "@/components/CustomizationProvider";
 import SyncProvider from "@/components/SyncProvider";
 import UserProvider from "@/components/UserProvider";
 import "./globals.css";
@@ -56,11 +57,13 @@ export default function RootLayout({
         <ThemeProvider>
           <IntlProvider>
             <UserProvider>
-              <SimplifiedLayoutProvider>
-                <SyncProvider>
-                  <main>{children}</main>
-                </SyncProvider>
-              </SimplifiedLayoutProvider>
+              <CustomizationProvider>
+                <SimplifiedLayoutProvider>
+                  <SyncProvider>
+                    <main>{children}</main>
+                  </SyncProvider>
+                </SimplifiedLayoutProvider>
+              </CustomizationProvider>
             </UserProvider>
           </IntlProvider>
         </ThemeProvider>

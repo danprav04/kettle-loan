@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { FiLoader } from 'react-icons/fi';
 import { SUPPORTED_CURRENCIES } from '@/lib/currency';
 import { handleApi } from '@/lib/api';
+import { useCustomization } from '@/components/CustomizationProvider';
 
 export interface CurrencyAmountInputProps {
   id?: string;
@@ -92,12 +93,19 @@ export default function CurrencyAmountInput({
   showAppendToggle = true,
 }: CurrencyAmountInputProps) {
   const t = useTranslations('Room');
+  const { customizations } = useCustomization();
 
   const [rate, setRate] = useState<number | null>(null);
   const [rateLastUpdated, setRateLastUpdated] = useState<number | null>(null);
   const [rateIsStale, setRateIsStale] = useState<boolean>(false);
   const [isRateLoading, setIsRateLoading] = useState<boolean>(false);
   const [rateError, setRateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!customizations.currencyConverter && inputCurrency !== roomCurrency) {
+      onInputCurrencyChange(roomCurrency);
+    }
+  }, [customizations.currencyConverter, inputCurrency, roomCurrency, onInputCurrencyChange]);
 
   const isDifferentCurrency = inputCurrency.toUpperCase() !== roomCurrency.toUpperCase();
 
@@ -254,23 +262,29 @@ export default function CurrencyAmountInput({
           required
         />
 
-        <select
-          value={inputCurrency}
-          onChange={(e) => onInputCurrencyChange(e.target.value)}
-          disabled={disabled}
-          aria-label="Select currency"
-          className="shrink-0 px-2 py-2 text-xs font-bold rounded-xl border border-input bg-card text-foreground cursor-pointer themed-input shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
-        >
-          {currencyOptions.map((c) => (
-            <option key={c.code} value={c.code}>
-              {c.code} ({c.symbol})
-            </option>
-          ))}
-        </select>
+        {customizations.currencyConverter ? (
+          <select
+            value={inputCurrency}
+            onChange={(e) => onInputCurrencyChange(e.target.value)}
+            disabled={disabled}
+            aria-label="Select currency"
+            className="shrink-0 px-2 py-2 text-xs font-bold rounded-xl border border-input bg-card text-foreground cursor-pointer themed-input shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            {currencyOptions.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code} ({c.symbol})
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="shrink-0 px-3 py-2 text-xs font-bold rounded-xl border border-input bg-muted text-foreground flex items-center justify-center">
+            {roomCurrency}
+          </span>
+        )}
       </div>
 
       {/* Conversion Banner: Rate info, converted preview, and toggle */}
-      {isDifferentCurrency && (
+      {customizations.currencyConverter && isDifferentCurrency && (
         <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/20 text-xs animate-fadeIn space-y-2 shadow-sm">
           {/* Converted Preview */}
           <div className="flex items-center justify-between">

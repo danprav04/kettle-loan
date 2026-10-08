@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff, FiLoader, FiCheckCircle } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiSun, FiMoon, FiGlobe, FiX, FiLogOut, FiXCircle, FiWifiOff, FiLoader, FiCheckCircle, FiSliders } from 'react-icons/fi';
 import Icon from '@mdi/react';
 import { mdiKettle } from '@mdi/js';
 import { useTheme } from '@/components/ThemeProvider';
@@ -17,6 +17,7 @@ import { useSync } from './SyncProvider';
 import { handleApi } from '@/lib/api';
 import { saveRoomsList, getRoomsList, deleteRoomData } from '@/lib/offline-sync';
 import PushSubscriptionToggle from './PushSubscriptionToggle';
+import CustomizationModal from './CustomizationModal';
 
 interface Room {
     id: number;
@@ -43,6 +44,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const t = useTranslations('Rooms');
     const tAccess = useTranslations('Accessibility');
     const tNotif = useTranslations('Notifications');
+    const tCust = useTranslations('Customization');
     const router = useRouter();
     const pathname = usePathname();
     const [rooms, setRooms] = useState<Room[]>([]);
@@ -50,6 +52,7 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
     const [roomCode, setRoomCode] = useState('');
     const [notification, setNotification] = useState('');
     const [copiedCode, setCopiedCode] = useState<string | null>(null);
+    const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
     const { theme, setTheme } = useTheme();
     const { locale, setLocale } = useLocale();
     const { user, logout } = useUser();
@@ -278,12 +281,23 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                             </button>
                         </div>
                             <PushSubscriptionToggle />
+                            <button
+                                type="button"
+                                onClick={() => setIsCustomizationOpen(true)}
+                                className="flex items-center justify-center w-full p-2 rounded-md transition-colors btn-muted text-card-foreground hover:text-primary cursor-pointer"
+                                title={tCust('title')}
+                                aria-label={tCust('buttonLabel')}
+                            >
+                                <FiSliders size={16} className="me-1.5" />
+                                <span className="font-semibold text-xs">{tCust('buttonLabel')}</span>
+                            </button>
                     </div>
                 </div>
             </aside>
             <ConfirmationDialog isOpen={isLeaveDialogOpen} onClose={() => setIsLeaveDialogOpen(false)} onConfirm={handleLeaveRoom} title={t('leaveRoomTitle')}>
                 {t('leaveRoomConfirmation', { code: selectedRoomToLeave?.code ?? '' })}
             </ConfirmationDialog>
+            <CustomizationModal isOpen={isCustomizationOpen} onClose={() => setIsCustomizationOpen(false)} />
         </>
     );
 }

@@ -78,4 +78,10 @@ CREATE TABLE split_presets (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_split_presets_user_room ON split_presets(user_id, room_id);
+CREATE INDEX idx_split_presets_user_room ON split_presets(user_id, room_id);
+
+CREATE TABLE user_customizations (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

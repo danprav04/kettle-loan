@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { SplitPreset } from '@/lib/hooks/useSplitPresets';
+import { useCustomization } from '@/components/CustomizationProvider';
 
 export interface ShareItem {
   userId: number;
@@ -51,6 +52,7 @@ export default function PayerBeneficiarySelector({
   onDeletePreset,
 }: PayerBeneficiarySelectorProps) {
   const t = useTranslations('Room');
+  const { customizations } = useCustomization();
   const [search, setSearch] = useState('');
   const [lockedUserIds, setLockedUserIds] = useState<Set<number>>(new Set());
   const [inputStrs, setInputStrs] = useState<Record<number, string>>({});
@@ -252,7 +254,7 @@ export default function PayerBeneficiarySelector({
       <div className="flex items-center justify-between flex-wrap gap-2">
         <label className="text-xs font-bold text-foreground uppercase tracking-wider">{label}</label>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {onUpdateTotal && totalAmount > 0 && !isValid && (
+          {onUpdateTotal && totalAmount > 0 && !isValid && customizations.syncTotal && (
             <button
               type="button"
               onClick={() => {
@@ -279,7 +281,7 @@ export default function PayerBeneficiarySelector({
               <span>{t('syncTotalBtn', { sum: currentSumMonetary, currency })}</span>
             </button>
           )}
-          {hasLeftover && (
+          {hasLeftover && customizations.autoBalance && (
             <button
               type="button"
               onClick={distributeRemaining}
@@ -296,7 +298,7 @@ export default function PayerBeneficiarySelector({
         </div>
       </div>
 
-      {allowQuickActions && eligibleMembers.length > 1 && (
+      {allowQuickActions && customizations.premadePresets && eligibleMembers.length > 1 && (
         <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
           <span className="text-muted-foreground font-medium text-[11px]">{t('quick')}</span>
           {currentUserId && eligibleMembers.some((m) => m.id === currentUserId) && (
@@ -342,7 +344,7 @@ export default function PayerBeneficiarySelector({
         </div>
       )}
 
-      {allowQuickActions && (presets.length > 0 || onSavePreset) && (
+      {allowQuickActions && customizations.customPresets && (presets.length > 0 || onSavePreset) && (
         <div className="flex items-center gap-1.5 text-xs flex-wrap pt-1 border-t border-card-border/40 dark:border-white/5">
           <span className="text-muted-foreground font-medium text-[11px] flex items-center gap-1">
             <span className="text-primary font-bold">★</span>

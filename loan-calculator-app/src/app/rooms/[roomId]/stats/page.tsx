@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 import { useSync } from '@/components/SyncProvider';
 import { getRoomData, Entry, saveRoomData } from '@/lib/offline-sync';
 import { useUser } from '@/components/UserProvider';
+import { useCustomization } from '@/components/CustomizationProvider';
 import {
     FiDownload,
     FiFileText,
@@ -47,6 +48,7 @@ export default function StatsPage() {
     const tRoom = useTranslations('Room');
     const { isOnline } = useSync();
     const { user } = useUser();
+    const { customizations } = useCustomization();
     const router = useRouter();
 
     const [entries, setEntries] = useState<Entry[]>([]);
@@ -236,40 +238,42 @@ export default function StatsPage() {
                     {tRoom('backToRoom')}
                 </button>
 
-                <div className="relative group">
-                    <button
-                        disabled={isExporting || !stats}
-                        className="font-bold py-2 px-4 rounded-xl btn-secondary flex items-center text-xs sm:text-sm shadow-sm disabled:opacity-50 transition-all active:scale-95"
-                    >
-                        <FiDownload className="me-2" /> {t('exportData')}
-                    </button>
-                    <div className="absolute right-0 rtl:left-0 rtl:right-auto mt-2 w-52 bg-card rounded-xl shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 border border-card-border overflow-hidden">
-                        <div className="py-1 divide-y divide-card-border/50">
-                            <button
-                                onClick={() => handleExport('xlsx')}
-                                className="w-full text-start flex items-center px-4 py-2.5 text-xs text-foreground hover:bg-muted font-medium transition-colors"
-                            >
-                                <FiGrid className="me-2.5 text-primary text-sm shrink-0" />
-                                <div>
-                                    <div className="font-bold">{t('exportXLSX')}</div>
-                                    <div className="text-[10px] text-muted-foreground">{t('summarySheet')} + {t('entriesSheet')}</div>
-                                </div>
-                            </button>
-                            <button
-                                onClick={() => handleExport('csv')}
-                                className="w-full text-start flex items-center px-4 py-2.5 text-xs text-foreground hover:bg-muted font-medium transition-colors"
-                            >
-                                <FiFileText className="me-2.5 text-primary text-sm shrink-0" /> {t('exportCSV')}
-                            </button>
-                            <button
-                                onClick={() => handleExport('txt')}
-                                className="w-full text-start flex items-center px-4 py-2.5 text-xs text-foreground hover:bg-muted font-medium transition-colors"
-                            >
-                                <FiFileText className="me-2.5 text-primary text-sm shrink-0" /> {t('exportTXT')}
-                            </button>
+                {customizations.exportReports && (
+                    <div className="relative group">
+                        <button
+                            disabled={isExporting || !stats}
+                            className="font-bold py-2 px-4 rounded-xl btn-secondary flex items-center text-xs sm:text-sm shadow-sm disabled:opacity-50 transition-all active:scale-95"
+                        >
+                            <FiDownload className="me-2" /> {t('exportData')}
+                        </button>
+                        <div className="absolute right-0 rtl:left-0 rtl:right-auto mt-2 w-52 bg-card rounded-xl shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 border border-card-border overflow-hidden">
+                            <div className="py-1 divide-y divide-card-border/50">
+                                <button
+                                    onClick={() => handleExport('xlsx')}
+                                    className="w-full text-start flex items-center px-4 py-2.5 text-xs text-foreground hover:bg-muted font-medium transition-colors"
+                                >
+                                    <FiGrid className="me-2.5 text-primary text-sm shrink-0" />
+                                    <div>
+                                        <div className="font-bold">{t('exportXLSX')}</div>
+                                        <div className="text-[10px] text-muted-foreground">{t('summarySheet')} + {t('entriesSheet')}</div>
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => handleExport('csv')}
+                                    className="w-full text-start flex items-center px-4 py-2.5 text-xs text-foreground hover:bg-muted font-medium transition-colors"
+                                >
+                                    <FiFileText className="me-2.5 text-primary text-sm shrink-0" /> {t('exportCSV')}
+                                </button>
+                                <button
+                                    onClick={() => handleExport('txt')}
+                                    className="w-full text-start flex items-center px-4 py-2.5 text-xs text-foreground hover:bg-muted font-medium transition-colors"
+                                >
+                                    <FiFileText className="me-2.5 text-primary text-sm shrink-0" /> {t('exportTXT')}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Main Statistics Content Card */}
@@ -403,13 +407,15 @@ export default function StatsPage() {
                         </div>
 
                         {/* Visual Debt Simplification Map */}
-                        <DebtSettlementMap
-                            entries={entries}
-                            memberContributions={stats.memberContributions}
-                            members={members}
-                            currency={currency}
-                            currentUserId={user?.userId}
-                        />
+                        {customizations.debtSettlementMap && (
+                            <DebtSettlementMap
+                                entries={entries}
+                                memberContributions={stats.memberContributions}
+                                members={members}
+                                currency={currency}
+                                currentUserId={user?.userId}
+                            />
+                        )}
 
                         {/* Member Contributions Table */}
                         <div className="space-y-3 pt-2">

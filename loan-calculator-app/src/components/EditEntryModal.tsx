@@ -7,6 +7,7 @@ import { Entry, updateLocalEntry, getEntryEdits, saveEntryEdits, updateOutboxCre
 import PayerBeneficiarySelector, { ShareItem } from './PayerBeneficiarySelector';
 import { useSplitPresets } from '@/lib/hooks/useSplitPresets';
 import CurrencyAmountInput from './CurrencyAmountInput';
+import { useCustomization } from './CustomizationProvider';
 
 interface Member {
   id: number;
@@ -41,6 +42,7 @@ export default function EditEntryModal({
   onSuccess,
 }: EditEntryModalProps) {
   const t = useTranslations('Room');
+  const { customizations } = useCustomization();
   const { presets: splitPresets, savePreset, deletePreset } = useSplitPresets(roomId);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -355,7 +357,7 @@ export default function EditEntryModal({
                       onChange={setPayerShares}
                       totalAmount={numAmount}
                       currency={inputCurrency}
-                      label={t('list1WhoPaid')}
+                      label={customizations.payerListLabel?.trim() || t('list1WhoPaid')}
                       currentUserId={currentUserId || null}
                       onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
                       presets={splitPresets}
@@ -368,7 +370,7 @@ export default function EditEntryModal({
                       onChange={setBeneficiaryShares}
                       totalAmount={numAmount}
                       currency={inputCurrency}
-                      label={t('list2SplitForWhom')}
+                      label={customizations.beneficiaryListLabel?.trim() || t('list2SplitForWhom')}
                       currentUserId={currentUserId || null}
                       onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
                       presets={splitPresets}

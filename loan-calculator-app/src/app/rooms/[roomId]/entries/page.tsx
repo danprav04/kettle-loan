@@ -8,6 +8,7 @@ import { useSync } from '@/components/SyncProvider';
 import { getRoomData, Entry, deleteLocalEntry, saveRoomData, removeOutboxEntryMutations } from '@/lib/offline-sync';
 import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
+import { useCustomization } from '@/components/CustomizationProvider';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
 import EditEntryModal from '@/components/EditEntryModal';
 import EntryEditsModal from '@/components/EntryEditsModal';
@@ -36,6 +37,7 @@ export default function EntriesPage() {
     const tNotif = useTranslations('Notifications');
     const { isOnline } = useSync();
     const { user } = useUser();
+    const { customizations } = useCustomization();
 
     const [entries, setEntries] = useState<Entry[]>([]);
     const [members, setMembers] = useState<Member[]>([]);
@@ -291,20 +293,24 @@ export default function EntriesPage() {
                                             </div>
 
                                             <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={() => setEntryToShare(entry)}
-                                                    className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
-                                                    title={t('shareEntry')}
-                                                >
-                                                    <FiShare2 size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => setEntryForHistory(entry.id)}
-                                                    className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
-                                                    title={t('viewEditHistory')}
-                                                >
-                                                    <FiClock size={16} />
-                                                </button>
+                                                {customizations.entryShareModal && (
+                                                    <button
+                                                        onClick={() => setEntryToShare(entry)}
+                                                        className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
+                                                        title={t('shareEntry')}
+                                                    >
+                                                        <FiShare2 size={16} />
+                                                    </button>
+                                                )}
+                                                {customizations.entryEditsHistory && (
+                                                    <button
+                                                        onClick={() => setEntryForHistory(entry.id)}
+                                                        className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
+                                                        title={t('viewEditHistory')}
+                                                    >
+                                                        <FiClock size={16} />
+                                                    </button>
+                                                )}
                                                 {canModify(entry) && (
                                                     <>
                                                         <button

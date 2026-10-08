@@ -6,6 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
+import { useCustomization } from '@/components/CustomizationProvider';
 import { FiInfo, FiEdit, FiSave, FiX, FiLoader, FiShield, FiSliders, FiLogOut } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
 import { saveRoomData, getRoomData, addLocalEntry, updateLocalRoomName, calculateAllMemberBalances, LocalRoomData, Entry } from '@/lib/offline-sync';
@@ -37,6 +38,7 @@ export default function RoomPage() {
     const { roomId } = params;
     const t = useTranslations('Room');
     const { isSimplified } = useSimplifiedLayout();
+    const { customizations } = useCustomization();
     const { isOnline } = useSync();
     const { presets: splitPresets, savePreset, deletePreset } = useSplitPresets(roomId);
 
@@ -521,9 +523,11 @@ export default function RoomPage() {
                                 <div className={`text-3xl sm:text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
                                     {balance.toFixed(0)} {currency}
                                 </div>
-                                <Link href={`/rooms/${roomId}/balance`} className="text-xs sm:text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
-                                    {t('detailed')}
-                                </Link>
+                                {customizations.detailedBalance && (
+                                    <Link href={`/rooms/${roomId}/balance`} className="text-xs sm:text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
+                                        {t('detailed')}
+                                    </Link>
+                                )}
                             </div>
 
                             <div className="border-t border-card-border my-3 sm:my-5"></div>
@@ -622,7 +626,7 @@ export default function RoomPage() {
                                                     onChange={setPayerShares}
                                                     totalAmount={parseFloat(amount) || 0}
                                                     currency={inputCurrency}
-                                                    label={t('list1WhoPaid')}
+                                                    label={customizations.payerListLabel?.trim() || t('list1WhoPaid')}
                                                     currentUserId={currentUserId}
                                                     onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
                                                     presets={splitPresets}
@@ -635,7 +639,7 @@ export default function RoomPage() {
                                                     onChange={setBeneficiaryShares}
                                                     totalAmount={parseFloat(amount) || 0}
                                                     currency={inputCurrency}
-                                                    label={t('list2SplitForWhom')}
+                                                    label={customizations.beneficiaryListLabel?.trim() || t('list2SplitForWhom')}
                                                     currentUserId={currentUserId}
                                                     onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
                                                     presets={splitPresets}
@@ -736,13 +740,15 @@ export default function RoomPage() {
                                 </div>
                             )}
 
-                            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2 sm:gap-4 mt-2">
+                            <div className={`flex flex-col ${customizations.roomStats ? 'sm:grid sm:grid-cols-2' : ''} gap-2 sm:gap-4 mt-2`}>
                                 <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2.5 px-4 rounded-lg btn-muted text-center text-xs sm:text-sm">
                                     {t('allEntries')}
                                 </Link>
-                                <Link href={`/rooms/${roomId}/stats`} className="font-bold py-2.5 px-4 rounded-lg btn-muted text-center text-xs sm:text-sm">
-                                    {t('roomStatistics')}
-                                </Link>
+                                {customizations.roomStats && (
+                                    <Link href={`/rooms/${roomId}/stats`} className="font-bold py-2.5 px-4 rounded-lg btn-muted text-center text-xs sm:text-sm">
+                                        {t('roomStatistics')}
+                                    </Link>
+                                )}
                             </div>
                         </div>
                     </div>
