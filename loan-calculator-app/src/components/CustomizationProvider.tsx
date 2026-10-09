@@ -95,7 +95,11 @@ interface CustomizationContextType {
 
 const CustomizationContext = createContext<CustomizationContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY_PREFIX = 'app_customizations';
+export const LOCAL_STORAGE_KEY_PREFIX = 'app_customizations';
+
+export function getUserCustomizationStorageKey(userId?: number | null): string | null {
+  return typeof userId === 'number' && userId > 0 ? `${LOCAL_STORAGE_KEY_PREFIX}_${userId}` : null;
+}
 
 export default function CustomizationProvider({ children }: { children: ReactNode }) {
   const { user } = useUser();
@@ -103,61 +107,97 @@ export default function CustomizationProvider({ children }: { children: ReactNod
   const [isLoaded, setIsLoaded] = useState(false);
   const isSyncingRef = useRef(false);
 
-  const getStorageKey = useCallback((userId?: number | null) => {
-    return userId ? `${LOCAL_STORAGE_KEY_PREFIX}_${userId}` : LOCAL_STORAGE_KEY_PREFIX;
-  }, []);
-
-  // 1. Initial client-side load from localStorage
+  // Synchronize customizations whenever the authenticated user changes (or logs out)
   useEffect(() => {
-    const key = getStorageKey(user?.userId);
-    const stored = localStorage.getItem(key) || localStorage.getItem(LOCAL_STORAGE_KEY_PREFIX);
-    if (stored) {
+    // Clean up any stale un-scoped generic key from previous versions
+    try {
+      localStorage.removeItem(LOCAL_STORAGE_KEY_PREFIX);
+    } catch {
+      // Ignore if localStorage is unavailable
+    }
+
+    const currentUserId = user?.userId;
+
+    // 1. If not authenticated or logged out, always reset to default customizations
+    if (!currentUserId) {
+      setCustomizations(DEFAULT_CUSTOMIZATIONS);
+      setIsLoaded(true);
+      return;
+    }
+
+    // 2. Load cached settings strictly for THIS user
+    const storageKey = getUserCustomizationStorageKey(currentUserId);
+    let initialUserSettings: CustomizationSettings = { ...DEFAULT_CUSTOMIZATIONS };
+
+    if (storageKey) {
       try {
-        const parsed = JSON.parse(stored);
-        setCustomizations(prev => ({ ...prev, ...parsed }));
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && typeof parsed === 'object') {
+            initialUserSettings = { ...DEFAULT_CUSTOMIZATIONS, ...parsed };
+          }
+        }
       } catch (e) {
         console.error('Failed to parse cached customizations:', e);
       }
     }
+
+    // Always reset state cleanly starting from DEFAULT_CUSTOMIZATIONS, never inheriting from previous user
+    setCustomizations(initialUserSettings);
     setIsLoaded(true);
-  }, [user?.userId, getStorageKey]);
 
-  // 2. Fetch from DB when user is authenticated
-  useEffect(() => {
-    if (!user?.userId) return;
-
+    // 3. Fetch from DB for THIS authenticated user
     let isMounted = true;
     const fetchDbCustomizations = async () => {
       try {
         const remote = await handleApi({ method: 'GET', url: '/api/user/customizations' });
-        if (remote && typeof remote === 'object' && isMounted) {
-          setCustomizations(prev => {
-            const merged = { ...prev, ...remote };
-            const key = getStorageKey(user.userId);
-            localStorage.setItem(key, JSON.stringify(merged));
-            return merged;
-          });
+        if (!isMounted) return;
+
+        if (remote && typeof remote === 'object') {
+          // Merge remote over defaults to guarantee no residue from previous user leaks in
+          const merged: CustomizationSettings = {
+            ...DEFAULT_CUSTOMIZATIONS,
+            ...remote,
+          };
+
+          setCustomizations(merged);
+          if (storageKey) {
+            try {
+              localStorage.setItem(storageKey, JSON.stringify(merged));
+            } catch (e) {
+              console.error('Failed to update local storage cache:', e);
+            }
+          }
         }
       } catch (err) {
-        // Soft error: keep using cached version if offline or error
+        // Soft error: keep using cached version if offline or network error
         console.warn('Could not sync customizations from server, using local cache.', err);
       }
     };
 
     fetchDbCustomizations();
+
     return () => {
       isMounted = false;
     };
-  }, [user?.userId, getStorageKey]);
+  }, [user?.userId]);
 
-  // Persist helper to DB and localStorage
+  // Persist helper strictly scoped to current authenticated user
   const persistSettings = useCallback(async (newSettings: CustomizationSettings) => {
-    const key = getStorageKey(user?.userId);
-    localStorage.setItem(key, JSON.stringify(newSettings));
-    // Also update generic fallback key
-    localStorage.setItem(LOCAL_STORAGE_KEY_PREFIX, JSON.stringify(newSettings));
+    const currentUserId = user?.userId;
+    if (!currentUserId) return; // Do not persist for unauthenticated / guest
 
-    if (user?.userId && !isSyncingRef.current) {
+    const storageKey = getUserCustomizationStorageKey(currentUserId);
+    if (storageKey) {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(newSettings));
+      } catch (e) {
+        console.error('Failed to save customizations to localStorage:', e);
+      }
+    }
+
+    if (!isSyncingRef.current) {
       isSyncingRef.current = true;
       try {
         await handleApi({
@@ -171,7 +211,7 @@ export default function CustomizationProvider({ children }: { children: ReactNod
         isSyncingRef.current = false;
       }
     }
-  }, [user?.userId, getStorageKey]);
+  }, [user?.userId]);
 
   const updateCustomization = useCallback(<K extends keyof CustomizationSettings>(key: K, value: CustomizationSettings[K]) => {
     setCustomizations(prev => {

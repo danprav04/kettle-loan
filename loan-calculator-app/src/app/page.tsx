@@ -40,6 +40,9 @@ export default function AuthPage() {
         if (res.ok) {
             if (isLogin) {
                 localStorage.setItem('token', data.token);
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new Event('auth_token_changed'));
+                }
                 router.push('/rooms');
             } else {
                 setIsLogin(true);

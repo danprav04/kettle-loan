@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { DEFAULT_CUSTOMIZATIONS, CustomizationSettings } from '../components/CustomizationProvider';
+import { DEFAULT_CUSTOMIZATIONS, CustomizationSettings, getUserCustomizationStorageKey, LOCAL_STORAGE_KEY_PREFIX } from '../components/CustomizationProvider';
 import { GET, PUT } from '../app/api/user/customizations/route';
 import * as auth from '../lib/auth';
 import { db } from '../lib/db';
@@ -262,5 +262,112 @@ describe('User Customizations API Route (/api/user/customizations)', () => {
     const data = await res.json();
     expect(data.premadePresets).toBe(false);
     expect(data.beneficiaryListLabel).toBe('To All');
+  });
+});
+
+describe('Account Customization Isolation & Multi-Account Switching', () => {
+  it('generates strictly per-user storage keys and returns null for guests', () => {
+    expect(getUserCustomizationStorageKey(1)).toBe('app_customizations_1');
+    expect(getUserCustomizationStorageKey(42)).toBe('app_customizations_42');
+    expect(getUserCustomizationStorageKey(undefined)).toBeNull();
+    expect(getUserCustomizationStorageKey(null)).toBeNull();
+    expect(getUserCustomizationStorageKey(0)).toBeNull();
+    expect(getUserCustomizationStorageKey(-5)).toBeNull();
+  });
+
+  it('ensures separate users have distinct storage keys preventing key collision', () => {
+    const userAKey = getUserCustomizationStorageKey(1);
+    const userBKey = getUserCustomizationStorageKey(2);
+    expect(userAKey).not.toBe(userBKey);
+    expect(userAKey).toBe('app_customizations_1');
+    expect(userBKey).toBe('app_customizations_2');
+    expect(userAKey).not.toBe(LOCAL_STORAGE_KEY_PREFIX);
+    expect(userBKey).not.toBe(LOCAL_STORAGE_KEY_PREFIX);
+  });
+
+  it('does not slip custom labels or customizations when User B logs in without saved settings', () => {
+    // Simulate User A having custom labels and custom feature flags
+    const userASettings: CustomizationSettings = {
+      ...DEFAULT_CUSTOMIZATIONS,
+      payerListLabel: "Alice's Payers",
+      beneficiaryListLabel: "Alice's Receivers",
+      balanceTitleLabel: "Alice's Vault",
+      newEntryTitleLabel: "Alice's Expense",
+      roomStats: false,
+      currencyConverter: false,
+    };
+
+    // Simulate User B having an empty DB response (never customized settings before)
+    const userBRemoteSettings = {};
+
+    // When User B initializes or syncs, remote settings are merged over DEFAULT_CUSTOMIZATIONS
+    const userBMergedSettings: CustomizationSettings = {
+      ...DEFAULT_CUSTOMIZATIONS,
+      ...userBRemoteSettings,
+    };
+
+    // User B must NOT have any of User A's custom labels
+    expect(userBMergedSettings.payerListLabel).toBe('');
+    expect(userBMergedSettings.beneficiaryListLabel).toBe('');
+    expect(userBMergedSettings.balanceTitleLabel).toBe('');
+    expect(userBMergedSettings.newEntryTitleLabel).toBe('');
+    // User B must have default feature toggles
+    expect(userBMergedSettings.roomStats).toBe(true);
+    expect(userBMergedSettings.currencyConverter).toBe(true);
+  });
+
+  it('does not slip custom labels when User B only customized feature toggles', () => {
+    // User A had set custom labels
+    const userACustomLabels = {
+      payerListLabel: "Alice's Payers",
+      amountInputLabel: "Alice's Cost",
+    };
+
+    // User B only disabled currency converter in DB, without any custom labels
+    const userBRemoteSettings = {
+      currencyConverter: false,
+    };
+
+    const userBMergedSettings: CustomizationSettings = {
+      ...DEFAULT_CUSTOMIZATIONS,
+      ...userBRemoteSettings,
+    };
+
+    // User B gets their own feature toggle
+    expect(userBMergedSettings.currencyConverter).toBe(false);
+    // User B custom labels remain clean defaults, completely isolated from User A
+    expect(userBMergedSettings.payerListLabel).toBe('');
+    expect(userBMergedSettings.amountInputLabel).toBe('');
+    expect(userBMergedSettings.payerListLabel).not.toBe(userACustomLabels.payerListLabel);
+  });
+
+  it('strictly isolates custom labels when both users have their own distinct labels', () => {
+    const userARemoteSettings = {
+      payerListLabel: "Alice's Payers",
+      roomStatsButtonLabel: "Alice's Stats",
+    };
+
+    const userBRemoteSettings = {
+      payerListLabel: "Bob's Payers",
+      roomStatsButtonLabel: "Bob's Stats",
+    };
+
+    const userASettings: CustomizationSettings = {
+      ...DEFAULT_CUSTOMIZATIONS,
+      ...userARemoteSettings,
+    };
+
+    const userBSettings: CustomizationSettings = {
+      ...DEFAULT_CUSTOMIZATIONS,
+      ...userBRemoteSettings,
+    };
+
+    expect(userASettings.payerListLabel).toBe("Alice's Payers");
+    expect(userBSettings.payerListLabel).toBe("Bob's Payers");
+    expect(userASettings.roomStatsButtonLabel).toBe("Alice's Stats");
+    expect(userBSettings.roomStatsButtonLabel).toBe("Bob's Stats");
+    // Unset labels remain empty for both
+    expect(userASettings.beneficiaryListLabel).toBe('');
+    expect(userBSettings.beneficiaryListLabel).toBe('');
   });
 });

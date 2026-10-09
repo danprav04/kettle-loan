@@ -49,7 +49,15 @@ export default function UserProvider({ children }: { children: ReactNode }) {
 
     const logout = useCallback(() => {
         localStorage.removeItem('token');
+        try {
+            localStorage.removeItem('app_customizations');
+        } catch {
+            // Ignore if localStorage unavailable
+        }
         setUser(null);
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('auth_token_changed'));
+        }
         router.push('/');
     }, [router]);
 
@@ -67,7 +75,7 @@ export default function UserProvider({ children }: { children: ReactNode }) {
         }
     }, [logout]);
 
-    // Initial check and listen for changes in other tabs
+    // Initial check and listen for changes in other tabs or same window
     useEffect(() => {
         checkUser();
         
@@ -78,9 +86,11 @@ export default function UserProvider({ children }: { children: ReactNode }) {
         };
 
         window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('auth_token_changed', checkUser);
         window.addEventListener('auth_expired', logout);
         return () => {
             window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('auth_token_changed', checkUser);
             window.removeEventListener('auth_expired', logout);
         };
     }, [checkUser, logout]);
