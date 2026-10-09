@@ -259,10 +259,10 @@ export default function EntriesPage() {
                                 const recorderName = memberMap.get(entry.created_by_user_id || 0);
 
                                 return (
-                                    <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn group hover:bg-muted/30 transition-colors" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
-                                        <div className="flex-grow pr-2">
-                                            <p className="font-extrabold text-base sm:text-lg text-card-foreground tracking-tight">{entry.description}</p>
-                                            <div className="text-xs sm:text-sm text-foreground/80 dark:text-zinc-300 font-medium flex items-center mt-1">
+                                    <li key={entry.id} className="p-3.5 sm:p-4 border-b border-card-border flex justify-between items-start sm:items-center animate-fadeIn group hover:bg-muted/30 transition-colors gap-2.5" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
+                                        <div className="flex-grow min-w-0 pr-1 sm:pr-2">
+                                            <p className="font-extrabold text-sm sm:text-lg text-card-foreground tracking-tight break-words">{entry.description}</p>
+                                            <div className="text-xs sm:text-sm text-foreground/80 dark:text-zinc-300 font-medium flex items-center flex-wrap gap-1 mt-1 leading-relaxed">
                                                 {getEntryDetails(entry, memberMap, members, user, t)}
                                             </div>
                                             {showProxy && (
@@ -279,9 +279,9 @@ export default function EntriesPage() {
                                                 <span>{t('byAuthor', { author: entry.username })} &bull; {new Date(entry.created_at).toLocaleString()}</span>
                                             </p>
                                         </div>
-                                        <div className="flex items-center space-x-3 rtl:space-x-reverse shrink-0">
-                                            <div className="text-right w-24">
-                                                <div className={`text-lg sm:text-xl font-black font-mono ${parseFloat(entry.amount) < 0 ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-500 dark:text-emerald-400'}`}>
+                                        <div className="flex items-center space-x-2 sm:space-x-3 rtl:space-x-reverse shrink-0">
+                                            <div className="text-right">
+                                                <div className={`text-base sm:text-xl font-black font-mono whitespace-nowrap ${parseFloat(entry.amount) < 0 ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-500 dark:text-emerald-400'}`}>
                                                     {parseFloat(entry.amount).toFixed(0)} {currency}
                                                 </div>
                                             </div>
