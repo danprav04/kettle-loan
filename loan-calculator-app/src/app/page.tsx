@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import Icon from '@mdi/react';
+import { mdiKettle } from '@mdi/js';
 import messages from '../../messages/en.json'; // Import messages to get keys
 
 // Create a type for valid keys within the 'Auth' section of your translations
@@ -58,8 +60,14 @@ export default function AuthPage() {
     }
 
     return (
-        <div className="min-h-screen bg-muted flex flex-col justify-center items-center">
-            <div className="bg-card p-8 rounded-lg shadow-md w-full max-w-md border border-card-border">
+        <div className="min-h-screen bg-muted flex flex-col justify-center items-center p-4">
+            <div className="flex items-center gap-3 mb-6 text-primary">
+                <div className="w-12 h-12 rounded-2xl bg-card border border-card-border shadow-sm flex items-center justify-center text-primary">
+                    <Icon path={mdiKettle} size={1.5} />
+                </div>
+                <span className="text-3xl font-bold tracking-tight font-heading text-card-foreground">Kettle</span>
+            </div>
+            <div className="bg-card p-8 rounded-2xl shadow-md w-full max-w-md border border-card-border">
                 <h1 className="text-2xl font-bold mb-6 text-center text-card-foreground">{isLogin ? t('login') : t('signup')}</h1>
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">

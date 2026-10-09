@@ -7,6 +7,8 @@ import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
 import { handleApi } from '@/lib/api';
 import { saveRoomsList, getRoomsList } from '@/lib/offline-sync';
+import Icon from '@mdi/react';
+import { mdiKettle } from '@mdi/js';
 
 export default function RoomsPage() {
     const t = useTranslations('Rooms');
@@ -62,8 +64,11 @@ export default function RoomsPage() {
     }
 
     return (
-        <div className="w-full h-full flex items-center justify-center">
-            <div className="text-center bg-card p-8 rounded-lg shadow-md border border-card-border max-w-md animate-scaleIn">
+        <div className="w-full h-full flex items-center justify-center p-4">
+            <div className="text-center bg-card p-8 rounded-2xl shadow-md border border-card-border max-w-md animate-scaleIn">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm">
+                    <Icon path={mdiKettle} size={1.8} />
+                </div>
                 <h1 className="text-2xl font-bold text-card-foreground">
                     {t('joinOrCreateRoom')}
                 </h1>

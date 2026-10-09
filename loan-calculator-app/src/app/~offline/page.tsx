@@ -3,6 +3,8 @@
 
 import { useTranslations } from 'next-intl';
 import { FiWifiOff } from 'react-icons/fi';
+import Icon from '@mdi/react';
+import { mdiKettle } from '@mdi/js';
 
 export default function OfflinePage() {
   const t = useTranslations('Offline');
@@ -10,6 +12,10 @@ export default function OfflinePage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted p-4 text-center">
         <div className="max-w-md">
+            <div className="flex items-center justify-center gap-2 mb-6 text-primary">
+                <Icon path={mdiKettle} size={1.8} />
+                <span className="text-2xl font-bold tracking-tight text-card-foreground">Kettle</span>
+            </div>
             <FiWifiOff className="mx-auto h-16 w-16 text-muted-foreground" />
             <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
                 {t('title')}

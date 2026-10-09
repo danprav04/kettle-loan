@@ -267,29 +267,29 @@ export default function RoomsSidebar({ closeSidebar }: RoomsSidebarProps) {
                     </div>
                     <button onClick={() => handleJoinOrCreateRoom({})} className="w-full py-2 rounded-lg btn-secondary mb-4">{t('createRoom')}</button>
                     <div className="space-y-2">
-                        <button onClick={logout} className="w-full py-2 px-4 flex items-center justify-center rounded-lg btn-muted" aria-label={t('logout')}>
+                        <button onClick={logout} className="w-full py-2.5 px-4 flex items-center justify-center rounded-xl btn-muted text-foreground dark:text-white font-bold" aria-label={t('logout')}>
                             <FiLogOut size={16} className="me-2"/>
-                            <span className="font-semibold text-xs">{t('logout')}</span>
+                            <span className="font-bold text-xs">{t('logout')}</span>
                         </button>
                         <div className="grid grid-cols-2 gap-2">
-                             <button onClick={toggleTheme} className="flex items-center justify-center w-full p-2 rounded-md btn-muted" aria-label={tAccess('toggleTheme')} >
+                             <button onClick={toggleTheme} className="flex items-center justify-center w-full p-2.5 rounded-xl btn-muted text-foreground dark:text-white" aria-label={tAccess('toggleTheme')} >
                                 {theme === 'light' ? <FiMoon size={16} /> : <FiSun size={16} />}
                             </button>
-                             <button onClick={cycleLanguage} className="flex items-center justify-center w-full p-2 rounded-md btn-muted" aria-label={tAccess('changeLanguage')} >
+                             <button onClick={cycleLanguage} className="flex items-center justify-center w-full p-2.5 rounded-xl btn-muted text-foreground dark:text-white" aria-label={tAccess('changeLanguage')} >
                                 <FiGlobe size={16} className="me-1.5"/>
-                                <span className="font-semibold text-xs">{locale.toUpperCase()}</span>
+                                <span className="font-bold text-xs">{locale.toUpperCase()}</span>
                             </button>
                         </div>
                             <PushSubscriptionToggle />
                             <button
                                 type="button"
                                 onClick={() => setIsCustomizationOpen(true)}
-                                className="flex items-center justify-center w-full p-2 rounded-md transition-colors btn-muted text-card-foreground hover:text-primary cursor-pointer"
+                                className="flex items-center justify-center w-full p-2.5 rounded-xl transition-colors btn-muted text-foreground dark:text-white hover:text-primary dark:hover:text-primary cursor-pointer"
                                 title={tCust('title')}
                                 aria-label={tCust('buttonLabel')}
                             >
                                 <FiSliders size={16} className="me-1.5" />
-                                <span className="font-semibold text-xs">{tCust('buttonLabel')}</span>
+                                <span className="font-bold text-xs">{tCust('buttonLabel')}</span>
                             </button>
                     </div>
                 </div>

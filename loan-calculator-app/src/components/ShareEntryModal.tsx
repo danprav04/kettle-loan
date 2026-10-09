@@ -4,6 +4,8 @@
 import React, { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { FiX, FiShare2, FiCopy, FiCheck, FiDownload } from 'react-icons/fi';
+import Icon from '@mdi/react';
+import { mdiKettle } from '@mdi/js';
 import { Entry } from '@/lib/offline-sync';
 
 interface Member {
@@ -291,20 +293,20 @@ export default function ShareEntryModal({
             role="dialog"
             aria-modal="true"
         >
-            <div className="bg-card border-2 border-card-border dark:border-white shadow-[0_0_25px_rgba(255,255,255,0.06)] rounded-3xl w-full max-w-xl flex flex-col overflow-hidden max-h-[92vh]">
+            <div className="bg-card border border-card-border shadow-2xl rounded-2xl sm:rounded-3xl w-full max-w-xl flex flex-col overflow-hidden max-h-[92vh]">
                 {/* Modal Header */}
-                <div className="p-4 sm:px-6 border-b-2 border-card-border/80 dark:border-white/20 flex items-center justify-between shrink-0 bg-muted/40">
+                <div className="p-4 sm:px-6 border-b border-card-border flex items-center justify-between shrink-0 bg-muted/40">
                     <div className="flex items-center gap-2.5">
                         <span className="p-1.5 rounded-xl bg-primary/20 text-primary">
                             <FiShare2 className="w-5 h-5 text-primary" />
                         </span>
-                        <h2 className="text-xl sm:text-2xl font-extrabold font-heading text-card-foreground dark:text-white uppercase tracking-wide">
+                        <h2 className="text-xl sm:text-2xl font-extrabold font-heading text-card-foreground uppercase tracking-wide">
                             {t('shareModalTitle')}
                         </h2>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-1.5 rounded-xl text-foreground/80 dark:text-zinc-200 hover:text-foreground hover:bg-black/10 dark:hover:bg-white/10 transition-all font-bold text-lg cursor-pointer"
+                        className="p-1.5 rounded-xl text-foreground/80 hover:text-foreground hover:bg-black/10 dark:hover:bg-white/10 transition-all font-bold text-lg cursor-pointer"
                         aria-label="Close"
                     >
                         <FiX className="w-5 h-5" />
@@ -562,17 +564,20 @@ export default function ShareEntryModal({
 
                         {/* Card Footer Brand */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '12px', borderTop: '1px solid #1e293b', fontSize: '10px', color: '#475569', lineHeight: '1.2' }}>
-                            <span>Kettle Split</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <Icon path={mdiKettle} size={0.55} color="#818cf8" />
+                                <span style={{ fontWeight: 700, color: '#818cf8' }}>Kettle</span> Split
+                            </span>
                             <span>{new Date().toLocaleDateString()}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Modal Actions Footer */}
-                <div className="p-4 sm:px-6 border-t-2 border-card-border/80 dark:border-white/20 bg-muted/40 flex flex-wrap items-center justify-end gap-2.5 shrink-0">
+                <div className="p-4 sm:px-6 border-t border-card-border bg-muted/40 flex flex-wrap items-center justify-end gap-2.5 shrink-0">
                     <button
                         onClick={onClose}
-                        className="py-2.5 px-4 rounded-xl border-2 border-card-border/80 dark:border-white/30 bg-card hover:bg-muted text-card-foreground text-xs sm:text-sm font-extrabold transition-all shadow-sm cursor-pointer"
+                        className="py-2.5 px-4 rounded-xl border border-card-border bg-card hover:bg-muted text-card-foreground text-xs sm:text-sm font-semibold transition-all shadow-sm cursor-pointer"
                     >
                         {t('closeBtn') || 'Close'}
                     </button>
@@ -580,7 +585,7 @@ export default function ShareEntryModal({
                     <button
                         onClick={handleCopyImage}
                         disabled={isGenerating}
-                        className="py-2.5 px-4 rounded-xl border-2 border-card-border/80 dark:border-white/30 bg-card hover:bg-muted text-card-foreground text-xs sm:text-sm font-extrabold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                        className="py-2.5 px-4 rounded-xl border border-card-border bg-card hover:bg-muted text-card-foreground text-xs sm:text-sm font-semibold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                     >
                         {copied ? (
                             <>
@@ -589,7 +594,7 @@ export default function ShareEntryModal({
                             </>
                         ) : (
                             <>
-                                <FiCopy className="w-4 h-4 text-foreground/70 dark:text-zinc-300" />
+                                <FiCopy className="w-4 h-4 text-foreground/70" />
                                 <span>{t('copyImage')}</span>
                             </>
                         )}
@@ -598,16 +603,16 @@ export default function ShareEntryModal({
                     <button
                         onClick={handleDownload}
                         disabled={isGenerating}
-                        className="py-2.5 px-4 rounded-xl border-2 border-card-border/80 dark:border-white/30 bg-card hover:bg-muted text-card-foreground text-xs sm:text-sm font-extrabold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                        className="py-2.5 px-4 rounded-xl border border-card-border bg-card hover:bg-muted text-card-foreground text-xs sm:text-sm font-semibold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                     >
-                        <FiDownload className="w-4 h-4 text-foreground/70 dark:text-zinc-300" />
+                        <FiDownload className="w-4 h-4 text-foreground/70" />
                         <span>{t('downloadImage')}</span>
                     </button>
 
                     <button
                         onClick={handleNativeShare}
                         disabled={isGenerating}
-                        className="py-2.5 px-5 rounded-xl btn-primary border-2 border-white/40 dark:border-white/60 text-xs sm:text-sm font-extrabold transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer active:scale-95"
+                        className="py-2.5 px-5 rounded-xl btn-primary border border-card-border text-xs sm:text-sm font-bold transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer active:scale-95"
                     >
                         {isGenerating ? (
                             <div className="w-4 h-4 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />

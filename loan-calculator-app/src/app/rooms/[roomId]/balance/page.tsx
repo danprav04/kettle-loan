@@ -401,7 +401,7 @@ export default function BalanceDetailsPage() {
     return (
         <div className="max-w-4xl mx-auto animate-scaleIn flex flex-col h-full space-y-4">
             <div className="shrink-0 flex items-center justify-between flex-wrap gap-2">
-                <button onClick={() => router.back()} className="font-extrabold py-2.5 px-5 rounded-xl btn-primary text-xs sm:text-sm border-2 border-white/40 dark:border-white/60 shadow-md transition-all active:scale-95">
+                <button onClick={() => router.back()} className="font-bold py-2 px-4 rounded-xl btn-primary text-xs sm:text-sm border border-card-border shadow-md transition-all active:scale-95">
                     {t('backToRoom')}
                 </button>
 
@@ -440,21 +440,21 @@ export default function BalanceDetailsPage() {
             </div>
 
             {defaultViewSaved && (
-                <div className="p-3 text-xs font-extrabold bg-success/20 text-success border-2 border-success/40 rounded-xl text-center shadow-md animate-fadeIn">
+                <div className="p-3 text-xs font-bold bg-success/20 text-success border border-success/40 rounded-xl text-center shadow-sm animate-fadeIn">
                     {t('defaultViewSavedMsg')}
                 </div>
             )}
 
             {/* Dynamic Filter Bar */}
-            <div className="bg-card p-3 sm:p-3.5 rounded-2xl border-2 border-card-border/80 dark:border-white/30 shadow-md flex items-center justify-between gap-3 flex-wrap">
+            <div className="bg-card p-3 sm:p-3.5 rounded-2xl border border-card-border shadow-md flex items-center justify-between gap-3 flex-wrap">
                 <div className="relative flex-1 min-w-[200px]">
-                    <FiSearch className="absolute left-3.5 top-3 text-foreground/70 dark:text-zinc-300 text-sm" />
+                    <FiSearch className="absolute left-3.5 top-3 text-foreground/70 text-sm" />
                     <input
                         type="text"
                         placeholder={t('searchFilterPlaceholder')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full themed-input pl-9 pr-3 py-2 text-xs sm:text-sm font-bold rounded-xl border-2 border-card-border/80 dark:border-white/30 bg-background transition-all focus:ring-2 focus:ring-primary"
+                        className="w-full themed-input pl-9 pr-3 py-2 text-xs sm:text-sm font-bold rounded-xl border border-card-border bg-background transition-all focus:ring-2 focus:ring-primary"
                     />
                 </div>
 
@@ -464,7 +464,7 @@ export default function BalanceDetailsPage() {
                             <button
                                 key={type}
                                 onClick={() => setFilterType(type)}
-                                className={`text-[11px] px-3 py-1.5 rounded-xl uppercase font-extrabold tracking-wider transition-all border-2 ${
+                                className={`text-[11px] px-3 py-1.5 rounded-xl uppercase font-bold tracking-wider transition-all border ${
                                     filterType === type ? 'bg-primary/20 text-primary border-primary/50 shadow-sm' : 'bg-background hover:bg-muted text-muted-foreground border-card-border'
                                 }`}
                             >
@@ -476,7 +476,7 @@ export default function BalanceDetailsPage() {
                     {(searchQuery || filterType !== 'all') && (
                         <button
                             onClick={handleQuickReset}
-                            className="p-2 px-3 text-xs text-foreground dark:text-zinc-200 hover:text-foreground bg-muted hover:bg-muted/80 rounded-xl flex items-center gap-1.5 ml-1 font-bold border border-card-border/80 dark:border-white/20 transition-colors shadow-sm"
+                            className="p-2 px-3 text-xs text-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-xl flex items-center gap-1.5 ml-1 font-bold border border-card-border transition-colors shadow-sm"
                             title={t('quickResetFiltersTitle')}
                         >
                             <FiRotateCcw /> <span className="hidden sm:inline">{t('resetFilters')}</span>
@@ -486,14 +486,14 @@ export default function BalanceDetailsPage() {
             </div>
 
             {/* Content Container */}
-            <div className="bg-card shadow-2xl rounded-2xl border-2 border-card-border dark:border-white shadow-[0_0_25px_rgba(255,255,255,0.06)] flex flex-col flex-grow overflow-hidden max-h-[75vh]">
-                <div className="p-4 sm:p-5 border-b-2 border-card-border dark:border-white/20 bg-muted/40 shrink-0 flex items-center justify-between flex-wrap gap-3">
+            <div className="bg-card shadow-xl rounded-2xl border border-card-border flex flex-col flex-grow overflow-hidden max-h-[75vh]">
+                <div className="p-4 sm:p-5 border-b border-card-border bg-muted/40 shrink-0 flex items-center justify-between flex-wrap gap-3">
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-primary/15 text-primary border-2 border-primary/30 shadow-sm shrink-0">
+                        <div className="p-2.5 rounded-xl bg-primary/15 text-primary border border-primary/30 shadow-sm shrink-0">
                             {viewMode === 'balance' ? <FiUsers className="w-5 h-5" /> : <FiActivity className="w-5 h-5" />}
                         </div>
                         <div>
-                            <h1 className="text-xl sm:text-2xl font-extrabold font-heading text-card-foreground dark:text-white uppercase tracking-wide">
+                            <h1 className="text-xl sm:text-2xl font-extrabold font-heading text-card-foreground uppercase tracking-wide">
                                 {viewMode === 'balance' ? t('peerBalancesTitle') : `${t('activityHistoryTab')} (${filteredHistory.length})`}
                             </h1>
                         </div>
@@ -501,8 +501,8 @@ export default function BalanceDetailsPage() {
                     {viewMode === 'balance' && (
                         <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
                             {members.length > 1 && (
-                                <div className="flex items-center gap-2 bg-background px-3 py-1.5 rounded-xl border-2 border-card-border/80 dark:border-white/30 shadow-sm">
-                                    <span className="text-[11px] text-foreground dark:text-zinc-300 font-extrabold uppercase tracking-wider shrink-0">{t('perspectiveLabel')}:</span>
+                                <div className="flex items-center gap-2 bg-background px-3 py-1.5 rounded-xl border border-card-border shadow-sm">
+                                    <span className="text-[11px] text-foreground font-bold uppercase tracking-wider shrink-0">{t('perspectiveLabel')}:</span>
                                     <select
                                         value={activePerspectiveUserId.toString()}
                                         onChange={(e) => setPerspectiveUserId(parseInt(e.target.value))}
@@ -542,12 +542,12 @@ export default function BalanceDetailsPage() {
                                     <span>{t('settlementModeDirect')}</span>
                                 </button>
                             </div>
-                            <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border-2 font-black text-xs sm:text-sm shadow-md transition-all ${
+                            <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border font-bold text-xs sm:text-sm shadow-sm transition-all ${
                                 totalPerspectiveBalance >= 0.5
-                                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/60 dark:border-emerald-400'
+                                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/60 dark:border-emerald-400'
                                     : totalPerspectiveBalance <= -0.5
-                                    ? 'bg-rose-500/20 text-rose-400 border-rose-500/60 dark:border-rose-400'
-                                    : 'bg-muted text-foreground border-card-border/80 dark:border-white/30'
+                                    ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/60 dark:border-rose-400'
+                                    : 'bg-muted text-foreground border-card-border'
                             }`}>
                                 <span className="text-[11px] uppercase tracking-wider font-extrabold">{t('perspectiveTotalBalance') || t('balanceTitle')}:</span>
                                 <span className="text-xs sm:text-sm font-black font-mono">
@@ -557,7 +557,7 @@ export default function BalanceDetailsPage() {
                             <button
                                 onClick={handleShareAsPdf}
                                 disabled={isGeneratingPdf}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary font-extrabold text-xs shadow-sm transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs shadow-sm transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                                 title={t('shareAsPdf')}
                             >
                                 {isGeneratingPdf ? (
@@ -590,7 +590,7 @@ export default function BalanceDetailsPage() {
                                 <p className="text-foreground/80 dark:text-zinc-300 text-sm font-bold">{t('noOtherMembers')}</p>
                             </div>
                         ) : (
-                            <ul className="divide-y-2 divide-card-border/80 dark:divide-white/15">
+                            <ul className="divide-y divide-card-border">
                                 {otherMembers.map((member) => {
                                     const p2pData = peerToPeerBalances.get(member.id);
                                     const netBalance = p2pData?.netBalance ?? 0;
@@ -606,11 +606,11 @@ export default function BalanceDetailsPage() {
                                                 }`}
                                             >
                                                 <div className="flex items-center gap-3.5 min-w-0 pr-2">
-                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/25 to-primary/10 border-2 border-primary/40 flex items-center justify-center font-black text-primary text-base shadow-sm shrink-0">
+                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/25 to-primary/10 border border-primary/40 flex items-center justify-center font-black text-primary text-base shadow-sm shrink-0">
                                                         {member.username.charAt(0).toUpperCase()}
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <span className="font-extrabold text-card-foreground dark:text-white text-base sm:text-lg tracking-tight block truncate">
+                                                        <span className="font-extrabold text-card-foreground text-base sm:text-lg tracking-tight block truncate">
                                                             {member.username}
                                                         </span>
                                                         {member.permissions?.canAdmin && (
@@ -619,7 +619,7 @@ export default function BalanceDetailsPage() {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2.5 shrink-0">
-                                                    <span className={`text-xs sm:text-sm font-black px-3.5 py-1 rounded-full border-2 shadow-md ${balanceInfo.color}`}>
+                                                    <span className={`text-xs sm:text-sm font-bold px-3 py-1 rounded-full border shadow-xs ${balanceInfo.color}`}>
                                                         {balanceInfo.text}
                                                     </span>
                                                     <div className={`p-1.5 rounded-full bg-muted text-foreground transition-transform duration-300 ${isExpanded ? 'rotate-180 bg-primary/20 text-primary' : ''}`}>
@@ -628,17 +628,17 @@ export default function BalanceDetailsPage() {
                                                 </div>
                                             </button>
                                             {isExpanded && (
-                                                <div className="bg-background/95 px-4 sm:px-6 pt-3 pb-6 animate-fadeIn border-t-2 border-card-border/80 dark:border-white/20">
+                                                <div className="bg-background/95 px-4 sm:px-6 pt-3 pb-6 animate-fadeIn border-t border-card-border">
                                                     {netBalance <= -0.5 && members.find(m => m.id === user?.userId)?.permissions?.canAddEntries !== false && (
-                                                        <div className="mt-2.5 mb-3 py-2.5 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b-2 border-card-border/60 dark:border-white/15">
+                                                        <div className="mt-2.5 mb-3 py-2.5 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-card-border">
                                                             <div className="flex items-center gap-2 min-w-0 text-xs sm:text-sm">
-                                                                <span className="font-extrabold text-foreground dark:text-white shrink-0">{t('outstandingDebtTitle')}</span>
+                                                                <span className="font-extrabold text-foreground shrink-0">{t('outstandingDebtTitle')}</span>
                                                                 <span className="text-muted-foreground hidden sm:inline">&bull;</span>
                                                                 <span className="text-foreground/80 dark:text-zinc-300 truncate font-semibold">{t('outstandingDebtSubtitle', { member: member.username })}</span>
                                                             </div>
                                                             <button 
                                                                 onClick={() => handleSettleUp(member.id, Math.abs(netBalance), activePerspectiveUserId)}
-                                                                className="self-start sm:self-center py-2 px-3.5 rounded-xl border-2 border-card-border/80 dark:border-white/30 bg-card hover:bg-muted text-foreground font-extrabold text-xs transition-all shadow-sm active:scale-95 flex items-center gap-1.5 shrink-0"
+                                                                className="self-start sm:self-center py-2 px-3.5 rounded-xl border border-card-border bg-card hover:bg-muted text-foreground font-bold text-xs transition-all shadow-sm active:scale-95 flex items-center gap-1.5 shrink-0"
                                                             >
                                                                 <FiCheckCircle className="w-4 h-4 text-success shrink-0" />
                                                                 <span>{t('settleUpBtn', { amount: Math.abs(netBalance).toFixed(0), currency })}</span>
@@ -646,7 +646,7 @@ export default function BalanceDetailsPage() {
                                                         </div>
                                                     )}
                                                     {settlementMode === 'simplified' && Math.abs(p2pData?.reallocatedAmount ?? 0) >= 0.5 && (
-                                                        <div className="mt-2.5 mb-3 p-3.5 rounded-xl bg-primary/10 border-2 border-primary/30 text-xs shadow-xs">
+                                                        <div className="mt-2.5 mb-3 p-3.5 rounded-xl bg-primary/10 border border-primary/30 text-xs shadow-xs">
                                                             <div className="flex items-center justify-between font-extrabold text-foreground mb-1.5">
                                                                 <span className="flex items-center gap-1.5 text-primary">
                                                                     <FiInfo className="w-4 h-4 shrink-0" />
@@ -659,13 +659,13 @@ export default function BalanceDetailsPage() {
                                                             <div className="space-y-1.5 text-foreground/80 dark:text-zinc-300 text-xs font-semibold">
                                                                 <div className="flex items-center justify-between">
                                                                     <span>{t('directMutualBalanceLabel')}:</span>
-                                                                    <span className="font-mono font-bold text-foreground dark:text-white">
+                                                                    <span className="font-mono font-bold text-foreground">
                                                                         {(p2pData?.directNetBalance ?? 0) >= 0.5 ? '+' : ''}{(p2pData?.directNetBalance ?? 0).toFixed(0)} {currency}
                                                                     </span>
                                                                 </div>
                                                                 <div className="flex items-center justify-between">
                                                                     <span>{t('reallocatedDebtLabel')}:</span>
-                                                                    <span className="font-mono font-bold text-foreground dark:text-white">
+                                                                    <span className="font-mono font-bold text-foreground">
                                                                         {(p2pData?.reallocatedAmount ?? 0) >= 0.5 ? '+' : ''}{(p2pData?.reallocatedAmount ?? 0).toFixed(0)} {currency}
                                                                     </span>
                                                                 </div>
@@ -673,7 +673,7 @@ export default function BalanceDetailsPage() {
                                                         </div>
                                                     )}
                                                     {settlementMode === 'simplified' && Math.abs(netBalance) < 0.5 && Math.abs(p2pData?.directNetBalance ?? 0) >= 0.5 && (
-                                                        <div className="mt-2.5 mb-3 p-3.5 rounded-xl bg-muted/80 border-2 border-card-border/80 dark:border-white/20 text-xs text-foreground/80 dark:text-zinc-200 flex items-start gap-2.5 shadow-xs">
+                                                        <div className="mt-2.5 mb-3 p-3.5 rounded-xl bg-muted/80 border border-card-border text-xs text-foreground/80 flex items-start gap-2.5 shadow-xs">
                                                             <FiInfo className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                                                             <p className="text-xs leading-relaxed font-semibold">
                                                                 {t('debtTransferredNotice', {
@@ -692,7 +692,7 @@ export default function BalanceDetailsPage() {
                                                                 </span>
                                                                 <span>{t('netImpactLabel')} / {t('totalAfterHeader')}</span>
                                                             </div>
-                                                            <div className="divide-y-2 divide-card-border/80 dark:divide-white/15 bg-card rounded-2xl border-2 border-card-border/80 dark:border-white/20 overflow-hidden shadow-md">
+                                                            <div className="divide-y divide-card-border bg-card rounded-2xl border border-card-border overflow-hidden shadow-md">
                                                                 {p2pData.transactions.map((tx, index) => {
                                                                     const isPositive = tx.contribution >= 0;
                                                                     return (
@@ -704,7 +704,7 @@ export default function BalanceDetailsPage() {
                                                                                     {isPositive ? <FiArrowDownLeft className="w-4 h-4" /> : <FiArrowUpRight className="w-4 h-4" />}
                                                                                 </div>
                                                                                 <div className="min-w-0">
-                                                                                    <p className="font-extrabold text-foreground dark:text-white text-sm sm:text-base truncate">{tx.description}</p>
+                                                                                    <p className="font-extrabold text-foreground text-sm sm:text-base truncate">{tx.description}</p>
                                                                                     <div className="text-xs sm:text-sm text-foreground/80 dark:text-zinc-300 font-medium flex items-center flex-wrap gap-1 mt-0.5">
                                                                                         {getEntryDetails(tx, memberMap, members, user, t)}
                                                                                     </div>
@@ -720,8 +720,8 @@ export default function BalanceDetailsPage() {
                                                                             </div>
                                                                             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                                                                                 <div className="text-right flex flex-col items-end justify-center gap-1">
-                                                                                    <span className={`text-xs sm:text-sm font-black font-mono px-2.5 py-1 rounded-lg border-2 ${
-                                                                                        isPositive ? 'text-emerald-400 bg-emerald-500/15 border-emerald-500/40' : 'text-rose-400 bg-rose-500/15 border-rose-500/40'
+                                                                                    <span className={`text-xs sm:text-sm font-black font-mono px-2.5 py-1 rounded-lg border ${
+                                                                                        isPositive ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 border-emerald-500/40' : 'text-rose-600 dark:text-rose-400 bg-rose-500/15 border-rose-500/40'
                                                                                     }`}>
                                                                                         {isPositive ? '+' : ''}{tx.contribution.toFixed(0)} {currency}
                                                                                     </span>
@@ -729,9 +729,9 @@ export default function BalanceDetailsPage() {
                                                                                         <span className="text-muted-foreground dark:text-zinc-400 text-[11px] uppercase font-sans font-bold">{t('totalAfterLog')}</span>
                                                                                         <span className={`font-black ${
                                                                                             tx.runningP2PBalance >= 0.5 
-                                                                                                ? 'text-emerald-400' 
+                                                                                                ? 'text-emerald-600 dark:text-emerald-400' 
                                                                                                 : tx.runningP2PBalance <= -0.5 
-                                                                                                    ? 'text-rose-400' 
+                                                                                                    ? 'text-rose-600 dark:text-rose-400' 
                                                                                                     : 'text-muted-foreground'
                                                                                         }`}>
                                                                                             {tx.runningP2PBalance >= 0.5 ? '+' : ''}{tx.runningP2PBalance.toFixed(0)} {currency}
@@ -758,7 +758,7 @@ export default function BalanceDetailsPage() {
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <div className="py-8 text-center bg-card rounded-2xl border-2 border-dashed border-card-border/80 dark:border-white/20 mt-3">
+                                                        <div className="py-8 text-center bg-card rounded-2xl border border-dashed border-card-border mt-3">
                                                             <p className="text-xs text-muted-foreground italic font-semibold">{t('noMutualTransactions')}</p>
                                                         </div>
                                                     )}

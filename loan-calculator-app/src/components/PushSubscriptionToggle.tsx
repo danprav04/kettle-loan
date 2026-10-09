@@ -47,7 +47,7 @@ export default function PushSubscriptionToggle() {
         <button
             onClick={handleToggle}
             disabled={isLoading}
-            className={`flex items-center justify-center w-full p-2 rounded-md transition-colors btn-muted ${isSubscribed ? 'text-primary' : ''}`}
+            className={`flex items-center justify-center w-full p-2.5 rounded-xl transition-colors btn-muted font-bold text-xs ${isSubscribed ? '!text-primary' : 'text-foreground dark:text-white'}`}
             title={isSubscribed ? "Disable Notifications" : "Enable Notifications"}
         >
             {isLoading ? (
@@ -57,7 +57,7 @@ export default function PushSubscriptionToggle() {
             ) : (
                 <FiBellOff size={16} className="me-1.5" />
             )}
-             <span className="font-semibold text-xs">NOTIFICATIONS</span>
+             <span>NOTIFICATIONS</span>
         </button>
     );
 }

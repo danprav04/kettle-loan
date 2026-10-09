@@ -39,7 +39,7 @@ export default function IntlProvider({ children }: { children: ReactNode }) {
   // When locale changes, update messages, localStorage, and document attributes
   useEffect(() => {
     if (messages[locale as keyof typeof messages]) {
-      setLoadedMessages(messages[locale as keyof typeof messages]);
+      setLoadedMessages(messages[locale as keyof typeof messages] as unknown as Messages);
       localStorage.setItem('locale', locale);
       document.documentElement.lang = locale;
       document.documentElement.dir = locale === 'he' ? 'rtl' : 'ltr';

@@ -230,22 +230,22 @@ export default function EntriesPage() {
     return (
         <div className="max-w-4xl mx-auto animate-scaleIn flex flex-col h-full">
             <div className="shrink-0">
-                <button onClick={() => router.back()} className="mb-4 font-extrabold py-2.5 px-5 rounded-xl btn-primary border-2 border-white/40 dark:border-white/60 shadow-md">
+                <button onClick={() => router.back()} className="mb-4 font-bold py-2 px-4 rounded-xl btn-primary border border-card-border shadow-md">
                     {t('backToRoom')}
                 </button>
 
                 {notification && (
-                    <div className="mb-4 p-3.5 rounded-xl bg-blue-100 dark:bg-blue-950/70 text-blue-900 dark:text-blue-200 text-sm font-bold border-2 border-blue-300 dark:border-blue-700 flex items-center animate-fadeIn shadow-md">
+                    <div className="mb-4 p-3 rounded-xl bg-blue-100 dark:bg-blue-950/70 text-blue-900 dark:text-blue-200 text-sm font-semibold border border-blue-300 dark:border-blue-700/50 flex items-center animate-fadeIn shadow-sm">
                         <FiInfo className="me-2 shrink-0 text-base"/>
                         <span>{notification}</span>
                     </div>
                 )}
             </div>
 
-            <div className="bg-card shadow-2xl max-h-[80vh] rounded-2xl border-2 border-card-border dark:border-white shadow-[0_0_25px_rgba(255,255,255,0.06)] flex flex-col flex-grow overflow-hidden">
-                <div className="p-4 border-b-2 border-card-border dark:border-white/20 shrink-0 flex items-center justify-between bg-card/90">
-                    <h1 className="text-xl sm:text-2xl font-extrabold font-heading text-card-foreground dark:text-white uppercase tracking-wide">{t('allEntries')}</h1>
-                    <span className="text-xs sm:text-sm text-foreground/80 dark:text-zinc-200 font-black font-mono px-2.5 py-1 rounded-lg bg-muted border border-card-border/80 dark:border-white/20">{t('currencyLabel')}: {currency}</span>
+            <div className="bg-card shadow-xl max-h-[80vh] rounded-2xl border border-card-border flex flex-col flex-grow overflow-hidden">
+                <div className="p-4 border-b border-card-border shrink-0 flex items-center justify-between bg-card/90">
+                    <h1 className="text-xl sm:text-2xl font-extrabold font-heading text-card-foreground uppercase tracking-wide">{t('allEntries')}</h1>
+                    <span className="text-xs sm:text-sm text-foreground/80 font-bold font-mono px-2.5 py-1 rounded-lg bg-muted border border-card-border">{t('currencyLabel')}: {currency}</span>
                 </div>
                 <div className="overflow-y-auto flex-grow">
                     {isLoading ? (
@@ -259,9 +259,9 @@ export default function EntriesPage() {
                                 const recorderName = memberMap.get(entry.created_by_user_id || 0);
 
                                 return (
-                                    <li key={entry.id} className="p-4 border-b-2 border-card-border/80 dark:border-white/15 flex justify-between items-center animate-fadeIn group hover:bg-muted/30 transition-colors" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
+                                    <li key={entry.id} className="p-4 border-b border-card-border flex justify-between items-center animate-fadeIn group hover:bg-muted/30 transition-colors" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
                                         <div className="flex-grow pr-2">
-                                            <p className="font-extrabold text-base sm:text-lg text-card-foreground dark:text-white tracking-tight">{entry.description}</p>
+                                            <p className="font-extrabold text-base sm:text-lg text-card-foreground tracking-tight">{entry.description}</p>
                                             <div className="text-xs sm:text-sm text-foreground/80 dark:text-zinc-300 font-medium flex items-center mt-1">
                                                 {getEntryDetails(entry, memberMap, members, user, t)}
                                             </div>
@@ -272,7 +272,7 @@ export default function EntriesPage() {
                                             )}
                                             <p className="text-xs text-muted-foreground dark:text-zinc-400 flex items-center mt-2 flex-wrap gap-y-1 font-semibold">
                                                 {(entry.pending_sync || entry.offline_timestamp || typeof entry.id === 'string') && (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-black bg-amber-500/20 text-amber-500 dark:text-amber-300 border-2 border-amber-500/50 rounded-full me-2 shrink-0">
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-black bg-amber-500/20 text-amber-500 dark:text-amber-300 border border-amber-500/50 rounded-full me-2 shrink-0">
                                                         <FiClock className="w-3.5 h-3.5" /> {t('unsynchronized')}
                                                     </span>
                                                 )}
