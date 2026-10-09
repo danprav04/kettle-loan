@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
 import { useCustomization, getLabelFontSizeStyle } from '@/components/CustomizationProvider';
-import { FiInfo, FiEdit, FiSave, FiX, FiLoader, FiShield, FiSliders, FiLogOut } from 'react-icons/fi';
+import { FiInfo, FiEdit, FiSave, FiX, FiLoader, FiShield, FiSliders, FiLogOut, FiList, FiBarChart2 } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
 import { saveRoomData, getRoomData, addLocalEntry, updateLocalRoomName, calculateAllMemberBalances, LocalRoomData, Entry } from '@/lib/offline-sync';
 import { useSync } from '@/components/SyncProvider';
@@ -541,24 +541,26 @@ export default function RoomPage() {
 
                                     <Link
                                         href={`/rooms/${roomId}/entries`}
-                                        className="font-bold py-1.5 px-3 rounded-xl btn-muted border border-card-border hover:border-muted-foreground text-xs shadow-xs"
+                                        className="font-bold py-1.5 px-3 rounded-xl btn-muted border border-card-border hover:border-muted-foreground text-xs shadow-2xs flex items-center gap-1.5"
                                         style={getLabelFontSizeStyle(customizations.allEntriesButtonLabelFontSize)}
                                     >
-                                        {customizations.allEntriesButtonLabel?.trim() || t('allEntries')}
+                                        <FiList size={13} />
+                                        <span>{customizations.allEntriesButtonLabel?.trim() || t('allEntries')}</span>
                                     </Link>
                                     {customizations.roomStats && (
                                         <Link
                                             href={`/rooms/${roomId}/stats`}
-                                            className="font-bold py-1.5 px-3 rounded-xl btn-muted border border-card-border hover:border-muted-foreground text-xs shadow-xs"
+                                            className="font-bold py-1.5 px-3 rounded-xl btn-muted border border-card-border hover:border-muted-foreground text-xs shadow-2xs flex items-center gap-1.5"
                                             style={getLabelFontSizeStyle(customizations.roomStatsButtonLabelFontSize)}
                                         >
-                                            {customizations.roomStatsButtonLabel?.trim() || t('roomStatistics')}
+                                            <FiBarChart2 size={13} />
+                                            <span>{customizations.roomStatsButtonLabel?.trim() || t('roomStatistics')}</span>
                                         </Link>
                                     )}
                                     {permissions.canAdmin && (
                                         <button
                                             onClick={() => setIsAdminPanelOpen(true)}
-                                            className="px-2.5 py-1.5 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs border border-purple-500/30"
+                                            className="px-2.5 py-1.5 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs border border-purple-500/30"
                                             title={t('adminTitle')}
                                         >
                                             <FiShield className="text-purple-600 dark:text-purple-400" /> <span>{t('adminBtn')}</span>
@@ -892,7 +894,7 @@ export default function RoomPage() {
                                 </div>
                             )}
 
-                            <div className={`flex flex-col ${customizations.roomStats ? 'sm:grid sm:grid-cols-2' : ''} gap-2 sm:gap-3 mt-2 sm:mt-2.5`}>
+                            <div className={`flex flex-col ${customizations.roomStats ? 'sm:grid sm:grid-cols-2' : ''} gap-2 sm:gap-3 mt-2 sm:mt-2.5 md:hidden`}>
                                 <Link
                                     href={`/rooms/${roomId}/entries`}
                                     className="font-bold py-2 sm:py-2.5 px-4 rounded-xl btn-muted border border-card-border hover:border-muted-foreground text-center text-xs sm:text-sm shadow-xs"

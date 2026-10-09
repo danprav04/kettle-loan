@@ -489,7 +489,7 @@ export default function PayerBeneficiarySelector({
         />
       )}
 
-      <div className="space-y-1.5 max-h-48 sm:max-h-52 overflow-y-auto pr-1">
+      <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
         {filteredMembers.map((member) => {
           const isSelected = selectedUserIds.has(member.id);
           const isLocked = lockedUserIds.has(member.id);
@@ -502,55 +502,53 @@ export default function PayerBeneficiarySelector({
             <div
               key={member.id}
               onClick={() => toggleMember(member.id)}
-              className={`flex flex-col justify-between p-2.5 rounded-xl border text-xs transition-all select-none gap-2 ${
+              className={`flex items-center justify-between p-2 rounded-xl border text-xs transition-all select-none gap-2 ${
                 customizations.corePersonSelection === false ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'
               } ${
                 isSelected
-                  ? 'bg-primary/10 border-primary/50 shadow-xs text-foreground'
-                  : 'bg-background/40 hover:bg-muted/30 border-card-border text-muted-foreground'
+                  ? 'bg-primary/[0.08] border-primary/30 shadow-2xs text-foreground'
+                  : 'bg-background/40 hover:bg-muted/40 border-card-border/60 hover:border-card-border text-muted-foreground'
               }`}
             >
-              <div className="flex items-center justify-between w-full min-w-0">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className={`w-5 h-5 shrink-0 rounded-md flex items-center justify-center text-xs font-bold border transition-colors ${
-                    isSelected
-                      ? 'bg-primary border-primary text-white shadow-xs'
-                      : 'border-card-border dark:border-zinc-700 bg-card/60 text-transparent'
-                  }`}>
-                    {isSelected ? '✓' : ''}
-                  </div>
-                  <span className={`text-xs sm:text-sm font-semibold truncate ${isSelected ? 'text-foreground font-bold' : 'text-foreground/80 dark:text-zinc-300'}`}>
-                    {member.username}
-                  </span>
-                  {member.id === currentUserId && (
-                    <span className="text-[10px] shrink-0 bg-primary/20 text-primary border border-primary/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">{t('youBadge')}</span>
-                  )}
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className={`w-4 h-4 shrink-0 rounded-md flex items-center justify-center text-[10px] font-bold border transition-colors ${
+                  isSelected
+                    ? 'bg-primary border-primary text-white shadow-2xs'
+                    : 'border-card-border dark:border-zinc-700 bg-card/60 text-transparent'
+                }`}>
+                  {isSelected ? '✓' : ''}
                 </div>
-                {isSelected && isLocked && (
-                  <span
-                    className="text-[10px] bg-warning/20 hover:bg-warning/30 text-warning px-1.5 py-0.5 rounded font-mono font-bold tracking-tighter shrink-0 transition-colors cursor-pointer border border-warning/30"
-                    title="Click to unlock this custom amount"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const next = new Set(lockedUserIds);
-                      next.delete(member.id);
-                      const { nextShares, nextLocked } = rebalanceSharesWithLocks(
-                        shares.map((s) => s.userId),
-                        next,
-                        shares
-                      );
-                      setLockedUserIds(nextLocked);
-                      onChange(nextShares);
-                    }}
-                  >
-                    {t('lockedBadge')}
-                  </span>
+                <span className={`text-xs sm:text-sm font-semibold truncate ${isSelected ? 'text-foreground font-bold' : 'text-foreground/80 dark:text-zinc-300'}`}>
+                  {member.username}
+                </span>
+                {member.id === currentUserId && (
+                  <span className="text-[10px] shrink-0 bg-primary/20 text-primary border border-primary/30 px-1.5 py-0.2 rounded font-bold uppercase tracking-wider">{t('youBadge')}</span>
                 )}
               </div>
 
               {isSelected && (
-                <div className="flex items-center justify-between gap-2 w-full pt-1.5 border-t border-card-border/50" onClick={(e) => e.stopPropagation()}>
-                  <span className="text-xs text-muted-foreground font-mono font-semibold shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {isLocked && (
+                    <span
+                      className="text-[10px] bg-warning/20 hover:bg-warning/30 text-warning px-1.5 py-0.5 rounded font-mono font-bold tracking-tighter shrink-0 transition-colors cursor-pointer border border-warning/30"
+                      title="Click to unlock this custom amount"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const next = new Set(lockedUserIds);
+                        next.delete(member.id);
+                        const { nextShares, nextLocked } = rebalanceSharesWithLocks(
+                          shares.map((s) => s.userId),
+                          next,
+                          shares
+                        );
+                        setLockedUserIds(nextLocked);
+                        onChange(nextShares);
+                      }}
+                    >
+                      {t('lockedBadge')}
+                    </span>
+                  )}
+                  <span className="text-[11px] text-muted-foreground font-mono font-medium shrink-0">
                     ({pct.toFixed(1)}%)
                   </span>
                   {customizations.coreManualShareInputs !== false ? (
@@ -562,7 +560,7 @@ export default function PayerBeneficiarySelector({
                         onFocus={(e) => e.target.select()}
                         onChange={(e) => handleTextChange(member.id, e.target.value)}
                         onBlur={() => handleBlur(member.id)}
-                        className="w-24 themed-input px-2 py-1 text-right font-bold text-xs rounded-lg border border-primary/30 bg-card text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                        className="w-20 themed-input px-1.5 py-0.5 text-right font-bold text-xs rounded-lg border border-card-border bg-card text-foreground shadow-2xs focus:border-primary focus:ring-1 focus:ring-primary"
                       />
                       <span className="ml-1 text-foreground dark:text-zinc-200 font-bold text-xs shrink-0">{currency}</span>
                     </div>
