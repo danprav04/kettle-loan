@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { SplitPreset } from '@/lib/hooks/useSplitPresets';
-import { useCustomization } from '@/components/CustomizationProvider';
+import { useCustomization, getLabelFontSizeStyle } from '@/components/CustomizationProvider';
 
 import { ShareItem, rebalanceSharesWithLocks } from '@/lib/split-calc';
 export type { ShareItem };
@@ -28,6 +28,7 @@ interface PayerBeneficiarySelectorProps {
   totalAmount: number;
   currency: string;
   label: string;
+  labelFontSize?: number;
   currentUserId: number | null;
   allowQuickActions?: boolean;
   onUpdateTotal?: (newTotal: number) => void;
@@ -43,6 +44,7 @@ export default function PayerBeneficiarySelector({
   totalAmount,
   currency,
   label,
+  labelFontSize,
   currentUserId,
   allowQuickActions = true,
   onUpdateTotal,
@@ -245,9 +247,14 @@ export default function PayerBeneficiarySelector({
   );
 
   return (
-    <div className="space-y-2.5 p-3.5 bg-card/90 backdrop-blur-md border-2 border-card-border/80 dark:border-white/40 shadow-xl rounded-2xl transition-all duration-300">
+    <div className="space-y-2.5 p-3.5 bg-card/90 backdrop-blur-md border border-card-border shadow-sm rounded-2xl transition-all duration-300">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <label className="text-xs sm:text-sm font-extrabold text-foreground dark:text-zinc-100 uppercase tracking-wider">{label}</label>
+        <label
+          className="text-xs sm:text-sm font-extrabold text-foreground uppercase tracking-wider"
+          style={getLabelFontSizeStyle(labelFontSize)}
+        >
+          {label}
+        </label>
         <div className="flex items-center gap-1.5 flex-wrap">
           {onUpdateTotal && totalAmount > 0 && !isValid && customizations.syncTotal && (
             <button
@@ -269,11 +276,11 @@ export default function PayerBeneficiarySelector({
                   onChange(updatedShares);
                 }
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-extrabold text-xs border-2 border-primary/50 transition-colors shadow-sm cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs border border-primary/40 transition-colors shadow-xs cursor-pointer"
               title="Click to update master bill total to match this sum"
             >
-              <span className="font-black text-sm">↑</span>
-              <span>
+              <span className="font-bold text-sm">↑</span>
+              <span style={getLabelFontSizeStyle(customizations.syncTotalButtonLabelFontSize)}>
                 {customizations.syncTotalButtonLabel?.trim()
                   ? `${customizations.syncTotalButtonLabel.trim()} ${currentSumMonetary} ${currency}`
                   : t('syncTotalBtn', { sum: currentSumMonetary, currency })}
@@ -284,20 +291,23 @@ export default function PayerBeneficiarySelector({
             <button
               type="button"
               onClick={distributeRemaining}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs border-2 border-emerald-500/50 transition-colors shadow-sm cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-xs border border-emerald-500/40 transition-colors shadow-xs cursor-pointer"
               title="Click to auto-assign remaining amount"
             >
-              <span className="font-black">{remainingMonetary > 0 ? `+${remainingMonetary.toFixed(0)}` : remainingMonetary.toFixed(0)} {currency}</span>
-              <span className="text-[11px] uppercase font-black tracking-wider">
+              <span className="font-bold">{remainingMonetary > 0 ? `+${remainingMonetary.toFixed(0)}` : remainingMonetary.toFixed(0)} {currency}</span>
+              <span
+                className="text-[11px] uppercase font-bold tracking-wider"
+                style={getLabelFontSizeStyle(customizations.autoBalanceButtonLabelFontSize)}
+              >
                 {customizations.autoBalanceButtonLabel?.trim() || t('autoBalanceBadge')}
               </span>
             </button>
           )}
           {customizations.coreSumBadge !== false && (
-            <span className={`text-xs sm:text-sm font-black px-3.5 py-1 rounded-full border-2 shadow-md transition-all ${
+            <span className={`text-xs font-bold px-3 py-0.5 rounded-full border transition-all ${
               isValid
-                ? 'bg-emerald-500/20 text-emerald-500 dark:text-emerald-300 border-emerald-500/60 dark:border-emerald-400'
-                : 'bg-rose-500/20 text-rose-500 dark:text-rose-300 border-rose-500/60 dark:border-rose-400 animate-pulse'
+                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse'
             }`}>
               {t('splitMonetarySum', { sum: currentSumMonetary, total: totalAmount.toFixed(0), currency })} {isValid ? '✓' : `⚠️ ${t('mustEqualTotal')}`}
             </span>
@@ -307,14 +317,17 @@ export default function PayerBeneficiarySelector({
 
       {allowQuickActions && customizations.premadePresets && eligibleMembers.length > 1 && (
         <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
-          <span className="text-foreground dark:text-zinc-300 font-bold text-xs uppercase tracking-wide">
+          <span
+            className="text-foreground dark:text-zinc-300 font-bold text-xs uppercase tracking-wide"
+            style={getLabelFontSizeStyle(customizations.quickActionsLabelFontSize)}
+          >
             {customizations.quickActionsLabel?.trim() || t('quick')}
           </span>
           {currentUserId && eligibleMembers.some((m) => m.id === currentUserId) && (
             <button
               type="button"
               onClick={() => rebalanceEqual([currentUserId])}
-              className="px-2.5 py-1 bg-muted hover:bg-primary/20 hover:text-primary text-foreground font-bold rounded-lg transition-all border-2 border-card-border/80 dark:border-white/30 hover:border-white text-xs cursor-pointer shadow-sm"
+              className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-muted hover:bg-primary/10 hover:text-primary text-foreground font-semibold rounded-lg transition-all border border-card-border text-xs cursor-pointer shadow-xs"
             >
               {t('justMe')}
             </button>
@@ -322,21 +335,21 @@ export default function PayerBeneficiarySelector({
           <button
             type="button"
             onClick={() => rebalanceEqual(eligibleMembers.map((m) => m.id))}
-            className="px-2.5 py-1 bg-muted hover:bg-primary/20 hover:text-primary text-foreground font-bold rounded-lg transition-all border-2 border-card-border/80 dark:border-white/30 hover:border-white text-xs cursor-pointer shadow-sm"
+            className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-muted hover:bg-primary/10 hover:text-primary text-foreground font-semibold rounded-lg transition-all border border-card-border text-xs cursor-pointer shadow-xs"
           >
             {t('everyone')}
           </button>
           <button
             type="button"
             onClick={() => rebalanceEqual([])}
-            className="px-2.5 py-1 bg-muted hover:bg-primary/20 hover:text-primary text-foreground font-bold rounded-lg transition-all border-2 border-card-border/80 dark:border-white/30 hover:border-white text-xs cursor-pointer shadow-sm"
+            className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-muted hover:bg-primary/10 hover:text-primary text-foreground font-semibold rounded-lg transition-all border border-card-border text-xs cursor-pointer shadow-xs"
           >
             {t('selectNone')}
           </button>
           <button
             type="button"
             onClick={() => rebalanceEqual(shares.map((s) => s.userId))}
-            className="px-2.5 py-1 bg-muted hover:bg-primary/20 hover:text-primary text-foreground font-bold rounded-lg transition-all border-2 border-card-border/80 dark:border-white/30 hover:border-white text-xs cursor-pointer shadow-sm"
+            className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-muted hover:bg-primary/10 hover:text-primary text-foreground font-semibold rounded-lg transition-all border border-card-border text-xs cursor-pointer shadow-xs"
           >
             {t('splitEquallyShort')}
           </button>
@@ -344,7 +357,7 @@ export default function PayerBeneficiarySelector({
             <button
               type="button"
               onClick={() => rebalanceEqual(shares.map((s) => s.userId))}
-              className="px-2.5 py-1 bg-warning/20 hover:bg-warning/30 text-warning font-extrabold rounded-lg transition-all border-2 border-warning/50 text-xs ml-auto cursor-pointer shadow-sm"
+              className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-warning/15 hover:bg-warning/25 text-warning font-bold rounded-lg transition-all border border-warning/30 text-xs ml-auto cursor-pointer shadow-xs"
               title="Click to unlock all custom amounts"
             >
               {t('unlockAllBtn')}
@@ -354,8 +367,11 @@ export default function PayerBeneficiarySelector({
       )}
 
       {allowQuickActions && customizations.customPresets && (presets.length > 0 || onSavePreset) && (
-        <div className="flex items-center gap-1.5 text-xs flex-wrap pt-1.5 border-t-2 border-card-border/60 dark:border-white/20">
-          <span className="text-foreground dark:text-zinc-300 font-bold text-xs flex items-center gap-1 uppercase tracking-wide">
+        <div className="flex items-center gap-1.5 text-xs flex-wrap pt-1 border-t border-card-border/60">
+          <span
+            className="text-foreground dark:text-zinc-300 font-bold text-xs flex items-center gap-1 uppercase tracking-wide"
+            style={getLabelFontSizeStyle(customizations.presetsBarLabelFontSize)}
+          >
             <span className="text-primary font-black">★</span>
             {customizations.presetsBarLabel?.trim() || t('presets')}
           </span>
@@ -371,13 +387,13 @@ export default function PayerBeneficiarySelector({
             return (
               <div
                 key={preset.id}
-                className="group inline-flex items-center bg-primary/15 hover:bg-primary/25 text-primary border-2 border-primary/40 rounded-lg text-xs font-bold transition-all shadow-sm"
+                className="group inline-flex items-center bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-lg text-xs font-semibold transition-all shadow-xs"
                 title={tooltipText}
               >
                 <button
                   type="button"
                   onClick={() => applyPreset(preset)}
-                  className="px-2.5 py-1 cursor-pointer font-extrabold hover:underline flex items-center gap-1"
+                  className="px-2 py-0.5 cursor-pointer font-bold hover:underline flex items-center gap-1"
                 >
                   {preset.name}
                 </button>
@@ -390,7 +406,7 @@ export default function PayerBeneficiarySelector({
                         onDeletePreset(preset.id);
                       }
                     }}
-                    className="pr-2 pl-0.5 py-1 text-muted-foreground hover:text-danger opacity-70 group-hover:opacity-100 transition-opacity cursor-pointer text-xs font-black"
+                    className="pr-1.5 pl-0.5 py-0.5 text-muted-foreground hover:text-danger opacity-70 group-hover:opacity-100 transition-opacity cursor-pointer text-xs font-bold"
                     title={t('deletePreset')}
                   >
                     ✕
@@ -406,7 +422,7 @@ export default function PayerBeneficiarySelector({
                 type="button"
                 onClick={() => setIsAddingPreset(true)}
                 disabled={shares.length === 0 || !isValid}
-                className="px-2.5 py-1 bg-muted/60 hover:bg-primary/20 hover:text-primary text-foreground font-bold rounded-lg transition-all border-2 border-dashed border-card-border/80 dark:border-white/30 text-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                className="px-2 py-0.5 bg-muted/60 hover:bg-primary/10 hover:text-primary text-foreground font-semibold rounded-lg transition-all border border-dashed border-card-border text-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs"
                 title={!isValid ? t('mustEqualTotal') : t('savePresetBtn')}
               >
                 {t('savePresetBtn')}
@@ -431,7 +447,7 @@ export default function PayerBeneficiarySelector({
                     }
                   }}
                   placeholder={t('presetPlaceholder')}
-                  className="px-2.5 py-1 text-xs font-bold rounded-lg themed-input border-2 border-primary/50 w-28 sm:w-36 bg-card shadow-inner"
+                  className="px-2 py-0.5 text-xs font-medium rounded-lg themed-input border border-primary/40 w-28 sm:w-36 bg-card"
                 />
                 <button
                   type="button"
@@ -441,7 +457,7 @@ export default function PayerBeneficiarySelector({
                     handleSavePreset();
                   }}
                   disabled={isSavingPreset || !presetNameInput.trim()}
-                  className="px-2.5 py-1 bg-primary text-primary-foreground font-black rounded-lg text-xs disabled:opacity-50 cursor-pointer shadow-sm"
+                  className="px-2 py-0.5 bg-primary text-primary-foreground font-bold rounded-lg text-xs disabled:opacity-50 cursor-pointer shadow-xs"
                 >
                   {isSavingPreset ? '...' : '✓'}
                 </button>
@@ -453,7 +469,7 @@ export default function PayerBeneficiarySelector({
                     setIsAddingPreset(false);
                     setPresetNameInput('');
                   }}
-                  className="px-2 py-1 text-muted-foreground hover:text-foreground text-xs font-bold cursor-pointer"
+                  className="px-1.5 py-0.5 text-muted-foreground hover:text-foreground text-xs font-bold cursor-pointer"
                 >
                   ✕
                 </button>
@@ -469,11 +485,11 @@ export default function PayerBeneficiarySelector({
           placeholder={t('searchMember')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-2 text-xs sm:text-sm font-semibold rounded-xl themed-input border-2 border-card-border/80 dark:border-white/20"
+          className="w-full px-3 py-1.5 text-xs font-medium rounded-xl themed-input border border-card-border"
         />
       )}
 
-      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+      <div className="space-y-1.5 max-h-48 sm:max-h-52 overflow-y-auto pr-1">
         {filteredMembers.map((member) => {
           const isSelected = selectedUserIds.has(member.id);
           const isLocked = lockedUserIds.has(member.id);
@@ -486,33 +502,33 @@ export default function PayerBeneficiarySelector({
             <div
               key={member.id}
               onClick={() => toggleMember(member.id)}
-              className={`flex flex-col justify-between p-3 rounded-xl border-2 text-xs sm:text-sm transition-all select-none gap-2.5 ${
+              className={`flex flex-col justify-between p-2.5 rounded-xl border text-xs transition-all select-none gap-2 ${
                 customizations.corePersonSelection === false ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'
               } ${
                 isSelected
-                  ? 'bg-primary/15 border-primary dark:border-white shadow-md text-foreground'
-                  : 'bg-background/80 hover:bg-muted/50 border-card-border/80 dark:border-white/20 text-zinc-300'
+                  ? 'bg-primary/10 border-primary/50 shadow-xs text-foreground'
+                  : 'bg-background/40 hover:bg-muted/30 border-card-border text-muted-foreground'
               }`}
             >
               <div className="flex items-center justify-between w-full min-w-0">
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className={`w-6 h-6 shrink-0 rounded-lg flex items-center justify-center text-sm font-black border-2 transition-all ${
+                  <div className={`w-5 h-5 shrink-0 rounded-md flex items-center justify-center text-xs font-bold border transition-colors ${
                     isSelected
-                      ? 'bg-primary border-primary dark:border-white text-white shadow-md'
-                      : 'border-zinc-400 dark:border-zinc-500 bg-background/90 text-transparent hover:border-white'
+                      ? 'bg-primary border-primary text-white shadow-xs'
+                      : 'border-card-border dark:border-zinc-700 bg-card/60 text-transparent'
                   }`}>
                     {isSelected ? '✓' : ''}
                   </div>
-                  <span className={`text-sm sm:text-base font-extrabold truncate ${isSelected ? 'text-foreground dark:text-white' : 'text-zinc-700 dark:text-zinc-300'}`}>
+                  <span className={`text-xs sm:text-sm font-semibold truncate ${isSelected ? 'text-foreground font-bold' : 'text-foreground/80 dark:text-zinc-300'}`}>
                     {member.username}
                   </span>
                   {member.id === currentUserId && (
-                    <span className="text-[10px] shrink-0 bg-primary/30 text-primary-foreground border border-primary/50 px-2 py-0.5 rounded-md font-black uppercase tracking-wider">{t('youBadge')}</span>
+                    <span className="text-[10px] shrink-0 bg-primary/20 text-primary border border-primary/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">{t('youBadge')}</span>
                   )}
                 </div>
                 {isSelected && isLocked && (
                   <span
-                    className="text-[10px] bg-warning/20 hover:bg-warning/40 text-warning px-2 py-0.5 rounded-md font-mono font-bold tracking-tighter shrink-0 transition-colors cursor-pointer border border-warning/40"
+                    className="text-[10px] bg-warning/20 hover:bg-warning/30 text-warning px-1.5 py-0.5 rounded font-mono font-bold tracking-tighter shrink-0 transition-colors cursor-pointer border border-warning/30"
                     title="Click to unlock this custom amount"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -533,8 +549,8 @@ export default function PayerBeneficiarySelector({
               </div>
 
               {isSelected && (
-                <div className="flex items-center justify-between gap-2 w-full pt-2 border-t-2 border-card-border/60 dark:border-white/20" onClick={(e) => e.stopPropagation()}>
-                  <span className="text-xs sm:text-sm text-foreground/80 dark:text-zinc-300 font-mono font-bold shrink-0">
+                <div className="flex items-center justify-between gap-2 w-full pt-1.5 border-t border-card-border/50" onClick={(e) => e.stopPropagation()}>
+                  <span className="text-xs text-muted-foreground font-mono font-semibold shrink-0">
                     ({pct.toFixed(1)}%)
                   </span>
                   {customizations.coreManualShareInputs !== false ? (
@@ -546,12 +562,12 @@ export default function PayerBeneficiarySelector({
                         onFocus={(e) => e.target.select()}
                         onChange={(e) => handleTextChange(member.id, e.target.value)}
                         onBlur={() => handleBlur(member.id)}
-                        className="w-28 themed-input px-2.5 py-1.5 text-right font-extrabold text-sm rounded-lg border-2 border-primary/60 dark:border-white/50 bg-card text-foreground shadow-inner focus:border-white focus:ring-2 focus:ring-primary"
+                        className="w-24 themed-input px-2 py-1 text-right font-bold text-xs rounded-lg border border-primary/30 bg-card text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
                       />
-                      <span className="ml-1.5 text-foreground dark:text-zinc-100 font-extrabold text-xs sm:text-sm shrink-0">{currency}</span>
+                      <span className="ml-1 text-foreground dark:text-zinc-200 font-bold text-xs shrink-0">{currency}</span>
                     </div>
                   ) : (
-                    <span className="font-extrabold text-sm text-foreground dark:text-white">
+                    <span className="font-bold text-xs text-foreground">
                       {computedMonetary} {currency}
                     </span>
                   )}

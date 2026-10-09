@@ -1,5 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
-import { DEFAULT_CUSTOMIZATIONS, CustomizationSettings, getUserCustomizationStorageKey, LOCAL_STORAGE_KEY_PREFIX } from '../components/CustomizationProvider';
+import {
+  DEFAULT_CUSTOMIZATIONS,
+  CustomizationSettings,
+  getUserCustomizationStorageKey,
+  LOCAL_STORAGE_KEY_PREFIX,
+  MIN_GENERAL_FONT_SIZE,
+  MAX_GENERAL_FONT_SIZE,
+  DEFAULT_GENERAL_FONT_SIZE,
+  MIN_LABEL_FONT_SIZE,
+  MAX_LABEL_FONT_SIZE,
+  DEFAULT_LABEL_FONT_SIZE,
+  getLabelFontSizeStyle,
+} from '../components/CustomizationProvider';
 import { GET, PUT } from '../app/api/user/customizations/route';
 import * as auth from '../lib/auth';
 import { db } from '../lib/db';
@@ -201,6 +213,91 @@ describe('Customization Settings & Label Logic', () => {
   });
 });
 
+describe('Font Size Settings & Styles', () => {
+  it('defines reasonable font size constants and defaults', () => {
+    expect(DEFAULT_GENERAL_FONT_SIZE).toBe(16);
+    expect(MIN_GENERAL_FONT_SIZE).toBe(12);
+    expect(MAX_GENERAL_FONT_SIZE).toBe(24);
+
+    expect(DEFAULT_LABEL_FONT_SIZE).toBe(0);
+    expect(MIN_LABEL_FONT_SIZE).toBe(10);
+    expect(MAX_LABEL_FONT_SIZE).toBe(32);
+
+    expect(DEFAULT_CUSTOMIZATIONS.generalFontSize).toBe(16);
+  });
+
+  it('defaults all 15 per-label font sizes to 0 (default / responsive styling)', () => {
+    expect(DEFAULT_CUSTOMIZATIONS.payerListLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.beneficiaryListLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.balanceTitleLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.detailedBalanceLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.newEntryTitleLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.amountInputLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.descriptionInputLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.descriptionPlaceholderLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.addEntryButtonLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.allEntriesButtonLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.roomStatsButtonLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.quickActionsLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.presetsBarLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.autoBalanceButtonLabelFontSize).toBe(0);
+    expect(DEFAULT_CUSTOMIZATIONS.syncTotalButtonLabelFontSize).toBe(0);
+  });
+
+  it('getLabelFontSizeStyle returns proper CSS style when in range [10, 32]', () => {
+    expect(getLabelFontSizeStyle(16)).toEqual({ fontSize: '16px' });
+    expect(getLabelFontSizeStyle(10)).toEqual({ fontSize: '10px' });
+    expect(getLabelFontSizeStyle(32)).toEqual({ fontSize: '32px' });
+    expect(getLabelFontSizeStyle(24)).toEqual({ fontSize: '24px' });
+  });
+
+  it('getLabelFontSizeStyle returns undefined for 0, out-of-range, or invalid values', () => {
+    expect(getLabelFontSizeStyle(0)).toBeUndefined();
+    expect(getLabelFontSizeStyle(9)).toBeUndefined();
+    expect(getLabelFontSizeStyle(33)).toBeUndefined();
+    expect(getLabelFontSizeStyle(-10)).toBeUndefined();
+    expect(getLabelFontSizeStyle(undefined)).toBeUndefined();
+    expect(getLabelFontSizeStyle(null as any)).toBeUndefined();
+    expect(getLabelFontSizeStyle(NaN)).toBeUndefined();
+  });
+
+  it('allows independent modification of generalFontSize and individual label font sizes', () => {
+    const settings: CustomizationSettings = { ...DEFAULT_CUSTOMIZATIONS };
+
+    settings.generalFontSize = 20;
+    settings.payerListLabelFontSize = 14;
+    settings.amountInputLabelFontSize = 22;
+
+    expect(settings.generalFontSize).toBe(20);
+    expect(settings.payerListLabelFontSize).toBe(14);
+    expect(settings.amountInputLabelFontSize).toBe(22);
+
+    // Other label font sizes remain default 0
+    expect(settings.beneficiaryListLabelFontSize).toBe(0);
+    expect(settings.balanceTitleLabelFontSize).toBe(0);
+    expect(settings.addEntryButtonLabelFontSize).toBe(0);
+  });
+
+  it('serializes and deserializes font size settings cleanly through JSON', () => {
+    const custom: CustomizationSettings = {
+      ...DEFAULT_CUSTOMIZATIONS,
+      generalFontSize: 18,
+      payerListLabelFontSize: 12,
+      beneficiaryListLabelFontSize: 14,
+      amountInputLabelFontSize: 20,
+    };
+
+    const json = JSON.stringify(custom);
+    const parsed = JSON.parse(json);
+
+    expect(parsed.generalFontSize).toBe(18);
+    expect(parsed.payerListLabelFontSize).toBe(12);
+    expect(parsed.beneficiaryListLabelFontSize).toBe(14);
+    expect(parsed.amountInputLabelFontSize).toBe(20);
+    expect(parsed).toEqual(custom);
+  });
+});
+
 describe('User Customizations API Route (/api/user/customizations)', () => {
   it('returns 401 Unauthorized for GET without valid token', async () => {
     vi.spyOn(auth, 'verifyToken').mockReturnValueOnce(null);
@@ -370,4 +467,36 @@ describe('Account Customization Isolation & Multi-Account Switching', () => {
     expect(userASettings.beneficiaryListLabel).toBe('');
     expect(userBSettings.beneficiaryListLabel).toBe('');
   });
+
+  it('strictly isolates font size customizations between different users', () => {
+    // User A has custom general font size and specific label font sizes
+    const userARemoteSettings = {
+      generalFontSize: 20,
+      payerListLabelFontSize: 18,
+      amountInputLabelFontSize: 24,
+    };
+
+    // User B has not set any custom font sizes
+    const userBRemoteSettings = {};
+
+    const userASettings: CustomizationSettings = {
+      ...DEFAULT_CUSTOMIZATIONS,
+      ...userARemoteSettings,
+    };
+
+    const userBSettings: CustomizationSettings = {
+      ...DEFAULT_CUSTOMIZATIONS,
+      ...userBRemoteSettings,
+    };
+
+    expect(userASettings.generalFontSize).toBe(20);
+    expect(userASettings.payerListLabelFontSize).toBe(18);
+    expect(userASettings.amountInputLabelFontSize).toBe(24);
+
+    // User B defaults are strictly preserved without leaking User A's font settings
+    expect(userBSettings.generalFontSize).toBe(16);
+    expect(userBSettings.payerListLabelFontSize).toBe(0);
+    expect(userBSettings.amountInputLabelFontSize).toBe(0);
+  });
 });
+

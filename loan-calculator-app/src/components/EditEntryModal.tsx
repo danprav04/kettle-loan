@@ -7,7 +7,7 @@ import { Entry, updateLocalEntry, getEntryEdits, saveEntryEdits, updateOutboxCre
 import PayerBeneficiarySelector, { ShareItem } from './PayerBeneficiarySelector';
 import { useSplitPresets } from '@/lib/hooks/useSplitPresets';
 import CurrencyAmountInput from './CurrencyAmountInput';
-import { useCustomization } from './CustomizationProvider';
+import { useCustomization, getLabelFontSizeStyle } from './CustomizationProvider';
 
 interface Member {
   id: number;
@@ -284,19 +284,19 @@ export default function EditEntryModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="w-full max-w-2xl overflow-hidden bg-card border-2 border-card-border dark:border-white shadow-[0_0_25px_rgba(255,255,255,0.06)] rounded-3xl flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-2xl overflow-hidden bg-card border border-card-border shadow-2xl rounded-2xl sm:rounded-3xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-card-border/80 dark:border-white/20 bg-muted/40">
-          <h2 className="text-xl sm:text-2xl font-extrabold font-heading flex items-center gap-2.5 text-foreground dark:text-white uppercase tracking-wide">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-card-border bg-muted/40">
+          <h2 className="text-xl sm:text-2xl font-extrabold font-heading flex items-center gap-2.5 text-foreground uppercase tracking-wide">
             <span className="p-1.5 rounded-xl bg-primary/20 text-primary text-base">✏️</span> {t('editEntryTitle')}
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-xl text-foreground/80 dark:text-zinc-200 hover:text-foreground hover:bg-black/10 dark:hover:bg-white/10 transition-all font-bold text-lg cursor-pointer">
+          <button onClick={onClose} className="p-1.5 rounded-xl text-foreground/80 hover:text-foreground hover:bg-black/10 dark:hover:bg-white/10 transition-all font-bold text-lg cursor-pointer">
             ✕
           </button>
         </div>
 
         <div className="p-6 overflow-y-auto space-y-5 flex-1">
-          {error && <div className="p-3.5 text-xs sm:text-sm font-bold bg-danger/20 text-danger border-2 border-danger/50 rounded-xl">{error}</div>}
+          {error && <div className="p-3.5 text-xs sm:text-sm font-bold bg-danger/20 text-danger border border-danger/50 rounded-xl">{error}</div>}
 
           <form id="edit-entry-form" onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -315,14 +315,18 @@ export default function EditEntryModal({
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-extrabold text-foreground dark:text-zinc-100 mb-1.5 uppercase tracking-wider">
+                <label
+                  className="block text-xs sm:text-sm font-extrabold text-foreground dark:text-zinc-100 mb-1.5 uppercase tracking-wider"
+                  style={getLabelFontSizeStyle(customizations.descriptionInputLabelFontSize)}
+                >
                   {customizations.descriptionInputLabel?.trim() || t('description')}
                 </label>
                 <input
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full themed-input px-3.5 py-2.5 text-sm sm:text-base font-extrabold rounded-xl border-2 border-input bg-background text-foreground"
+                  className="w-full themed-input px-3.5 py-2 text-sm sm:text-base font-extrabold rounded-xl border border-input bg-background text-foreground"
+                  style={getLabelFontSizeStyle(customizations.descriptionPlaceholderLabelFontSize)}
                   required
                   placeholder={customizations.descriptionPlaceholderLabel?.trim() || t('descriptionPlaceholder')}
                 />
@@ -330,7 +334,7 @@ export default function EditEntryModal({
             </div>
 
             {members.length > 1 && (
-              <div className="pt-2 space-y-3 border-t-2 border-card-border/80 dark:border-white/20">
+              <div className="pt-2 space-y-3 border-t border-card-border">
                 <div className="flex items-center justify-between">
                   <label className="text-xs sm:text-sm font-extrabold text-foreground dark:text-zinc-100 uppercase tracking-wider">{t('editSplitDetails')}</label>
                   <div style={{ display: 'none' }} className="flex rounded-xl bg-muted/40 p-0.5 border border-card-border/60 dark:border-white/5">
@@ -361,6 +365,7 @@ export default function EditEntryModal({
                       totalAmount={numAmount}
                       currency={inputCurrency}
                       label={customizations.payerListLabel?.trim() || t('list1WhoPaid')}
+                      labelFontSize={customizations.payerListLabelFontSize}
                       currentUserId={currentUserId || null}
                       onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
                       presets={splitPresets}
@@ -374,6 +379,7 @@ export default function EditEntryModal({
                       totalAmount={numAmount}
                       currency={inputCurrency}
                       label={customizations.beneficiaryListLabel?.trim() || t('list2SplitForWhom')}
+                      labelFontSize={customizations.beneficiaryListLabelFontSize}
                       currentUserId={currentUserId || null}
                       onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
                       presets={splitPresets}
@@ -400,7 +406,7 @@ export default function EditEntryModal({
                             </div>
                             <span>{t('me')}</span>
                           </div>
-                          <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-bold tracking-wider">{t('youBadge')}</span>
+                          <span className="text-[9px] bg-primary/20 text-primary border border-primary/40 px-1.5 py-0.5 rounded font-bold tracking-wider">{t('youBadge')}</span>
                         </div>
                       )}
                       {otherMembers.map((m) => {
@@ -433,11 +439,11 @@ export default function EditEntryModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t-2 border-card-border/80 dark:border-white/20 bg-muted/40 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-card-border bg-muted/40 flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 bg-muted hover:bg-muted/80 text-foreground text-xs sm:text-sm font-extrabold rounded-xl border-2 border-card-border/80 dark:border-white/30 transition-all shadow-sm cursor-pointer"
+            className="btn-secondary px-5 py-2.5 text-xs sm:text-sm font-semibold rounded-xl border border-card-border transition-all cursor-pointer"
             disabled={isLoading}
           >
             {t('closeBtn')}
@@ -445,7 +451,7 @@ export default function EditEntryModal({
           <button
             form="edit-entry-form"
             type="submit"
-            className="btn-primary text-xs sm:text-sm px-6 py-2.5 rounded-xl font-extrabold border-2 border-white/40 dark:border-white/60 shadow-md flex items-center gap-2 cursor-pointer"
+            className="btn-primary text-xs sm:text-sm px-6 py-2.5 rounded-xl font-bold border border-card-border shadow-md flex items-center gap-2 cursor-pointer"
             disabled={isLoading || (inputCurrency.toUpperCase() !== currency.toUpperCase() && !conversionInfo.isRateReady)}
           >
             <span>💾</span> {isLoading ? '...' : 'Save Edits'}

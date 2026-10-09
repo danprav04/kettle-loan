@@ -36,6 +36,26 @@ export interface CustomizationSettings {
   autoBalanceButtonLabel: string;       // Custom label for Auto-balance button (empty = default "Auto-balance")
   syncTotalButtonLabel: string;         // Custom label for Sync total button (empty = default "Sync total")
 
+  // General Font Size Setting (App-wide base font size in px, default 16, reasonable range 12-24)
+  generalFontSize: number;
+
+  // Custom Label Font Sizes (in px, 0 = default inherited/responsive size, reasonable range 10-32)
+  payerListLabelFontSize: number;
+  beneficiaryListLabelFontSize: number;
+  balanceTitleLabelFontSize: number;
+  detailedBalanceLabelFontSize: number;
+  newEntryTitleLabelFontSize: number;
+  amountInputLabelFontSize: number;
+  descriptionInputLabelFontSize: number;
+  descriptionPlaceholderLabelFontSize: number;
+  addEntryButtonLabelFontSize: number;
+  allEntriesButtonLabelFontSize: number;
+  roomStatsButtonLabelFontSize: number;
+  quickActionsLabelFontSize: number;
+  presetsBarLabelFontSize: number;
+  autoBalanceButtonLabelFontSize: number;
+  syncTotalButtonLabelFontSize: number;
+
   // Core Features for Developers & Testers (All true by default)
   coreSumBadge: boolean;                // Green/red sum validation badge
   coreEntryEditing: boolean;            // Editing existing entries
@@ -73,6 +93,22 @@ export const DEFAULT_CUSTOMIZATIONS: CustomizationSettings = {
   presetsBarLabel: '',
   autoBalanceButtonLabel: '',
   syncTotalButtonLabel: '',
+  generalFontSize: 16,
+  payerListLabelFontSize: 0,
+  beneficiaryListLabelFontSize: 0,
+  balanceTitleLabelFontSize: 0,
+  detailedBalanceLabelFontSize: 0,
+  newEntryTitleLabelFontSize: 0,
+  amountInputLabelFontSize: 0,
+  descriptionInputLabelFontSize: 0,
+  descriptionPlaceholderLabelFontSize: 0,
+  addEntryButtonLabelFontSize: 0,
+  allEntriesButtonLabelFontSize: 0,
+  roomStatsButtonLabelFontSize: 0,
+  quickActionsLabelFontSize: 0,
+  presetsBarLabelFontSize: 0,
+  autoBalanceButtonLabelFontSize: 0,
+  syncTotalButtonLabelFontSize: 0,
   coreSumBadge: true,
   coreEntryEditing: true,
   corePersonSelection: true,
@@ -82,6 +118,21 @@ export const DEFAULT_CUSTOMIZATIONS: CustomizationSettings = {
   coreEntryDeletion: true,
 };
 
+export const MIN_GENERAL_FONT_SIZE = 12;
+export const MAX_GENERAL_FONT_SIZE = 24;
+export const DEFAULT_GENERAL_FONT_SIZE = 16;
+
+export const MIN_LABEL_FONT_SIZE = 10;
+export const MAX_LABEL_FONT_SIZE = 32;
+export const DEFAULT_LABEL_FONT_SIZE = 0; // 0 = default / inherited
+
+export function getLabelFontSizeStyle(fontSize?: number): React.CSSProperties | undefined {
+  if (typeof fontSize === 'number' && fontSize >= MIN_LABEL_FONT_SIZE && fontSize <= MAX_LABEL_FONT_SIZE) {
+    return { fontSize: `${fontSize}px` };
+  }
+  return undefined;
+}
+
 interface CustomizationContextType {
   customizations: CustomizationSettings;
   updateCustomization: <K extends keyof CustomizationSettings>(key: K, value: CustomizationSettings[K]) => void;
@@ -89,6 +140,7 @@ interface CustomizationContextType {
   applyProfile: (profile: 'all' | 'minimal') => void;
   resetDefaults: () => void;
   resetLabels: () => void;
+  resetFontSizes: () => void;
   resetDevFeatures: () => void;
   isLoaded: boolean;
 }
@@ -276,6 +328,22 @@ export default function CustomizationProvider({ children }: { children: ReactNod
     });
   }, [saveCustomizations]);
 
+  // Synchronize general font size to root HTML element for app-wide typography scaling
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const size = customizations.generalFontSize;
+    if (
+      typeof size === 'number' &&
+      size >= MIN_GENERAL_FONT_SIZE &&
+      size <= MAX_GENERAL_FONT_SIZE &&
+      size !== DEFAULT_GENERAL_FONT_SIZE
+    ) {
+      document.documentElement.style.fontSize = `${size}px`;
+    } else {
+      document.documentElement.style.fontSize = '';
+    }
+  }, [customizations.generalFontSize]);
+
   const resetDevFeatures = useCallback(() => {
     saveCustomizations({
       coreSumBadge: true,
@@ -288,6 +356,27 @@ export default function CustomizationProvider({ children }: { children: ReactNod
     });
   }, [saveCustomizations]);
 
+  const resetFontSizes = useCallback(() => {
+    saveCustomizations({
+      generalFontSize: DEFAULT_GENERAL_FONT_SIZE,
+      payerListLabelFontSize: 0,
+      beneficiaryListLabelFontSize: 0,
+      balanceTitleLabelFontSize: 0,
+      detailedBalanceLabelFontSize: 0,
+      newEntryTitleLabelFontSize: 0,
+      amountInputLabelFontSize: 0,
+      descriptionInputLabelFontSize: 0,
+      descriptionPlaceholderLabelFontSize: 0,
+      addEntryButtonLabelFontSize: 0,
+      allEntriesButtonLabelFontSize: 0,
+      roomStatsButtonLabelFontSize: 0,
+      quickActionsLabelFontSize: 0,
+      presetsBarLabelFontSize: 0,
+      autoBalanceButtonLabelFontSize: 0,
+      syncTotalButtonLabelFontSize: 0,
+    });
+  }, [saveCustomizations]);
+
   return (
     <CustomizationContext.Provider
       value={{
@@ -297,6 +386,7 @@ export default function CustomizationProvider({ children }: { children: ReactNod
         applyProfile,
         resetDefaults,
         resetLabels,
+        resetFontSizes,
         resetDevFeatures,
         isLoaded,
       }}

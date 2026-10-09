@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useSimplifiedLayout } from '@/components/SimplifiedLayoutProvider';
-import { useCustomization } from '@/components/CustomizationProvider';
+import { useCustomization, getLabelFontSizeStyle } from '@/components/CustomizationProvider';
 import { FiInfo, FiEdit, FiSave, FiX, FiLoader, FiShield, FiSliders, FiLogOut } from 'react-icons/fi';
 import { handleApi } from '@/lib/api';
 import { saveRoomData, getRoomData, addLocalEntry, updateLocalRoomName, calculateAllMemberBalances, LocalRoomData, Entry } from '@/lib/offline-sync';
@@ -446,95 +446,218 @@ export default function RoomPage() {
 
     return (
         <PermissionProvider permissions={permissions} currency={currency}>
-            <div className="pb-16 sm:pb-6">
+            <div className="pb-8 sm:pb-4">
                 {isLoading ? (
                     <div className="max-w-md mx-auto p-8 text-center text-muted-foreground animate-fadeIn">Loading room...</div>
                 ) : (
-                    <div className="max-w-5xl w-full mx-auto bg-card rounded-2xl shadow-2xl overflow-hidden border-2 border-card-border dark:border-white shadow-[0_0_25px_rgba(255,255,255,0.06)] animate-scaleIn">
-                        <div className="p-4 sm:p-5 md:p-6 lg:p-8">
-                            {/* Title & Admin Button */}
-                            <div className="text-center mb-3 sm:mb-5 relative">
-                                {isEditingName ? (
-                                    <div className="flex items-center space-x-2 rtl:space-x-reverse animate-fadeIn">
-                                        <input
-                                            type="text"
-                                            value={newName}
-                                            onChange={(e) => setNewName(e.target.value)}
-                                            className="w-full px-3 py-1 text-lg sm:text-xl font-bold text-center rounded-lg themed-input"
-                                            autoFocus
-                                            onKeyDown={(e) => { e.key === 'Enter' && handleSaveName(); }}
-                                        />
-                                        <button onClick={handleSaveName} className="p-2 btn-primary rounded-lg" disabled={isSavingName} aria-label="Save name">
-                                            {isSavingName ? <FiLoader className="animate-spin" /> : <FiSave />}
-                                        </button>
-                                        <button onClick={() => setIsEditingName(false)} className="p-2 btn-muted rounded-lg" aria-label="Cancel editing name">
-                                            <FiX />
-                                        </button>
+                    <div className="max-w-5xl w-full mx-auto bg-card rounded-2xl shadow-xl overflow-hidden border border-card-border animate-scaleIn">
+                        <div className="p-3 sm:p-4 md:p-5">
+                            {/* Desktop Header & Balance Bar */}
+                            <div className="hidden md:flex md:items-center md:justify-between md:gap-4 mb-3 pb-3 border-b border-card-border">
+                                {/* Left: Leave button + Room Title + Badges */}
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <button
+                                        onClick={handleLeaveRoom}
+                                        className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border border-red-500/20 shrink-0"
+                                        title={t('leaveRoomTitle')}
+                                    >
+                                        <FiLogOut /> <span>{t('leaveBtn')}</span>
+                                    </button>
+
+                                    <div className="min-w-0">
+                                        {isEditingName ? (
+                                            <div className="flex items-center space-x-2 rtl:space-x-reverse animate-fadeIn">
+                                                <input
+                                                    type="text"
+                                                    value={newName}
+                                                    onChange={(e) => setNewName(e.target.value)}
+                                                    className="px-2.5 py-1 text-base font-bold rounded-lg themed-input"
+                                                    autoFocus
+                                                    onKeyDown={(e) => { e.key === 'Enter' && handleSaveName(); }}
+                                                />
+                                                <button onClick={handleSaveName} className="p-1.5 btn-primary rounded-lg" disabled={isSavingName} aria-label="Save name">
+                                                    {isSavingName ? <FiLoader className="animate-spin" /> : <FiSave />}
+                                                </button>
+                                                <button onClick={() => setIsEditingName(false)} className="p-1.5 btn-muted rounded-lg" aria-label="Cancel editing name">
+                                                    <FiX />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 group">
+                                                <h1 className="text-lg lg:text-xl font-bold font-heading text-card-foreground truncate">
+                                                    {roomName || t('roomTitle', { code: roomCode })}
+                                                </h1>
+                                                {permissions.canAdmin && (
+                                                    <button onClick={handleStartEditingName} className="p-1 text-muted-foreground hover:text-primary transition-opacity" aria-label="Edit room name">
+                                                        <FiEdit size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                            <span className="text-[11px] text-muted-foreground">{t('roomCodeLabel', { code: roomCode })}</span>
+                                            {permissions.canAdmin && (
+                                                <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded-full border bg-purple-500/20 text-purple-400 border-purple-500/30">{t('badgeAdmin')}</span>
+                                            )}
+                                            {permissions.canAddEntries && (
+                                                <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded-full border bg-blue-500/20 text-blue-400 border-blue-500/30">{t('badgeEdit')}</span>
+                                            )}
+                                            {permissions.canParticipate && (
+                                                <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded-full border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">{t('badgeParticipant')}</span>
+                                            )}
+                                            {permissions.canView && (
+                                                <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded-full border bg-sky-500/20 text-sky-400 border-sky-500/30">{t('badgeView')}</span>
+                                            )}
+                                        </div>
                                     </div>
-                                ) : (
-                                    <div className="flex items-center justify-center space-x-2 rtl:space-x-reverse group">
-                                        <h1 className="text-xl sm:text-2xl font-extrabold font-heading text-card-foreground dark:text-white">
-                                            {roomName || t('roomTitle', { code: roomCode })}
-                                        </h1>
-                                        {permissions.canAdmin && (
-                                            <button onClick={handleStartEditingName} className="hidden p-1 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Edit room name">
-                                                <FiEdit />
+                                </div>
+
+                                {/* Right: Balance + Action buttons */}
+                                <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+                                    {customizations.coreBalanceDisplay !== false && (
+                                        <div className="flex items-center gap-3 bg-muted/50 dark:bg-zinc-900/60 px-3 py-1.5 rounded-xl border border-card-border shadow-xs">
+                                            <div className="text-right">
+                                                <div
+                                                    className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground leading-tight"
+                                                    style={getLabelFontSizeStyle(customizations.balanceTitleLabelFontSize)}
+                                                >
+                                                    {customizations.balanceTitleLabel?.trim() || t('balanceTitle')}
+                                                </div>
+                                                <div className={`text-lg lg:text-xl font-black font-mono leading-tight ${balance >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+                                                    {balance.toFixed(0)} {currency}
+                                                </div>
+                                            </div>
+                                            {customizations.detailedBalance && (
+                                                <Link
+                                                    href={`/rooms/${roomId}/balance`}
+                                                    className="text-xs font-semibold text-primary hover:underline px-2 py-1 rounded-md bg-primary/10 border border-primary/20 transition-all shrink-0"
+                                                    style={getLabelFontSizeStyle(customizations.detailedBalanceLabelFontSize)}
+                                                >
+                                                    {customizations.detailedBalanceLabel?.trim() || t('detailed')} →
+                                                </Link>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <Link
+                                        href={`/rooms/${roomId}/entries`}
+                                        className="font-bold py-1.5 px-3 rounded-xl btn-muted border border-card-border hover:border-muted-foreground text-xs shadow-xs"
+                                        style={getLabelFontSizeStyle(customizations.allEntriesButtonLabelFontSize)}
+                                    >
+                                        {customizations.allEntriesButtonLabel?.trim() || t('allEntries')}
+                                    </Link>
+                                    {customizations.roomStats && (
+                                        <Link
+                                            href={`/rooms/${roomId}/stats`}
+                                            className="font-bold py-1.5 px-3 rounded-xl btn-muted border border-card-border hover:border-muted-foreground text-xs shadow-xs"
+                                            style={getLabelFontSizeStyle(customizations.roomStatsButtonLabelFontSize)}
+                                        >
+                                            {customizations.roomStatsButtonLabel?.trim() || t('roomStatistics')}
+                                        </Link>
+                                    )}
+                                    {permissions.canAdmin && (
+                                        <button
+                                            onClick={() => setIsAdminPanelOpen(true)}
+                                            className="px-2.5 py-1.5 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs border border-purple-500/30"
+                                            title={t('adminTitle')}
+                                        >
+                                            <FiShield className="text-purple-600 dark:text-purple-400" /> <span>{t('adminBtn')}</span>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Mobile Header & Balance (stacked, clean) */}
+                            <div className="md:hidden">
+                                <div className="text-center mb-3 relative">
+                                    {isEditingName ? (
+                                        <div className="flex items-center space-x-2 rtl:space-x-reverse animate-fadeIn">
+                                            <input
+                                                type="text"
+                                                value={newName}
+                                                onChange={(e) => setNewName(e.target.value)}
+                                                className="w-full px-3 py-1 text-lg font-bold text-center rounded-lg themed-input"
+                                                autoFocus
+                                                onKeyDown={(e) => { e.key === 'Enter' && handleSaveName(); }}
+                                            />
+                                            <button onClick={handleSaveName} className="p-2 btn-primary rounded-lg" disabled={isSavingName} aria-label="Save name">
+                                                {isSavingName ? <FiLoader className="animate-spin" /> : <FiSave />}
                                             </button>
+                                            <button onClick={() => setIsEditingName(false)} className="p-2 btn-muted rounded-lg" aria-label="Cancel editing name">
+                                                <FiX />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center space-x-2 rtl:space-x-reverse group">
+                                            <h1 className="text-lg font-bold font-heading text-card-foreground">
+                                                {roomName || t('roomTitle', { code: roomCode })}
+                                            </h1>
+                                            {permissions.canAdmin && (
+                                                <button onClick={handleStartEditingName} className="p-1 text-muted-foreground hover:text-primary transition-opacity" aria-label="Edit room name">
+                                                    <FiEdit size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                    <div className="flex items-center justify-center gap-1.5 mt-1 flex-wrap">
+                                        <span className="text-xs text-muted-foreground">{t('roomCodeLabel', { code: roomCode })}</span>
+                                        {permissions.canAdmin && (
+                                            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border bg-purple-500/20 text-purple-400 border-purple-500/30">{t('badgeAdmin')}</span>
+                                        )}
+                                        {permissions.canAddEntries && (
+                                            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border bg-blue-500/20 text-blue-400 border-blue-500/30">{t('badgeEdit')}</span>
+                                        )}
+                                        {permissions.canParticipate && (
+                                            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">{t('badgeParticipant')}</span>
+                                        )}
+                                        {permissions.canView && (
+                                            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border bg-sky-500/20 text-sky-400 border-sky-500/30">{t('badgeView')}</span>
+                                        )}
+                                    </div>
+
+                                    {permissions.canAdmin && (
+                                        <button
+                                            onClick={() => setIsAdminPanelOpen(true)}
+                                            className="absolute right-0 top-0 px-2 py-1 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-bold flex items-center gap-1 transition-all border border-purple-500/30"
+                                            title={t('adminTitle')}
+                                        >
+                                            <FiShield className="text-purple-600 dark:text-purple-400" />
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={handleLeaveRoom}
+                                        className="absolute left-0 top-0 px-2 py-1 bg-red-500/10 text-red-500 rounded-xl text-xs font-bold flex items-center gap-1 transition-all border border-red-500/20"
+                                        title={t('leaveRoomTitle')}
+                                    >
+                                        <FiLogOut />
+                                    </button>
+                                </div>
+
+                                {customizations.coreBalanceDisplay !== false && (
+                                    <div className="text-center my-3 p-3.5 rounded-xl bg-muted/40 dark:bg-zinc-900/60 border border-card-border shadow-xs">
+                                        <div
+                                            className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                                            style={getLabelFontSizeStyle(customizations.balanceTitleLabelFontSize)}
+                                        >
+                                            {customizations.balanceTitleLabel?.trim() || t('balanceTitle')}
+                                        </div>
+                                        <div className={`text-3xl font-black font-mono mt-0.5 ${balance >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+                                            {balance.toFixed(0)} {currency}
+                                        </div>
+                                        {customizations.detailedBalance && (
+                                            <Link
+                                                href={`/rooms/${roomId}/balance`}
+                                                className="text-xs font-semibold text-primary hover:underline inline-flex items-center justify-center mx-auto mt-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 transition-all"
+                                                style={getLabelFontSizeStyle(customizations.detailedBalanceLabelFontSize)}
+                                            >
+                                                {customizations.detailedBalanceLabel?.trim() || t('detailed')} →
+                                            </Link>
                                         )}
                                     </div>
                                 )}
-                                <div className="flex items-center justify-center gap-1.5 mt-1 flex-wrap">
-                                    <span className="text-xs text-muted-foreground">{t('roomCodeLabel', { code: roomCode })}</span>
-                                    {permissions.canAdmin && (
-                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-purple-500/20 text-purple-400 border-purple-500/40 shadow-purple-500/10">{t('badgeAdmin')}</span>
-                                    )}
-                                    {permissions.canAddEntries && (
-                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-blue-500/20 text-blue-400 border-blue-500/40">{t('badgeEdit')}</span>
-                                    )}
-                                    {permissions.canParticipate && (
-                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-emerald-500/20 text-emerald-400 border-emerald-500/40">{t('badgeParticipant')}</span>
-                                    )}
-                                    {permissions.canView && (
-                                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border shadow-sm bg-sky-500/20 text-sky-400 border-sky-500/40">{t('badgeView')}</span>
-                                    )}
-                                </div>
 
-                                {permissions.canAdmin && (
-                                    <button
-                                        onClick={() => setIsAdminPanelOpen(true)}
-                                        className="absolute right-0 top-0 px-2.5 py-1.5 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 text-purple-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md border border-purple-500/30 hover:scale-105"
-                                        title={t('adminTitle')}
-                                    >
-                                        <FiShield className="text-purple-400" /> <span className="hidden sm:inline">{t('adminBtn')}</span>
-                                    </button>
-                                )}
-                                <button
-                                    onClick={handleLeaveRoom}
-                                    className="absolute left-0 top-0 px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm border border-red-500/20"
-                                    title={t('leaveRoomTitle')}
-                                >
-                                    <FiLogOut /> <span className="hidden sm:inline">{t('leaveBtn')}</span>
-                                </button>
+                                <div className="border-t border-card-border my-3"></div>
                             </div>
-
-                            {/* Balance */}
-                            {customizations.coreBalanceDisplay !== false && (
-                                <div className="text-center my-4 p-4 sm:p-5 rounded-2xl bg-muted/40 dark:bg-zinc-900/90 border-2 border-card-border/80 dark:border-white/40 shadow-lg">
-                                    <div className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-foreground dark:text-zinc-200">
-                                        {customizations.balanceTitleLabel?.trim() || t('balanceTitle')}
-                                    </div>
-                                    <div className={`text-4xl sm:text-5xl font-black font-mono mt-1 drop-shadow-sm ${balance >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
-                                        {balance.toFixed(0)} {currency}
-                                    </div>
-                                    {customizations.detailedBalance && (
-                                        <Link href={`/rooms/${roomId}/balance`} className="text-xs sm:text-sm font-bold text-primary hover:text-primary-hover hover:underline inline-flex items-center justify-center mx-auto mt-2.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 transition-all">
-                                            {customizations.detailedBalanceLabel?.trim() || t('detailed')} →
-                                        </Link>
-                                    )}
-                                </div>
-                            )}
-
-                            <div className="border-t border-card-border my-3 sm:my-5"></div>
 
                             {/* Notifications */}
                             {notification && (
@@ -554,14 +677,17 @@ export default function RoomPage() {
                                     </p>
                                 </div>
                             ) : (
-                                <div className="mb-4">
-                                    <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2 flex-wrap">
-                                        <h2 className="text-xl sm:text-2xl font-extrabold font-heading text-card-foreground dark:text-white uppercase tracking-wide">
+                                <div className="mb-2 sm:mb-3">
+                                    <div className="flex items-center justify-between mb-2 sm:mb-2.5 gap-2 flex-wrap">
+                                        <h2
+                                            className="text-base sm:text-lg font-bold font-heading text-card-foreground"
+                                            style={getLabelFontSizeStyle(customizations.newEntryTitleLabelFontSize)}
+                                        >
                                             {customizations.newEntryTitleLabel?.trim() || (isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle'))}
                                         </h2>
 
                                         {!isSimplified && otherMembers.length > 0 && (
-                                            <div style={{ display: 'none' }} className="flex rounded-xl bg-muted p-1 border border-border/40">
+                                            <div style={{ display: 'none' }} className="flex rounded-xl bg-muted p-1 border border-card-border">
                                                 <button
                                                     type="button"
                                                     style={{ display: 'none' }}
@@ -582,12 +708,12 @@ export default function RoomPage() {
                                         )}
                                     </div>
 
-                                    <form onSubmit={handleAddEntry} className="space-y-4">
+                                    <form onSubmit={handleAddEntry} className="space-y-3">
                                         {!isSimplified && !isMultiPartyMode && (
                                             <div style={{ display: 'none' }}>
-                                                <div className="relative flex w-full rounded-full bg-muted p-1 border border-border/40">
+                                                <div className="relative flex w-full rounded-full bg-muted p-1 border border-card-border">
                                                     <span
-                                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-md transition-all duration-300 ease-in-out bg-card border-2 ${entryType === 'expense' ? 'border-primary shadow-primary/10' : 'border-success shadow-success/10'}`}
+                                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full shadow-md transition-all duration-300 ease-in-out bg-card border ${entryType === 'expense' ? 'border-primary' : 'border-success'}`}
                                                         style={{ transform: entryType === 'loan' ? 'translateX(calc(100% - 4px))' : 'translateX(0)' }}
                                                     />
                                                     <button type="button" onClick={() => handleSetEntryType('expense')} className={`z-10 w-1/2 py-2 text-xs sm:text-sm font-semibold transition-colors duration-300 rounded-full ${entryType === 'expense' ? 'text-primary' : 'text-muted-foreground'}`}>
@@ -601,7 +727,7 @@ export default function RoomPage() {
                                         )}
 
                                         {/* Amount & Description Inputs */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                                             <div className="sm:col-span-1">
                                                 <CurrencyAmountInput
                                                     id="amount"
@@ -616,7 +742,11 @@ export default function RoomPage() {
                                                 />
                                             </div>
                                             <div className="sm:col-span-2">
-                                                <label className="block text-foreground dark:text-zinc-100 text-xs sm:text-sm font-extrabold mb-1 tracking-wider uppercase" htmlFor="description">
+                                                <label
+                                                    className="block text-foreground dark:text-zinc-200 text-xs sm:text-sm font-bold mb-1 tracking-wider uppercase"
+                                                    htmlFor="description"
+                                                    style={getLabelFontSizeStyle(customizations.descriptionInputLabelFontSize)}
+                                                >
                                                     {customizations.descriptionInputLabel?.trim() || t('description')}
                                                 </label>
                                                 <input
@@ -624,7 +754,8 @@ export default function RoomPage() {
                                                     type="text"
                                                     value={description}
                                                     onChange={(e) => setDescription(e.target.value)}
-                                                    className="w-full px-3.5 py-2.5 leading-tight rounded-xl themed-input text-sm sm:text-base font-semibold"
+                                                    className="w-full px-3 py-2 leading-tight rounded-xl themed-input text-sm font-semibold"
+                                                    style={getLabelFontSizeStyle(customizations.descriptionPlaceholderLabelFontSize)}
                                                     required
                                                     placeholder={customizations.descriptionPlaceholderLabel?.trim() || t('descriptionPlaceholder')}
                                                 />
@@ -633,7 +764,7 @@ export default function RoomPage() {
 
                                         {/* Multi-Party Two List Selector */}
                                         {isMultiPartyMode && !isSimplified && (
-                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2 animate-fadeIn items-start">
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-1 animate-fadeIn items-start">
                                                 <PayerBeneficiarySelector
                                                     members={members}
                                                     shares={payerShares}
@@ -641,6 +772,7 @@ export default function RoomPage() {
                                                     totalAmount={parseFloat(amount) || 0}
                                                     currency={inputCurrency}
                                                     label={customizations.payerListLabel?.trim() || t('list1WhoPaid')}
+                                                    labelFontSize={customizations.payerListLabelFontSize}
                                                     currentUserId={currentUserId}
                                                     onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
                                                     presets={splitPresets}
@@ -654,6 +786,7 @@ export default function RoomPage() {
                                                     totalAmount={parseFloat(amount) || 0}
                                                     currency={inputCurrency}
                                                     label={customizations.beneficiaryListLabel?.trim() || t('list2SplitForWhom')}
+                                                    labelFontSize={customizations.beneficiaryListLabelFontSize}
                                                     currentUserId={currentUserId}
                                                     onUpdateTotal={(newTotal) => setAmount(newTotal.toString())}
                                                     presets={splitPresets}
@@ -665,25 +798,25 @@ export default function RoomPage() {
 
                                         {/* Simple Split Selector */}
                                         {!isMultiPartyMode && entryType === 'expense' && !isSimplified && otherMembers.length > 0 && (
-                                            <div style={{ display: 'none' }} className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-card-border dark:border-white/10 shadow-lg space-y-2.5">
+                                            <div style={{ display: 'none' }} className="bg-card/40 p-3 rounded-2xl animate-fadeIn border border-card-border shadow-md space-y-2">
                                                 <label className="text-xs font-bold text-foreground uppercase tracking-wider block">{t('splitWith')}</label>
-                                                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                                                     {currentUserId && isMemberEligibleParticipant(members.find(m => m.id === currentUserId) || { id: -1, username: '' }) && (
                                                          <div
                                                              onClick={() => setIncludeSelfInSplit(!includeSelfInSplit)}
-                                                             className={`flex items-center justify-between p-3 rounded-xl border-2 text-xs transition-all select-none cursor-pointer ${
-                                                                 includeSelfInSplit ? 'bg-primary/10 border-primary/60 shadow-sm text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-border/40 text-muted-foreground'
+                                                             className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer ${
+                                                                 includeSelfInSplit ? 'bg-primary/10 border-primary/50 shadow-xs text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-card-border text-muted-foreground'
                                                              }`}
                                                          >
-                                                             <div className="flex items-center gap-3">
-                                                                 <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-sm font-black border-2 transition-all ${
-                                                                     includeSelfInSplit ? 'bg-primary border-white text-white shadow-sm' : 'border-zinc-400 dark:border-zinc-500 bg-card'
+                                                             <div className="flex items-center gap-2.5">
+                                                                 <div className={`w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold border transition-colors ${
+                                                                     includeSelfInSplit ? 'bg-primary border-primary text-white shadow-xs' : 'border-card-border bg-card'
                                                                  }`}>
                                                                      {includeSelfInSplit ? '✓' : ''}
                                                                  </div>
-                                                                 <span className="text-sm sm:text-base font-bold text-foreground dark:text-white">{t('me')}</span>
+                                                                 <span className="text-xs sm:text-sm font-semibold text-foreground">{t('me')}</span>
                                                              </div>
-                                                             <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-md font-bold tracking-wider">{t('youBadge')}</span>
+                                                             <span className="text-[10px] bg-primary/20 text-primary border border-primary/30 px-2 py-0.5 rounded-md font-bold tracking-wider">{t('youBadge')}</span>
                                                          </div>
                                                      )}
                                                      {otherMembers.filter(isMemberEligibleParticipant).map((member: Member) => {
@@ -692,17 +825,17 @@ export default function RoomPage() {
                                                              <div
                                                                  key={member.id}
                                                                  onClick={() => handleMemberSelection(member.id)}
-                                                                 className={`flex items-center justify-between p-3 rounded-xl border-2 text-xs transition-all select-none cursor-pointer ${
-                                                                     isSel ? 'bg-primary/10 border-primary/60 shadow-sm text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-border/40 text-muted-foreground'
+                                                                 className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer ${
+                                                                     isSel ? 'bg-primary/10 border-primary/50 shadow-xs text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-card-border text-muted-foreground'
                                                                  }`}
                                                              >
-                                                                 <div className="flex items-center gap-3">
-                                                                     <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-sm font-black border-2 transition-all ${
-                                                                         isSel ? 'bg-primary border-white text-white shadow-sm' : 'border-zinc-400 dark:border-zinc-500 bg-card'
+                                                                 <div className="flex items-center gap-2.5">
+                                                                     <div className={`w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold border transition-colors ${
+                                                                         isSel ? 'bg-primary border-primary text-white shadow-xs' : 'border-card-border bg-card'
                                                                      }`}>
                                                                          {isSel ? '✓' : ''}
                                                                      </div>
-                                                                     <span className="text-sm sm:text-base font-bold text-foreground dark:text-white">{member.username}</span>
+                                                                     <span className="text-xs sm:text-sm font-semibold text-foreground">{member.username}</span>
                                                                  </div>
                                                              </div>
                                                          );
@@ -712,9 +845,9 @@ export default function RoomPage() {
                                         )}
 
                                         {!isMultiPartyMode && entryType === 'loan' && !isSimplified && otherMembers.length > 0 && (
-                                            <div style={{ display: 'none' }} className="bg-card/40 p-4 rounded-2xl animate-fadeIn border border-card-border dark:border-white/10 shadow-lg space-y-2.5">
+                                            <div style={{ display: 'none' }} className="bg-card/40 p-3 rounded-2xl animate-fadeIn border border-card-border shadow-md space-y-2">
                                                 <label className="text-xs font-bold text-foreground uppercase tracking-wider block">{t('paidForMeBy')}</label>
-                                                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                                                     {otherMembers.filter(isMemberEligibleParticipant).map((member: Member) => {
                                                         const isSel = loanPaidByUserIds.has(member.id);
                                                         return (
@@ -726,17 +859,17 @@ export default function RoomPage() {
                                                                     else newSet.add(member.id);
                                                                     setLoanPaidByUserIds(newSet);
                                                                 }}
-                                                                className={`flex items-center justify-between p-3 rounded-xl border-2 text-xs transition-all select-none cursor-pointer ${
-                                                                    isSel ? 'bg-success/15 border-success/60 shadow-sm text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-border/40 text-muted-foreground'
+                                                                className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer ${
+                                                                    isSel ? 'bg-success/15 border-success/50 shadow-xs text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-card-border text-muted-foreground'
                                                                 }`}
                                                             >
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-sm font-black border-2 transition-all ${
-                                                                        isSel ? 'bg-success border-white text-white shadow-sm' : 'border-zinc-400 dark:border-zinc-500 bg-card'
+                                                                <div className="flex items-center gap-2.5">
+                                                                    <div className={`w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold border transition-colors ${
+                                                                        isSel ? 'bg-success border-success text-white shadow-xs' : 'border-card-border bg-card'
                                                                     }`}>
                                                                         {isSel ? '✓' : ''}
                                                                     </div>
-                                                                    <span className="text-sm sm:text-base font-bold text-foreground dark:text-white">{member.username}</span>
+                                                                    <span className="text-xs sm:text-sm font-semibold text-foreground">{member.username}</span>
                                                                 </div>
                                                             </div>
                                                         );
@@ -745,8 +878,13 @@ export default function RoomPage() {
                                             </div>
                                         )}
 
-                                        <div className="pt-2">
-                                            <button type="submit" className="w-full text-sm sm:text-base font-extrabold py-3.5 px-4 rounded-xl focus:outline-none btn-primary shadow-lg border-2 border-white/40 dark:border-white/60 disabled:opacity-55 disabled:cursor-not-allowed" disabled={isSubmitDisabled}>
+                                        <div className="pt-1.5">
+                                            <button
+                                                type="submit"
+                                                className="w-full text-sm font-bold py-2.5 sm:py-3 px-4 rounded-xl focus:outline-none btn-primary shadow-sm disabled:opacity-55 disabled:cursor-not-allowed"
+                                                style={getLabelFontSizeStyle(customizations.addEntryButtonLabelFontSize)}
+                                                disabled={isSubmitDisabled}
+                                            >
                                                 {customizations.addEntryButtonLabel?.trim() || t('addEntry')}
                                             </button>
                                         </div>
@@ -754,12 +892,20 @@ export default function RoomPage() {
                                 </div>
                             )}
 
-                            <div className={`flex flex-col ${customizations.roomStats ? 'sm:grid sm:grid-cols-2' : ''} gap-3 sm:gap-4 mt-3`}>
-                                <Link href={`/rooms/${roomId}/entries`} className="font-extrabold py-3 px-4 rounded-xl btn-muted border-2 border-zinc-400 dark:border-white/60 hover:border-white hover:bg-white/10 text-center text-sm sm:text-base shadow-md">
+                            <div className={`flex flex-col ${customizations.roomStats ? 'sm:grid sm:grid-cols-2' : ''} gap-2 sm:gap-3 mt-2 sm:mt-2.5`}>
+                                <Link
+                                    href={`/rooms/${roomId}/entries`}
+                                    className="font-bold py-2 sm:py-2.5 px-4 rounded-xl btn-muted border border-card-border hover:border-muted-foreground text-center text-xs sm:text-sm shadow-xs"
+                                    style={getLabelFontSizeStyle(customizations.allEntriesButtonLabelFontSize)}
+                                >
                                     {customizations.allEntriesButtonLabel?.trim() || t('allEntries')}
                                 </Link>
                                 {customizations.roomStats && (
-                                    <Link href={`/rooms/${roomId}/stats`} className="font-extrabold py-3 px-4 rounded-xl btn-muted border-2 border-zinc-400 dark:border-white/60 hover:border-white hover:bg-white/10 text-center text-sm sm:text-base shadow-md">
+                                    <Link
+                                        href={`/rooms/${roomId}/stats`}
+                                        className="font-bold py-2 sm:py-2.5 px-4 rounded-xl btn-muted border border-card-border hover:border-muted-foreground text-center text-xs sm:text-sm shadow-xs"
+                                        style={getLabelFontSizeStyle(customizations.roomStatsButtonLabelFontSize)}
+                                    >
                                         {customizations.roomStatsButtonLabel?.trim() || t('roomStatistics')}
                                     </Link>
                                 )}
