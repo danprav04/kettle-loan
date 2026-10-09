@@ -410,54 +410,58 @@ export default function CustomizationModal({ isOpen, onClose }: CustomizationMod
           </button>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 px-4 sm:px-6 pt-3 pb-2 border-b border-card-border/60 dark:border-white/5 bg-muted/15 shrink-0 overflow-x-auto">
-          <button
-            type="button"
-            onClick={() => setActiveTab('labels')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer inline-flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'labels'
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            }`}
-          >
-            <FiTag size={14} />
-            <span>{t('labelsSectionTitle')}</span>
-            {hasAnyCustomLabel && (
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-            )}
-          </button>
+        {/* Navigation Tabs - Responsive Segmented Control */}
+        <div className="px-4 sm:px-6 py-2.5 border-b border-card-border/60 dark:border-white/5 bg-muted/20 shrink-0">
+          <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/60 dark:bg-white/5 rounded-2xl border border-card-border/40 dark:border-white/5">
+            <button
+              type="button"
+              onClick={() => setActiveTab('labels')}
+              className={`py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 min-w-0 ${
+                activeTab === 'labels'
+                  ? 'bg-card text-foreground shadow-sm border border-card-border/60 dark:border-white/10'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5'
+              }`}
+            >
+              <FiTag size={14} className="shrink-0 text-primary" />
+              <span className="truncate">{t('tabLabels')}</span>
+              {hasAnyCustomLabel && (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+              )}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('features')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer inline-flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'features'
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            }`}
-          >
-            <FiZap size={14} />
-            <span>{t('featuresSectionTitle')}</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('features')}
+              className={`py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 min-w-0 ${
+                activeTab === 'features'
+                  ? 'bg-card text-foreground shadow-sm border border-card-border/60 dark:border-white/10'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5'
+              }`}
+            >
+              <FiZap size={14} className="shrink-0 text-amber-500" />
+              <span className="truncate">{t('tabFeatures')}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('developer')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer inline-flex items-center gap-2 whitespace-nowrap ms-auto ${
-              activeTab === 'developer'
-                ? 'bg-red-500 text-white shadow-sm'
-                : 'text-amber-500/90 dark:text-amber-400 hover:text-amber-400 hover:bg-amber-500/10'
-            }`}
-          >
-            <FiAlertTriangle size={14} />
-            <span>{t('devSectionTitle')}</span>
-            {hasAnyDevFeatureDisabled && (
-              <span className="px-1.5 py-0.2 text-[10px] bg-red-600 text-white font-bold rounded-full animate-pulse">
-                !
-              </span>
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('developer')}
+              className={`py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 min-w-0 ${
+                activeTab === 'developer'
+                  ? 'bg-red-500 text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-red-500 hover:bg-red-500/10'
+              }`}
+            >
+              <FiAlertTriangle size={14} className={`shrink-0 ${activeTab === 'developer' ? 'text-white' : 'text-red-500'}`} />
+              <span className="truncate">{t('tabDeveloper')}</span>
+              {hasAnyDevFeatureDisabled && (
+                <span className={`px-1.5 py-0.2 text-[10px] font-bold rounded-full animate-pulse shrink-0 ${
+                  activeTab === 'developer' ? 'bg-white text-red-600' : 'bg-red-500 text-white'
+                }`}>
+                  !
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Body */}
@@ -635,13 +639,13 @@ export default function CustomizationModal({ isOpen, onClose }: CustomizationMod
 
           {/* TAB 3: DEVELOPER & TESTER ADVANCED */}
           {activeTab === 'developer' && (
-            <div className="space-y-5 animate-fadeIn">
+            <div className="space-y-4 animate-fadeIn">
               {/* Warning Banner */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 text-foreground space-y-2.5">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 text-foreground space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2.5">
-                    <FiAlertTriangle className="text-amber-500 text-lg shrink-0" />
-                    <h3 className="font-bold text-xs sm:text-sm uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                  <div className="flex items-center gap-2">
+                    <FiAlertTriangle className="text-amber-500 text-base shrink-0" />
+                    <h3 className="font-bold text-xs sm:text-sm tracking-wide text-amber-600 dark:text-amber-400">
                       {t('devSectionBannerTitle')}
                     </h3>
                   </div>
@@ -650,9 +654,9 @@ export default function CustomizationModal({ isOpen, onClose }: CustomizationMod
                     <button
                       type="button"
                       onClick={resetDevFeatures}
-                      className="px-3 py-1 rounded-lg text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-all cursor-pointer inline-flex items-center gap-1.5"
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-all cursor-pointer inline-flex items-center gap-1"
                     >
-                      <FiCheck size={13} />
+                      <FiCheck size={12} />
                       <span>{t('devResetBtn')}</span>
                     </button>
                   )}
@@ -664,7 +668,7 @@ export default function CustomizationModal({ isOpen, onClose }: CustomizationMod
               </div>
 
               {/* Core Feature Switches */}
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 {coreDeveloperFeatures.map((item) => {
                   const isEnabled = customizations[item.key];
                   const isDangerState = !isEnabled;
@@ -672,7 +676,7 @@ export default function CustomizationModal({ isOpen, onClose }: CustomizationMod
                   return (
                     <div
                       key={item.key}
-                      className={`p-4 sm:p-5 rounded-2xl border transition-all duration-300 space-y-3 ${
+                      className={`p-3.5 sm:p-4 rounded-2xl border transition-all duration-300 space-y-3 ${
                         isDangerState
                           ? 'bg-red-500/5 dark:bg-red-500/10 border-red-500/40 shadow-sm'
                           : 'bg-card border-card-border/80 dark:border-white/5'
@@ -696,7 +700,7 @@ export default function CustomizationModal({ isOpen, onClose }: CustomizationMod
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed mt-0.5">
+                            <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed mt-1">
                               {item.description}
                             </p>
                           </div>
@@ -724,18 +728,29 @@ export default function CustomizationModal({ isOpen, onClose }: CustomizationMod
                       </div>
 
                       {/* Explicit Warning Card for this core feature */}
-                      <div className={`p-3 rounded-xl border text-xs space-y-1.5 transition-colors ${
+                      <div className={`p-3 rounded-xl border text-xs space-y-2.5 transition-colors ${
                         isDangerState
-                          ? 'bg-red-500/10 dark:bg-red-500/20 border-red-500/40 text-red-700 dark:text-red-300'
+                          ? 'bg-red-500/10 dark:bg-red-500/20 border-red-500/40 text-red-800 dark:text-red-200'
                           : 'bg-muted/40 border-card-border/60 text-muted-foreground'
                       }`}>
-                        <div className="flex items-start gap-1.5">
-                          <span className="font-bold shrink-0">⚠️ {t('devLossLabel')}</span>
-                          <span className="leading-snug">{item.loss}</span>
+                        <div className="space-y-1">
+                          <div className="font-bold text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5 tracking-wide">
+                            <span>⚠️</span>
+                            <span>{t('devLossLabel')}</span>
+                          </div>
+                          <p className="text-[11px] sm:text-xs text-foreground/90 dark:text-foreground/80 leading-relaxed ps-5">
+                            {item.loss}
+                          </p>
                         </div>
-                        <div className="flex items-start gap-1.5 pt-1 border-t border-card-border/40 dark:border-white/5">
-                          <span className="font-bold shrink-0">💥 {t('devBreakLabel')}</span>
-                          <span className="leading-snug">{item.breaking}</span>
+
+                        <div className="space-y-1 pt-2 border-t border-card-border/40 dark:border-white/5">
+                          <div className="font-bold text-[11px] text-red-600 dark:text-red-400 flex items-center gap-1.5 tracking-wide">
+                            <span>💥</span>
+                            <span>{t('devBreakLabel')}</span>
+                          </div>
+                          <p className="text-[11px] sm:text-xs text-foreground/90 dark:text-foreground/80 leading-relaxed ps-5">
+                            {item.breaking}
+                          </p>
                         </div>
                       </div>
                     </div>
