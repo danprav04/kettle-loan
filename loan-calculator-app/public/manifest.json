@@ -1,25 +1,37 @@
 {
-  "name": "Kettle Loan Calculator",
-  "short_name": "Kettle Loan",
-  "description": "A simple loan calculator app with offline support.",
+  "name": "Kettle - Loan Calculator",
+  "short_name": "Kettle",
+  "description": "Shared expense and loan manager with offline support.",
   "start_url": "/",
   "scope": "/",
   "id": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#3b82f6",
+  "background_color": "#09090b",
+  "theme_color": "#6366f1",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
