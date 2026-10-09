@@ -23,6 +23,16 @@ describe('Customization Settings & Label Logic', () => {
     expect(DEFAULT_CUSTOMIZATIONS.entryShareModal).toBe(true);
   });
 
+  it('has all developer core feature toggles enabled by default', () => {
+    expect(DEFAULT_CUSTOMIZATIONS.coreSumBadge).toBe(true);
+    expect(DEFAULT_CUSTOMIZATIONS.coreEntryEditing).toBe(true);
+    expect(DEFAULT_CUSTOMIZATIONS.corePersonSelection).toBe(true);
+    expect(DEFAULT_CUSTOMIZATIONS.coreManualShareInputs).toBe(true);
+    expect(DEFAULT_CUSTOMIZATIONS.coreEnforceSumValidation).toBe(true);
+    expect(DEFAULT_CUSTOMIZATIONS.coreBalanceDisplay).toBe(true);
+    expect(DEFAULT_CUSTOMIZATIONS.coreEntryDeletion).toBe(true);
+  });
+
   it('keeps customPresets and premadePresets strictly separate', () => {
     const settings: CustomizationSettings = { ...DEFAULT_CUSTOMIZATIONS };
     
@@ -42,33 +52,65 @@ describe('Customization Settings & Label Logic', () => {
     expect(settings.premadePresets).toBe(false);
   });
 
-  it('defaults custom list labels to empty string and resolves to localized defaults', () => {
+  it('allows disabling developer core features independently', () => {
+    const settings: CustomizationSettings = { ...DEFAULT_CUSTOMIZATIONS };
+    settings.coreSumBadge = false;
+    settings.corePersonSelection = false;
+
+    expect(settings.coreSumBadge).toBe(false);
+    expect(settings.corePersonSelection).toBe(false);
+    expect(settings.coreEntryEditing).toBe(true);
+    expect(settings.coreManualShareInputs).toBe(true);
+    expect(settings.coreEnforceSumValidation).toBe(true);
+    expect(settings.coreBalanceDisplay).toBe(true);
+    expect(settings.coreEntryDeletion).toBe(true);
+  });
+
+  it('defaults all custom labels to empty string and resolves to localized defaults', () => {
     expect(DEFAULT_CUSTOMIZATIONS.payerListLabel).toBe('');
     expect(DEFAULT_CUSTOMIZATIONS.beneficiaryListLabel).toBe('');
+    expect(DEFAULT_CUSTOMIZATIONS.balanceTitleLabel).toBe('');
+    expect(DEFAULT_CUSTOMIZATIONS.detailedBalanceLabel).toBe('');
+    expect(DEFAULT_CUSTOMIZATIONS.newEntryTitleLabel).toBe('');
+    expect(DEFAULT_CUSTOMIZATIONS.amountInputLabel).toBe('');
+    expect(DEFAULT_CUSTOMIZATIONS.descriptionInputLabel).toBe('');
+    expect(DEFAULT_CUSTOMIZATIONS.descriptionPlaceholderLabel).toBe('');
+    expect(DEFAULT_CUSTOMIZATIONS.addEntryButtonLabel).toBe('');
+    expect(DEFAULT_CUSTOMIZATIONS.allEntriesButtonLabel).toBe('');
+    expect(DEFAULT_CUSTOMIZATIONS.roomStatsButtonLabel).toBe('');
+    expect(DEFAULT_CUSTOMIZATIONS.quickActionsLabel).toBe('');
+    expect(DEFAULT_CUSTOMIZATIONS.presetsBarLabel).toBe('');
+    expect(DEFAULT_CUSTOMIZATIONS.autoBalanceButtonLabel).toBe('');
+    expect(DEFAULT_CUSTOMIZATIONS.syncTotalButtonLabel).toBe('');
 
     // English defaults
     expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.payerListLabel, 'From')).toBe('From');
     expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.beneficiaryListLabel, 'To')).toBe('To');
-    expect(resolveListLabel('   ', 'From')).toBe('From');
+    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.balanceTitleLabel, 'Balance')).toBe('Balance');
+    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.amountInputLabel, 'Amount')).toBe('Amount');
+    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.addEntryButtonLabel, 'Add entry')).toBe('Add entry');
 
     // Russian defaults
     expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.payerListLabel, 'От кого')).toBe('От кого');
     expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.beneficiaryListLabel, 'Кому')).toBe('Кому');
-
-    // Hebrew defaults
-    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.payerListLabel, 'ממי')).toBe('ממי');
-    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.beneficiaryListLabel, 'למי')).toBe('למי');
+    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.balanceTitleLabel, 'Баланс')).toBe('Баланс');
+    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.newEntryTitleLabel, 'Новая запись')).toBe('Новая запись');
+    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.addEntryButtonLabel, 'Добавить запись')).toBe('Добавить запись');
+    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.allEntriesButtonLabel, 'Все записи')).toBe('Все записи');
+    expect(resolveListLabel(DEFAULT_CUSTOMIZATIONS.roomStatsButtonLabel, 'Статистика комнаты')).toBe('Статистика комнаты');
   });
 
-  it('uses raw custom user text without modification when specified', () => {
+  it('uses raw custom user text without modification for any label', () => {
     expect(resolveListLabel('Who paid the bill?', 'From')).toBe('Who paid the bill?');
     expect(resolveListLabel('Плательщик', 'От кого')).toBe('Плательщик');
-    expect(resolveListLabel('עבור מי', 'למי')).toBe('עבור מי');
-    expect(resolveListLabel('  Borrowers  ', 'To')).toBe('Borrowers');
+    expect(resolveListLabel('Мой общий счёт', 'Баланс')).toBe('Мой общий счёт');
+    expect(resolveListLabel('Сумма чека', 'Сумма')).toBe('Сумма чека');
+    expect(resolveListLabel('Сохранить трату', 'Добавить запись')).toBe('Сохранить трату');
+    expect(resolveListLabel('Журнал', 'Все записи')).toBe('Журнал');
   });
 
   it('correctly computes isAllActive and isMinimalActive profile states', () => {
-    const ALL_FEATURE_KEYS: Array<keyof Omit<CustomizationSettings, 'payerListLabel' | 'beneficiaryListLabel'>> = [
+    const ALL_FEATURE_KEYS = [
       'customPresets',
       'premadePresets',
       'autoBalance',
@@ -80,7 +122,7 @@ describe('Customization Settings & Label Logic', () => {
       'exportReports',
       'entryEditsHistory',
       'entryShareModal',
-    ];
+    ] as const;
 
     // Default state: all active
     const defaultState = { ...DEFAULT_CUSTOMIZATIONS };
@@ -111,7 +153,7 @@ describe('Customization Settings & Label Logic', () => {
     expect(ALL_FEATURE_KEYS.every(k => mixedState[k] === false)).toBe(false);
   });
 
-  it('applies minimal profile by turning all non-core features off', () => {
+  it('applies minimal profile by turning all non-core features off while preserving core developer features', () => {
     const minimal: CustomizationSettings = {
       ...DEFAULT_CUSTOMIZATIONS,
       customPresets: false,
@@ -132,6 +174,12 @@ describe('Customization Settings & Label Logic', () => {
     expect(minimal.currencyConverter).toBe(false);
     expect(minimal.roomStats).toBe(false);
     expect(minimal.payerListLabel).toBe('');
+
+    // Core developer features are preserved
+    expect(minimal.coreSumBadge).toBe(true);
+    expect(minimal.coreEntryEditing).toBe(true);
+    expect(minimal.corePersonSelection).toBe(true);
+    expect(minimal.coreEnforceSumValidation).toBe(true);
   });
 
   it('serializes and deserializes cleanly through JSON', () => {
@@ -140,6 +188,10 @@ describe('Customization Settings & Label Logic', () => {
       customPresets: false,
       payerListLabel: 'Sender',
       beneficiaryListLabel: 'Receivers',
+      balanceTitleLabel: 'Vault Balance',
+      amountInputLabel: 'Cost',
+      coreSumBadge: false,
+      corePersonSelection: false,
     };
 
     const json = JSON.stringify(sample);

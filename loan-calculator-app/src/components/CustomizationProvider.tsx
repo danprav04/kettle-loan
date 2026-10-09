@@ -19,9 +19,31 @@ export interface CustomizationSettings {
   entryEditsHistory: boolean;   // Edit history log button in entries list
   entryShareModal: boolean;     // Share receipt button in entries list
 
-  // Custom List Labels (Raw text, no localization required)
-  payerListLabel: string;       // Custom label for List 1 (empty = default "From")
-  beneficiaryListLabel: string; // Custom label for List 2 (empty = default "To")
+  // Custom Labels (Raw text, empty = default localized string)
+  payerListLabel: string;               // Custom label for List 1 (empty = default "From")
+  beneficiaryListLabel: string;         // Custom label for List 2 (empty = default "To")
+  balanceTitleLabel: string;            // Custom label for Balance header (empty = default "Balance")
+  detailedBalanceLabel: string;         // Custom label for Detailed balance link (empty = default "Detailed")
+  newEntryTitleLabel: string;           // Custom label for New Entry card header (empty = default "New entry")
+  amountInputLabel: string;             // Custom label for Amount input (empty = default "Amount")
+  descriptionInputLabel: string;        // Custom label for Description input (empty = default "Description")
+  descriptionPlaceholderLabel: string;  // Custom placeholder for Description input
+  addEntryButtonLabel: string;          // Custom label for Add Entry submit button (empty = default "Add entry")
+  allEntriesButtonLabel: string;        // Custom label for All Entries button (empty = default "All entries")
+  roomStatsButtonLabel: string;         // Custom label for Room Statistics button (empty = default "Room statistics")
+  quickActionsLabel: string;            // Custom label for Quick actions row (empty = default "Quick:")
+  presetsBarLabel: string;              // Custom label for Presets row (empty = default "Presets:")
+  autoBalanceButtonLabel: string;       // Custom label for Auto-balance button (empty = default "Auto-balance")
+  syncTotalButtonLabel: string;         // Custom label for Sync total button (empty = default "Sync total")
+
+  // Core Features for Developers & Testers (All true by default)
+  coreSumBadge: boolean;                // Green/red sum validation badge
+  coreEntryEditing: boolean;            // Editing existing entries
+  corePersonSelection: boolean;         // Selecting / deselecting people in split lists
+  coreManualShareInputs: boolean;       // Custom monetary amount inputs per member
+  coreEnforceSumValidation: boolean;    // Strict 100% / total bill sum validation enforcement
+  coreBalanceDisplay: boolean;          // Room balance summary display card
+  coreEntryDeletion: boolean;           // Deleting entries
 }
 
 export const DEFAULT_CUSTOMIZATIONS: CustomizationSettings = {
@@ -38,6 +60,26 @@ export const DEFAULT_CUSTOMIZATIONS: CustomizationSettings = {
   entryShareModal: true,
   payerListLabel: '',
   beneficiaryListLabel: '',
+  balanceTitleLabel: '',
+  detailedBalanceLabel: '',
+  newEntryTitleLabel: '',
+  amountInputLabel: '',
+  descriptionInputLabel: '',
+  descriptionPlaceholderLabel: '',
+  addEntryButtonLabel: '',
+  allEntriesButtonLabel: '',
+  roomStatsButtonLabel: '',
+  quickActionsLabel: '',
+  presetsBarLabel: '',
+  autoBalanceButtonLabel: '',
+  syncTotalButtonLabel: '',
+  coreSumBadge: true,
+  coreEntryEditing: true,
+  corePersonSelection: true,
+  coreManualShareInputs: true,
+  coreEnforceSumValidation: true,
+  coreBalanceDisplay: true,
+  coreEntryDeletion: true,
 };
 
 interface CustomizationContextType {
@@ -46,6 +88,8 @@ interface CustomizationContextType {
   saveCustomizations: (partial: Partial<CustomizationSettings>) => void;
   applyProfile: (profile: 'all' | 'minimal') => void;
   resetDefaults: () => void;
+  resetLabels: () => void;
+  resetDevFeatures: () => void;
   isLoaded: boolean;
 }
 
@@ -172,6 +216,38 @@ export default function CustomizationProvider({ children }: { children: ReactNod
     persistSettings(DEFAULT_CUSTOMIZATIONS);
   }, [persistSettings]);
 
+  const resetLabels = useCallback(() => {
+    saveCustomizations({
+      payerListLabel: '',
+      beneficiaryListLabel: '',
+      balanceTitleLabel: '',
+      detailedBalanceLabel: '',
+      newEntryTitleLabel: '',
+      amountInputLabel: '',
+      descriptionInputLabel: '',
+      descriptionPlaceholderLabel: '',
+      addEntryButtonLabel: '',
+      allEntriesButtonLabel: '',
+      roomStatsButtonLabel: '',
+      quickActionsLabel: '',
+      presetsBarLabel: '',
+      autoBalanceButtonLabel: '',
+      syncTotalButtonLabel: '',
+    });
+  }, [saveCustomizations]);
+
+  const resetDevFeatures = useCallback(() => {
+    saveCustomizations({
+      coreSumBadge: true,
+      coreEntryEditing: true,
+      corePersonSelection: true,
+      coreManualShareInputs: true,
+      coreEnforceSumValidation: true,
+      coreBalanceDisplay: true,
+      coreEntryDeletion: true,
+    });
+  }, [saveCustomizations]);
+
   return (
     <CustomizationContext.Provider
       value={{
@@ -180,6 +256,8 @@ export default function CustomizationProvider({ children }: { children: ReactNod
         saveCustomizations,
         applyProfile,
         resetDefaults,
+        resetLabels,
+        resetDevFeatures,
         isLoaded,
       }}
     >

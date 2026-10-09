@@ -360,7 +360,7 @@ export default function RoomPage() {
         if (isMultiPartyMode) {
             const sumP = payerShares.reduce((a, b) => a + b.percentage, 0);
             const sumB = beneficiaryShares.reduce((a, b) => a + b.percentage, 0);
-            if (Math.abs(sumP - 100) > 0.1 || Math.abs(sumB - 100) > 0.1) {
+            if (customizations.coreEnforceSumValidation !== false && (Math.abs(sumP - 100) > 0.1 || Math.abs(sumB - 100) > 0.1)) {
                 setNotification(t('percentagesMustSum100'));
                 return;
             }
@@ -518,17 +518,21 @@ export default function RoomPage() {
                             </div>
 
                             {/* Balance */}
-                            <div className="text-center mb-3 sm:mb-5">
-                                <div className="text-base sm:text-lg font-medium text-muted-foreground">{t('balanceTitle')}</div>
-                                <div className={`text-3xl sm:text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
-                                    {balance.toFixed(0)} {currency}
+                            {customizations.coreBalanceDisplay !== false && (
+                                <div className="text-center mb-3 sm:mb-5">
+                                    <div className="text-base sm:text-lg font-medium text-muted-foreground">
+                                        {customizations.balanceTitleLabel?.trim() || t('balanceTitle')}
+                                    </div>
+                                    <div className={`text-3xl sm:text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
+                                        {balance.toFixed(0)} {currency}
+                                    </div>
+                                    {customizations.detailedBalance && (
+                                        <Link href={`/rooms/${roomId}/balance`} className="text-xs sm:text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
+                                            {customizations.detailedBalanceLabel?.trim() || t('detailed')}
+                                        </Link>
+                                    )}
                                 </div>
-                                {customizations.detailedBalance && (
-                                    <Link href={`/rooms/${roomId}/balance`} className="text-xs sm:text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
-                                        {t('detailed')}
-                                    </Link>
-                                )}
-                            </div>
+                            )}
 
                             <div className="border-t border-card-border my-3 sm:my-5"></div>
 
@@ -553,7 +557,7 @@ export default function RoomPage() {
                                 <div className="mb-4">
                                     <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2 flex-wrap">
                                         <h2 className="text-lg sm:text-xl font-semibold text-card-foreground">
-                                            {isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle')}
+                                            {customizations.newEntryTitleLabel?.trim() || (isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle'))}
                                         </h2>
 
                                         {!isSimplified && otherMembers.length > 0 && (
@@ -612,8 +616,18 @@ export default function RoomPage() {
                                                 />
                                             </div>
                                             <div className="sm:col-span-2">
-                                                <label className="block text-muted-foreground text-xs font-bold mb-1 tracking-wide uppercase" htmlFor="description">{t('description')}</label>
-                                                <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 leading-tight rounded-xl themed-input text-sm" required placeholder={t('descriptionPlaceholder')} />
+                                                <label className="block text-muted-foreground text-xs font-bold mb-1 tracking-wide uppercase" htmlFor="description">
+                                                    {customizations.descriptionInputLabel?.trim() || t('description')}
+                                                </label>
+                                                <input
+                                                    id="description"
+                                                    type="text"
+                                                    value={description}
+                                                    onChange={(e) => setDescription(e.target.value)}
+                                                    className="w-full px-3 py-2 leading-tight rounded-xl themed-input text-sm"
+                                                    required
+                                                    placeholder={customizations.descriptionPlaceholderLabel?.trim() || t('descriptionPlaceholder')}
+                                                />
                                             </div>
                                         </div>
 
@@ -733,7 +747,7 @@ export default function RoomPage() {
 
                                         <div className="pt-2">
                                             <button type="submit" className="w-full font-bold py-2.5 px-4 rounded-lg focus:outline-none btn-primary disabled:opacity-50" disabled={isSubmitDisabled}>
-                                                {t('addEntry')}
+                                                {customizations.addEntryButtonLabel?.trim() || t('addEntry')}
                                             </button>
                                         </div>
                                     </form>
@@ -742,11 +756,11 @@ export default function RoomPage() {
 
                             <div className={`flex flex-col ${customizations.roomStats ? 'sm:grid sm:grid-cols-2' : ''} gap-2 sm:gap-4 mt-2`}>
                                 <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2.5 px-4 rounded-lg btn-muted text-center text-xs sm:text-sm">
-                                    {t('allEntries')}
+                                    {customizations.allEntriesButtonLabel?.trim() || t('allEntries')}
                                 </Link>
                                 {customizations.roomStats && (
                                     <Link href={`/rooms/${roomId}/stats`} className="font-bold py-2.5 px-4 rounded-lg btn-muted text-center text-xs sm:text-sm">
-                                        {t('roomStatistics')}
+                                        {customizations.roomStatsButtonLabel?.trim() || t('roomStatistics')}
                                     </Link>
                                 )}
                             </div>

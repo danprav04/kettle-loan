@@ -232,7 +232,7 @@ export default function CurrencyAmountInput({
           htmlFor={id}
           className="block text-muted-foreground text-xs font-bold tracking-wide uppercase"
         >
-          {t('amount')} ({inputCurrency})
+          {(customizations.amountInputLabel?.trim() || t('amount'))} ({inputCurrency})
         </label>
         {isDifferentCurrency && (
           <span className="text-[10px] font-semibold text-primary px-1.5 py-0.5 rounded-md bg-primary/10 flex items-center gap-1">

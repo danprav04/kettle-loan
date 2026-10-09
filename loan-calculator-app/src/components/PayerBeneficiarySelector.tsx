@@ -72,6 +72,7 @@ export default function PayerBeneficiarySelector({
   const displayableMembers = members.filter((m) => isMemberActiveParticipant(m) || initialSelectedUserIdsRef.current.has(m.id) || selectedUserIds.has(m.id));
 
   const toggleMember = (userId: number) => {
+    if (customizations.corePersonSelection === false) return;
     setInputStrs({});
     const nextUserIds = selectedUserIds.has(userId)
       ? shares.map((s) => s.userId).filter((id) => id !== userId)
@@ -272,7 +273,11 @@ export default function PayerBeneficiarySelector({
               title="Click to update master bill total to match this sum"
             >
               <span className="font-bold text-sm">↑</span>
-              <span>{t('syncTotalBtn', { sum: currentSumMonetary, currency })}</span>
+              <span>
+                {customizations.syncTotalButtonLabel?.trim()
+                  ? `${customizations.syncTotalButtonLabel.trim()} ${currentSumMonetary} ${currency}`
+                  : t('syncTotalBtn', { sum: currentSumMonetary, currency })}
+              </span>
             </button>
           )}
           {hasLeftover && customizations.autoBalance && (
@@ -283,18 +288,24 @@ export default function PayerBeneficiarySelector({
               title="Click to auto-assign remaining amount"
             >
               <span className="font-bold">{remainingMonetary > 0 ? `+${remainingMonetary.toFixed(0)}` : remainingMonetary.toFixed(0)} {currency}</span>
-              <span className="text-[10px] uppercase font-bold tracking-wider">{t('autoBalanceBadge')}</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider">
+                {customizations.autoBalanceButtonLabel?.trim() || t('autoBalanceBadge')}
+              </span>
             </button>
           )}
-          <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${isValid ? 'bg-success/20 text-success border border-success/30' : 'bg-danger/20 text-danger border border-danger/30'}`}>
-            {t('splitMonetarySum', { sum: currentSumMonetary, total: totalAmount.toFixed(0), currency })} {isValid ? '✓' : t('mustEqualTotal')}
-          </span>
+          {customizations.coreSumBadge !== false && (
+            <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${isValid ? 'bg-success/20 text-success border border-success/30' : 'bg-danger/20 text-danger border border-danger/30'}`}>
+              {t('splitMonetarySum', { sum: currentSumMonetary, total: totalAmount.toFixed(0), currency })} {isValid ? '✓' : t('mustEqualTotal')}
+            </span>
+          )}
         </div>
       </div>
 
       {allowQuickActions && customizations.premadePresets && eligibleMembers.length > 1 && (
         <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
-          <span className="text-muted-foreground font-medium text-[11px]">{t('quick')}</span>
+          <span className="text-muted-foreground font-medium text-[11px]">
+            {customizations.quickActionsLabel?.trim() || t('quick')}
+          </span>
           {currentUserId && eligibleMembers.some((m) => m.id === currentUserId) && (
             <button
               type="button"
@@ -342,7 +353,7 @@ export default function PayerBeneficiarySelector({
         <div className="flex items-center gap-1.5 text-xs flex-wrap pt-1 border-t border-card-border/40 dark:border-white/5">
           <span className="text-muted-foreground font-medium text-[11px] flex items-center gap-1">
             <span className="text-primary font-bold">★</span>
-            {t('presets')}
+            {customizations.presetsBarLabel?.trim() || t('presets')}
           </span>
 
           {presets.map((preset) => {
@@ -471,7 +482,9 @@ export default function PayerBeneficiarySelector({
             <div
               key={member.id}
               onClick={() => toggleMember(member.id)}
-              className={`flex flex-col justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer gap-2 ${
+              className={`flex flex-col justify-between p-2.5 rounded-xl border text-xs transition-all select-none gap-2 ${
+                customizations.corePersonSelection === false ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'
+              } ${
                 isSelected ? 'bg-primary/10 border-primary/60 shadow-sm text-foreground' : 'bg-background/40 hover:bg-muted/30 border-card-border/60 dark:border-white/5 text-muted-foreground'
               }`}
             >
@@ -514,18 +527,24 @@ export default function PayerBeneficiarySelector({
                   <span className="text-[11px] text-muted-foreground font-mono font-medium shrink-0">
                     ({pct.toFixed(1)}%)
                   </span>
-                  <div className="relative flex items-center">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={displayStr}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => handleTextChange(member.id, e.target.value)}
-                      onBlur={() => handleBlur(member.id)}
-                      className="w-24 themed-input px-2 py-1 text-right font-bold text-xs rounded-lg border border-primary/40 bg-card text-foreground shadow-inner focus:border-primary focus:ring-1 focus:ring-primary"
-                    />
-                    <span className="ml-1 text-muted-foreground font-bold text-xs shrink-0">{currency}</span>
-                  </div>
+                  {customizations.coreManualShareInputs !== false ? (
+                    <div className="relative flex items-center">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={displayStr}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => handleTextChange(member.id, e.target.value)}
+                        onBlur={() => handleBlur(member.id)}
+                        className="w-24 themed-input px-2 py-1 text-right font-bold text-xs rounded-lg border border-primary/40 bg-card text-foreground shadow-inner focus:border-primary focus:ring-1 focus:ring-primary"
+                      />
+                      <span className="ml-1 text-muted-foreground font-bold text-xs shrink-0">{currency}</span>
+                    </div>
+                  ) : (
+                    <span className="font-bold text-xs text-muted-foreground">
+                      {computedMonetary} {currency}
+                    </span>
+                  )}
                 </div>
               )}
             </div>

@@ -313,20 +313,24 @@ export default function EntriesPage() {
                                                 )}
                                                 {canModify(entry) && (
                                                     <>
-                                                        <button
-                                                            onClick={() => setEntryToEdit(entry)}
-                                                            className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
-                                                            title={t('editEntry')}
-                                                        >
-                                                            <FiEdit3 size={16} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => openConfirmDialog(entry)}
-                                                            className="text-muted-foreground hover:text-danger p-1.5 rounded hover:bg-danger/10 transition-colors"
-                                                            title={t('deleteEntry')}
-                                                        >
-                                                            <FiTrash2 size={16} />
-                                                        </button>
+                                                        {customizations.coreEntryEditing !== false && (
+                                                            <button
+                                                                onClick={() => setEntryToEdit(entry)}
+                                                                className="text-muted-foreground hover:text-primary p-1.5 rounded hover:bg-primary/10 transition-colors"
+                                                                title={t('editEntry')}
+                                                            >
+                                                                <FiEdit3 size={16} />
+                                                            </button>
+                                                        )}
+                                                        {customizations.coreEntryDeletion !== false && (
+                                                            <button
+                                                                onClick={() => openConfirmDialog(entry)}
+                                                                className="text-muted-foreground hover:text-danger p-1.5 rounded hover:bg-danger/10 transition-colors"
+                                                                title={t('deleteEntry')}
+                                                            >
+                                                                <FiTrash2 size={16} />
+                                                            </button>
+                                                        )}
                                                     </>
                                                 )}
                                             </div>

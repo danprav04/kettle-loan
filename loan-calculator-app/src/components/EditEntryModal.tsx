@@ -191,7 +191,7 @@ export default function EditEntryModal({
       if (isMultiParty) {
         const sumP = payerShares.reduce((a, b) => a + b.percentage, 0);
         const sumB = beneficiaryShares.reduce((a, b) => a + b.percentage, 0);
-        if (Math.abs(sumP - 100) > 0.1 || Math.abs(sumB - 100) > 0.1) {
+        if (customizations.coreEnforceSumValidation !== false && (Math.abs(sumP - 100) > 0.1 || Math.abs(sumB - 100) > 0.1)) {
           throw new Error('Split totals must equal 100% (Sum)');
         }
         payloadPayerShares = payerShares;
@@ -315,13 +315,16 @@ export default function EditEntryModal({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">{t('description')}</label>
+                <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">
+                  {customizations.descriptionInputLabel?.trim() || t('description')}
+                </label>
                 <input
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full themed-input px-3.5 py-2 text-sm font-medium rounded-xl border border-input bg-background text-foreground"
                   required
+                  placeholder={customizations.descriptionPlaceholderLabel?.trim() || t('descriptionPlaceholder')}
                 />
               </div>
             </div>
