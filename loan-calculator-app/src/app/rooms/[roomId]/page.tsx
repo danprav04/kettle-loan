@@ -450,7 +450,7 @@ export default function RoomPage() {
                 {isLoading ? (
                     <div className="max-w-md mx-auto p-8 text-center text-muted-foreground animate-fadeIn">Loading room...</div>
                 ) : (
-                    <div className="max-w-5xl w-full mx-auto bg-card rounded-2xl shadow-xl overflow-hidden border border-card-border animate-scaleIn">
+                    <div className="max-w-5xl w-full mx-auto bg-card rounded-2xl shadow-2xl overflow-hidden border-2 border-card-border dark:border-white shadow-[0_0_25px_rgba(255,255,255,0.06)] animate-scaleIn">
                         <div className="p-4 sm:p-5 md:p-6 lg:p-8">
                             {/* Title & Admin Button */}
                             <div className="text-center mb-3 sm:mb-5 relative">
@@ -473,7 +473,7 @@ export default function RoomPage() {
                                     </div>
                                 ) : (
                                     <div className="flex items-center justify-center space-x-2 rtl:space-x-reverse group">
-                                        <h1 className="text-lg sm:text-xl font-bold text-card-foreground">
+                                        <h1 className="text-xl sm:text-2xl font-extrabold font-heading text-card-foreground dark:text-white">
                                             {roomName || t('roomTitle', { code: roomCode })}
                                         </h1>
                                         {permissions.canAdmin && (
@@ -519,16 +519,16 @@ export default function RoomPage() {
 
                             {/* Balance */}
                             {customizations.coreBalanceDisplay !== false && (
-                                <div className="text-center mb-3 sm:mb-5">
-                                    <div className="text-base sm:text-lg font-medium text-muted-foreground">
+                                <div className="text-center my-4 p-4 sm:p-5 rounded-2xl bg-muted/40 dark:bg-zinc-900/90 border-2 border-card-border/80 dark:border-white/40 shadow-lg">
+                                    <div className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-foreground dark:text-zinc-200">
                                         {customizations.balanceTitleLabel?.trim() || t('balanceTitle')}
                                     </div>
-                                    <div className={`text-3xl sm:text-4xl font-bold mt-1 ${balance >= 0 ? 'text-success' : 'text-danger'}`}>
+                                    <div className={`text-4xl sm:text-5xl font-black font-mono mt-1 drop-shadow-sm ${balance >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
                                         {balance.toFixed(0)} {currency}
                                     </div>
                                     {customizations.detailedBalance && (
-                                        <Link href={`/rooms/${roomId}/balance`} className="text-xs sm:text-sm text-primary hover:underline flex items-center justify-center mx-auto mt-2">
-                                            {customizations.detailedBalanceLabel?.trim() || t('detailed')}
+                                        <Link href={`/rooms/${roomId}/balance`} className="text-xs sm:text-sm font-bold text-primary hover:text-primary-hover hover:underline inline-flex items-center justify-center mx-auto mt-2.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 transition-all">
+                                            {customizations.detailedBalanceLabel?.trim() || t('detailed')} →
                                         </Link>
                                     )}
                                 </div>
@@ -556,7 +556,7 @@ export default function RoomPage() {
                             ) : (
                                 <div className="mb-4">
                                     <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2 flex-wrap">
-                                        <h2 className="text-lg sm:text-xl font-semibold text-card-foreground">
+                                        <h2 className="text-xl sm:text-2xl font-extrabold font-heading text-card-foreground dark:text-white uppercase tracking-wide">
                                             {customizations.newEntryTitleLabel?.trim() || (isSimplified ? t('simplifiedNewEntryTitle') : t('newEntryTitle'))}
                                         </h2>
 
@@ -616,7 +616,7 @@ export default function RoomPage() {
                                                 />
                                             </div>
                                             <div className="sm:col-span-2">
-                                                <label className="block text-muted-foreground text-xs font-bold mb-1 tracking-wide uppercase" htmlFor="description">
+                                                <label className="block text-foreground dark:text-zinc-100 text-xs sm:text-sm font-extrabold mb-1 tracking-wider uppercase" htmlFor="description">
                                                     {customizations.descriptionInputLabel?.trim() || t('description')}
                                                 </label>
                                                 <input
@@ -624,7 +624,7 @@ export default function RoomPage() {
                                                     type="text"
                                                     value={description}
                                                     onChange={(e) => setDescription(e.target.value)}
-                                                    className="w-full px-3 py-2 leading-tight rounded-xl themed-input text-sm"
+                                                    className="w-full px-3.5 py-2.5 leading-tight rounded-xl themed-input text-sm sm:text-base font-semibold"
                                                     required
                                                     placeholder={customizations.descriptionPlaceholderLabel?.trim() || t('descriptionPlaceholder')}
                                                 />
@@ -669,44 +669,44 @@ export default function RoomPage() {
                                                 <label className="text-xs font-bold text-foreground uppercase tracking-wider block">{t('splitWith')}</label>
                                                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                                                     {currentUserId && isMemberEligibleParticipant(members.find(m => m.id === currentUserId) || { id: -1, username: '' }) && (
-                                                        <div
-                                                            onClick={() => setIncludeSelfInSplit(!includeSelfInSplit)}
-                                                            className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer ${
-                                                                includeSelfInSplit ? 'bg-primary/10 border-primary/60 shadow-sm text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-border/40 text-muted-foreground'
-                                                            }`}
-                                                        >
-                                                            <div className="flex items-center gap-2.5">
-                                                                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold border transition-colors ${
-                                                                    includeSelfInSplit ? 'bg-primary border-primary text-white shadow-sm' : 'border-muted-foreground/40 bg-card'
-                                                                }`}>
-                                                                    {includeSelfInSplit ? '✓' : ''}
-                                                                </div>
-                                                                <span>{t('me')}</span>
-                                                            </div>
-                                                            <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-md font-bold tracking-wider">{t('youBadge')}</span>
-                                                        </div>
-                                                    )}
-                                                    {otherMembers.filter(isMemberEligibleParticipant).map((member: Member) => {
-                                                        const isSel = selectedMemberIds.has(member.id);
-                                                        return (
-                                                            <div
-                                                                key={member.id}
-                                                                onClick={() => handleMemberSelection(member.id)}
-                                                                className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer ${
-                                                                    isSel ? 'bg-primary/10 border-primary/60 shadow-sm text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-border/40 text-muted-foreground'
-                                                                }`}
-                                                            >
-                                                                <div className="flex items-center gap-2.5">
-                                                                    <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold border transition-colors ${
-                                                                        isSel ? 'bg-primary border-primary text-white shadow-sm' : 'border-muted-foreground/40 bg-card'
-                                                                    }`}>
-                                                                        {isSel ? '✓' : ''}
-                                                                    </div>
-                                                                    <span>{member.username}</span>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
+                                                         <div
+                                                             onClick={() => setIncludeSelfInSplit(!includeSelfInSplit)}
+                                                             className={`flex items-center justify-between p-3 rounded-xl border-2 text-xs transition-all select-none cursor-pointer ${
+                                                                 includeSelfInSplit ? 'bg-primary/10 border-primary/60 shadow-sm text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-border/40 text-muted-foreground'
+                                                             }`}
+                                                         >
+                                                             <div className="flex items-center gap-3">
+                                                                 <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-sm font-black border-2 transition-all ${
+                                                                     includeSelfInSplit ? 'bg-primary border-white text-white shadow-sm' : 'border-zinc-400 dark:border-zinc-500 bg-card'
+                                                                 }`}>
+                                                                     {includeSelfInSplit ? '✓' : ''}
+                                                                 </div>
+                                                                 <span className="text-sm sm:text-base font-bold text-foreground dark:text-white">{t('me')}</span>
+                                                             </div>
+                                                             <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-md font-bold tracking-wider">{t('youBadge')}</span>
+                                                         </div>
+                                                     )}
+                                                     {otherMembers.filter(isMemberEligibleParticipant).map((member: Member) => {
+                                                         const isSel = selectedMemberIds.has(member.id);
+                                                         return (
+                                                             <div
+                                                                 key={member.id}
+                                                                 onClick={() => handleMemberSelection(member.id)}
+                                                                 className={`flex items-center justify-between p-3 rounded-xl border-2 text-xs transition-all select-none cursor-pointer ${
+                                                                     isSel ? 'bg-primary/10 border-primary/60 shadow-sm text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-border/40 text-muted-foreground'
+                                                                 }`}
+                                                             >
+                                                                 <div className="flex items-center gap-3">
+                                                                     <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-sm font-black border-2 transition-all ${
+                                                                         isSel ? 'bg-primary border-white text-white shadow-sm' : 'border-zinc-400 dark:border-zinc-500 bg-card'
+                                                                     }`}>
+                                                                         {isSel ? '✓' : ''}
+                                                                     </div>
+                                                                     <span className="text-sm sm:text-base font-bold text-foreground dark:text-white">{member.username}</span>
+                                                                 </div>
+                                                             </div>
+                                                         );
+                                                     })}
                                                 </div>
                                             </div>
                                         )}
@@ -718,7 +718,7 @@ export default function RoomPage() {
                                                     {otherMembers.filter(isMemberEligibleParticipant).map((member: Member) => {
                                                         const isSel = loanPaidByUserIds.has(member.id);
                                                         return (
-                                                            <div
+                                                             <div
                                                                 key={member.id}
                                                                 onClick={() => {
                                                                     const newSet = new Set(loanPaidByUserIds);
@@ -726,17 +726,17 @@ export default function RoomPage() {
                                                                     else newSet.add(member.id);
                                                                     setLoanPaidByUserIds(newSet);
                                                                 }}
-                                                                className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all select-none cursor-pointer ${
+                                                                className={`flex items-center justify-between p-3 rounded-xl border-2 text-xs transition-all select-none cursor-pointer ${
                                                                     isSel ? 'bg-success/15 border-success/60 shadow-sm text-foreground font-semibold' : 'bg-background/40 hover:bg-muted/40 border-border/40 text-muted-foreground'
                                                                 }`}
                                                             >
-                                                                <div className="flex items-center gap-2.5">
-                                                                    <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold border transition-colors ${
-                                                                        isSel ? 'bg-success border-success text-white shadow-sm' : 'border-muted-foreground/40 bg-card'
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-sm font-black border-2 transition-all ${
+                                                                        isSel ? 'bg-success border-white text-white shadow-sm' : 'border-zinc-400 dark:border-zinc-500 bg-card'
                                                                     }`}>
                                                                         {isSel ? '✓' : ''}
                                                                     </div>
-                                                                    <span>{member.username}</span>
+                                                                    <span className="text-sm sm:text-base font-bold text-foreground dark:text-white">{member.username}</span>
                                                                 </div>
                                                             </div>
                                                         );
@@ -746,7 +746,7 @@ export default function RoomPage() {
                                         )}
 
                                         <div className="pt-2">
-                                            <button type="submit" className="w-full font-bold py-2.5 px-4 rounded-lg focus:outline-none btn-primary disabled:opacity-50" disabled={isSubmitDisabled}>
+                                            <button type="submit" className="w-full text-sm sm:text-base font-extrabold py-3.5 px-4 rounded-xl focus:outline-none btn-primary shadow-lg border-2 border-white/40 dark:border-white/60 disabled:opacity-55 disabled:cursor-not-allowed" disabled={isSubmitDisabled}>
                                                 {customizations.addEntryButtonLabel?.trim() || t('addEntry')}
                                             </button>
                                         </div>
@@ -754,12 +754,12 @@ export default function RoomPage() {
                                 </div>
                             )}
 
-                            <div className={`flex flex-col ${customizations.roomStats ? 'sm:grid sm:grid-cols-2' : ''} gap-2 sm:gap-4 mt-2`}>
-                                <Link href={`/rooms/${roomId}/entries`} className="font-bold py-2.5 px-4 rounded-lg btn-muted text-center text-xs sm:text-sm">
+                            <div className={`flex flex-col ${customizations.roomStats ? 'sm:grid sm:grid-cols-2' : ''} gap-3 sm:gap-4 mt-3`}>
+                                <Link href={`/rooms/${roomId}/entries`} className="font-extrabold py-3 px-4 rounded-xl btn-muted border-2 border-zinc-400 dark:border-white/60 hover:border-white hover:bg-white/10 text-center text-sm sm:text-base shadow-md">
                                     {customizations.allEntriesButtonLabel?.trim() || t('allEntries')}
                                 </Link>
                                 {customizations.roomStats && (
-                                    <Link href={`/rooms/${roomId}/stats`} className="font-bold py-2.5 px-4 rounded-lg btn-muted text-center text-xs sm:text-sm">
+                                    <Link href={`/rooms/${roomId}/stats`} className="font-extrabold py-3 px-4 rounded-xl btn-muted border-2 border-zinc-400 dark:border-white/60 hover:border-white hover:bg-white/10 text-center text-sm sm:text-base shadow-md">
                                         {customizations.roomStatsButtonLabel?.trim() || t('roomStatistics')}
                                     </Link>
                                 )}

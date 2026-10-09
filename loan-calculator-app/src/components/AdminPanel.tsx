@@ -357,16 +357,16 @@ export default function AdminPanel({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="w-full max-w-lg overflow-hidden bg-card/95 border border-card-border dark:border-white/10 rounded-3xl shadow-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-md animate-fadeIn">
+      <div className="w-full max-w-lg overflow-hidden bg-card border-2 border-card-border dark:border-white shadow-[0_0_25px_rgba(255,255,255,0.06)] rounded-3xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-card-border/80 dark:border-white/5 bg-muted/30">
-          <h2 className="text-base font-bold flex items-center gap-2.5 text-foreground">
-            <span className="p-1.5 rounded-xl bg-primary/20 text-primary">🛡️</span> {t('adminTitle')}
+        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-card-border/80 dark:border-white/20 bg-muted/40">
+          <h2 className="text-xl sm:text-2xl font-extrabold font-heading flex items-center gap-2.5 text-foreground dark:text-white uppercase tracking-wide">
+            <span className="p-1.5 rounded-xl bg-primary/20 text-primary text-base">🛡️</span> {t('adminTitle')}
           </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+            className="p-1.5 rounded-xl text-foreground/80 dark:text-zinc-200 hover:text-foreground hover:bg-black/10 dark:hover:bg-white/10 transition-all font-bold text-lg cursor-pointer"
           >
             ✕
           </button>
@@ -374,37 +374,37 @@ export default function AdminPanel({
 
         <div className="p-6 overflow-y-auto space-y-6">
           {error && (
-            <div className="p-3.5 text-xs bg-danger/20 border border-danger/40 text-danger rounded-xl animate-fadeIn">
+            <div className="p-3.5 text-xs sm:text-sm font-bold bg-danger/20 border-2 border-danger/50 text-danger rounded-xl animate-fadeIn">
               {error}
             </div>
           )}
           {success && (
-            <div className="p-3.5 text-xs bg-success/20 border border-success/40 text-success rounded-xl animate-fadeIn">
+            <div className="p-3.5 text-xs sm:text-sm font-bold bg-success/20 border-2 border-success/50 text-success rounded-xl animate-fadeIn">
               {success}
             </div>
           )}
 
           {/* Room Settings */}
-          <form onSubmit={handleSaveRoomSettings} className="space-y-4 p-4 rounded-2xl bg-muted/40 border border-card-border/80 dark:border-white/5">
-            <h3 className="text-xs font-bold text-muted-foreground tracking-wider uppercase">{t('roomSettings')}</h3>
+          <form onSubmit={handleSaveRoomSettings} className="space-y-4 p-4 rounded-2xl bg-muted/40 border-2 border-card-border/80 dark:border-white/20">
+            <h3 className="text-xs sm:text-sm font-extrabold text-foreground dark:text-zinc-100 tracking-wider uppercase">{t('roomSettings')}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">{t('roomName')}</label>
+                <label className="block text-xs sm:text-sm font-bold text-foreground/80 dark:text-zinc-200 mb-1.5">{t('roomName')}</label>
                 <input
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full themed-input px-3.5 py-2 text-xs rounded-xl border border-input bg-background font-medium text-foreground"
+                  className="w-full themed-input px-3.5 py-2 text-xs sm:text-sm rounded-xl border-2 border-input bg-background font-bold text-foreground"
                   maxLength={50}
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">{t('currencyLabel')}</label>
+                <label className="block text-xs sm:text-sm font-bold text-foreground/80 dark:text-zinc-200 mb-1.5">{t('currencyLabel')}</label>
                 <select
                   value={editCurrency}
                   onChange={(e) => setEditCurrency(e.target.value)}
-                  className="w-full themed-input px-3 py-2 text-xs rounded-xl border border-input bg-background font-bold text-center cursor-pointer text-foreground"
+                  className="w-full themed-input px-3 py-2 text-xs sm:text-sm rounded-xl border-2 border-input bg-background font-extrabold text-center cursor-pointer text-foreground"
                 >
                   {currencyList.map((c) => (
                     <option key={c.code} value={c.code}>
@@ -416,21 +416,21 @@ export default function AdminPanel({
             </div>
             {/* Rate preview when switching currencies */}
             {editCurrency !== currency && (
-              <div className="text-xs px-2 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-center animate-fadeIn flex flex-col gap-1">
+              <div className="text-xs px-2.5 py-2 rounded-xl bg-blue-500/15 border-2 border-blue-500/30 text-blue-400 text-center animate-fadeIn flex flex-col gap-1 font-semibold">
                 {rateLoading ? (
                   <span className="text-muted-foreground">Fetching rate…</span>
                 ) : ratePreview ? (
                   <>
-                    <span className="font-bold">1 {currency} = {ratePreview} {editCurrency}</span>
+                    <span className="font-extrabold text-sm">1 {currency} = {ratePreview} {editCurrency}</span>
                     {rateLastUpdated && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-[11px] text-muted-foreground font-medium">
                         {rateIsStale ? '⚠️ Using cached rate from: ' : 'Live rate as of: '}
                         {new Date(rateLastUpdated).toLocaleString()}
                       </span>
                     )}
                   </>
                 ) : (
-                  <span className="text-amber-400">Rate unavailable — will retry on save</span>
+                  <span className="text-amber-400 font-bold">Rate unavailable — will retry on save</span>
                 )}
               </div>
             )}
@@ -438,7 +438,7 @@ export default function AdminPanel({
               <button
                 type="submit"
                 disabled={isLoading || (editName === roomName && editCurrency === currency)}
-                className="btn-primary text-xs px-4 py-2 rounded-xl disabled:opacity-50 font-bold shadow-md"
+                className="btn-primary text-xs sm:text-sm px-5 py-2.5 rounded-xl disabled:opacity-50 font-extrabold border-2 border-white/40 dark:border-white/60 shadow-md cursor-pointer"
               >
                 {isLoading ? '...' : t('saveSettings')}
               </button>
@@ -447,7 +447,7 @@ export default function AdminPanel({
 
           {/* Members Permissions */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold text-muted-foreground tracking-wider uppercase">{t('memberPermissions', { count: members.length })}</h3>
+            <h3 className="text-xs sm:text-sm font-extrabold text-foreground dark:text-zinc-100 tracking-wider uppercase">{t('memberPermissions', { count: members.length })}</h3>
             <div className="space-y-2">
               {members.map((member) => {
                 const perms = getPermissions(member);

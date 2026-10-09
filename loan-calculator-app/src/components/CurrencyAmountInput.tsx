@@ -230,12 +230,12 @@ export default function CurrencyAmountInput({
       <div className="flex items-center justify-between">
         <label
           htmlFor={id}
-          className="block text-muted-foreground text-xs font-bold tracking-wide uppercase"
+          className="block text-foreground dark:text-zinc-100 text-xs sm:text-sm font-extrabold tracking-wide uppercase"
         >
           {(customizations.amountInputLabel?.trim() || t('amount'))} ({inputCurrency})
         </label>
         {isDifferentCurrency && (
-          <span className="text-[10px] font-semibold text-primary px-1.5 py-0.5 rounded-md bg-primary/10 flex items-center gap-1">
+          <span className="text-[10px] font-bold text-primary px-2 py-0.5 rounded-md bg-primary/10 border border-primary/30 flex items-center gap-1">
             <span>→</span>
             <span>{roomCurrency}</span>
           </span>
@@ -258,7 +258,7 @@ export default function CurrencyAmountInput({
           disabled={disabled}
           placeholder={placeholder}
           autoFocus={autoFocus}
-          className="w-full px-3 py-2 leading-tight rounded-xl themed-input font-bold text-base min-w-0"
+          className="w-full px-3.5 py-2.5 leading-tight rounded-xl themed-input font-extrabold text-base min-w-0 border-2"
           required
         />
 
@@ -268,7 +268,7 @@ export default function CurrencyAmountInput({
             onChange={(e) => onInputCurrencyChange(e.target.value)}
             disabled={disabled}
             aria-label="Select currency"
-            className="shrink-0 px-2 py-2 text-xs font-bold rounded-xl border border-input bg-card text-foreground cursor-pointer themed-input shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            className="shrink-0 px-3 py-2.5 text-xs sm:text-sm font-extrabold rounded-xl border-2 border-input bg-card text-foreground cursor-pointer themed-input shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
             {currencyOptions.map((c) => (
               <option key={c.code} value={c.code}>
@@ -277,7 +277,7 @@ export default function CurrencyAmountInput({
             ))}
           </select>
         ) : (
-          <span className="shrink-0 px-3 py-2 text-xs font-bold rounded-xl border border-input bg-muted text-foreground flex items-center justify-center">
+          <span className="shrink-0 px-3.5 py-2.5 text-xs sm:text-sm font-extrabold rounded-xl border-2 border-card-border/80 dark:border-white/40 bg-muted text-foreground flex items-center justify-center">
             {roomCurrency}
           </span>
         )}

@@ -283,20 +283,20 @@ export default function EditEntryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/75 backdrop-blur-md animate-fadeIn">
-      <div className="w-full max-w-2xl overflow-hidden bg-card border border-card-border dark:border-white/10 rounded-3xl shadow-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-md animate-fadeIn">
+      <div className="w-full max-w-2xl overflow-hidden bg-card border-2 border-card-border dark:border-white shadow-[0_0_25px_rgba(255,255,255,0.06)] rounded-3xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-card-border/80 dark:border-white/5 bg-muted/30">
-          <h2 className="text-base font-bold flex items-center gap-2 text-foreground">
-            <span className="p-1 rounded-lg bg-primary/20 text-primary">✏️</span> {t('editEntryTitle')}
+        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-card-border/80 dark:border-white/20 bg-muted/40">
+          <h2 className="text-xl sm:text-2xl font-extrabold font-heading flex items-center gap-2.5 text-foreground dark:text-white uppercase tracking-wide">
+            <span className="p-1.5 rounded-xl bg-primary/20 text-primary text-base">✏️</span> {t('editEntryTitle')}
           </h2>
-          <button onClick={onClose} className="p-1 rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-all">
+          <button onClick={onClose} className="p-1.5 rounded-xl text-foreground/80 dark:text-zinc-200 hover:text-foreground hover:bg-black/10 dark:hover:bg-white/10 transition-all font-bold text-lg cursor-pointer">
             ✕
           </button>
         </div>
 
         <div className="p-6 overflow-y-auto space-y-5 flex-1">
-          {error && <div className="p-3 text-xs bg-danger/20 text-danger border border-danger/40 rounded-xl">{error}</div>}
+          {error && <div className="p-3.5 text-xs sm:text-sm font-bold bg-danger/20 text-danger border-2 border-danger/50 rounded-xl">{error}</div>}
 
           <form id="edit-entry-form" onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -315,14 +315,14 @@ export default function EditEntryModal({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">
+                <label className="block text-xs sm:text-sm font-extrabold text-foreground dark:text-zinc-100 mb-1.5 uppercase tracking-wider">
                   {customizations.descriptionInputLabel?.trim() || t('description')}
                 </label>
                 <input
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full themed-input px-3.5 py-2 text-sm font-medium rounded-xl border border-input bg-background text-foreground"
+                  className="w-full themed-input px-3.5 py-2.5 text-sm sm:text-base font-extrabold rounded-xl border-2 border-input bg-background text-foreground"
                   required
                   placeholder={customizations.descriptionPlaceholderLabel?.trim() || t('descriptionPlaceholder')}
                 />
@@ -330,9 +330,9 @@ export default function EditEntryModal({
             </div>
 
             {members.length > 1 && (
-              <div className="pt-2 space-y-3 border-t border-card-border/80 dark:border-white/5">
+              <div className="pt-2 space-y-3 border-t-2 border-card-border/80 dark:border-white/20">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('editSplitDetails')}</label>
+                  <label className="text-xs sm:text-sm font-extrabold text-foreground dark:text-zinc-100 uppercase tracking-wider">{t('editSplitDetails')}</label>
                   <div style={{ display: 'none' }} className="flex rounded-xl bg-muted/40 p-0.5 border border-card-border/60 dark:border-white/5">
                     <button
                       type="button"
@@ -433,11 +433,11 @@ export default function EditEntryModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-card-border/80 dark:border-white/5 bg-muted/30 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t-2 border-card-border/80 dark:border-white/20 bg-muted/40 flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-muted hover:bg-muted/80 dark:hover:bg-white/10 text-foreground text-xs font-semibold rounded-xl border border-card-border dark:border-white/10 transition-all shadow-sm"
+            className="px-5 py-2.5 bg-muted hover:bg-muted/80 text-foreground text-xs sm:text-sm font-extrabold rounded-xl border-2 border-card-border/80 dark:border-white/30 transition-all shadow-sm cursor-pointer"
             disabled={isLoading}
           >
             {t('closeBtn')}
@@ -445,7 +445,7 @@ export default function EditEntryModal({
           <button
             form="edit-entry-form"
             type="submit"
-            className="btn-primary text-xs px-5 py-2 rounded-xl font-bold shadow-md flex items-center gap-2"
+            className="btn-primary text-xs sm:text-sm px-6 py-2.5 rounded-xl font-extrabold border-2 border-white/40 dark:border-white/60 shadow-md flex items-center gap-2 cursor-pointer"
             disabled={isLoading || (inputCurrency.toUpperCase() !== currency.toUpperCase() && !conversionInfo.isRateReady)}
           >
             <span>💾</span> {isLoading ? '...' : 'Save Edits'}

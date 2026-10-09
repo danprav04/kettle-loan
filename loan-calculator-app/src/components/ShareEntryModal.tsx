@@ -291,18 +291,20 @@ export default function ShareEntryModal({
             role="dialog"
             aria-modal="true"
         >
-            <div className="bg-card border border-card-border rounded-2xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden max-h-[92vh]">
+            <div className="bg-card border-2 border-card-border dark:border-white shadow-[0_0_25px_rgba(255,255,255,0.06)] rounded-3xl w-full max-w-xl flex flex-col overflow-hidden max-h-[92vh]">
                 {/* Modal Header */}
-                <div className="p-4 sm:px-6 border-b border-card-border flex items-center justify-between shrink-0 bg-card">
-                    <div className="flex items-center gap-2">
-                        <FiShare2 className="w-5 h-5 text-primary" />
-                        <h2 className="text-base sm:text-lg font-bold text-card-foreground">
+                <div className="p-4 sm:px-6 border-b-2 border-card-border/80 dark:border-white/20 flex items-center justify-between shrink-0 bg-muted/40">
+                    <div className="flex items-center gap-2.5">
+                        <span className="p-1.5 rounded-xl bg-primary/20 text-primary">
+                            <FiShare2 className="w-5 h-5 text-primary" />
+                        </span>
+                        <h2 className="text-xl sm:text-2xl font-extrabold font-heading text-card-foreground dark:text-white uppercase tracking-wide">
                             {t('shareModalTitle')}
                         </h2>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-card-foreground hover:bg-muted/60 transition-colors"
+                        className="p-1.5 rounded-xl text-foreground/80 dark:text-zinc-200 hover:text-foreground hover:bg-black/10 dark:hover:bg-white/10 transition-all font-bold text-lg cursor-pointer"
                         aria-label="Close"
                     >
                         <FiX className="w-5 h-5" />
@@ -567,10 +569,10 @@ export default function ShareEntryModal({
                 </div>
 
                 {/* Modal Actions Footer */}
-                <div className="p-4 sm:px-6 border-t border-card-border bg-card flex flex-wrap items-center justify-end gap-2.5 shrink-0">
+                <div className="p-4 sm:px-6 border-t-2 border-card-border/80 dark:border-white/20 bg-muted/40 flex flex-wrap items-center justify-end gap-2.5 shrink-0">
                     <button
                         onClick={onClose}
-                        className="py-2 px-3.5 rounded-xl border border-card-border bg-card hover:bg-muted text-card-foreground text-xs sm:text-sm font-semibold transition-all shadow-2xs"
+                        className="py-2.5 px-4 rounded-xl border-2 border-card-border/80 dark:border-white/30 bg-card hover:bg-muted text-card-foreground text-xs sm:text-sm font-extrabold transition-all shadow-sm cursor-pointer"
                     >
                         {t('closeBtn') || 'Close'}
                     </button>
@@ -578,7 +580,7 @@ export default function ShareEntryModal({
                     <button
                         onClick={handleCopyImage}
                         disabled={isGenerating}
-                        className="py-2 px-3.5 rounded-xl border border-card-border bg-card hover:bg-muted text-card-foreground text-xs sm:text-sm font-semibold transition-all shadow-2xs flex items-center gap-1.5 disabled:opacity-50"
+                        className="py-2.5 px-4 rounded-xl border-2 border-card-border/80 dark:border-white/30 bg-card hover:bg-muted text-card-foreground text-xs sm:text-sm font-extrabold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                     >
                         {copied ? (
                             <>
@@ -587,7 +589,7 @@ export default function ShareEntryModal({
                             </>
                         ) : (
                             <>
-                                <FiCopy className="w-4 h-4 text-muted-foreground" />
+                                <FiCopy className="w-4 h-4 text-foreground/70 dark:text-zinc-300" />
                                 <span>{t('copyImage')}</span>
                             </>
                         )}
@@ -596,16 +598,16 @@ export default function ShareEntryModal({
                     <button
                         onClick={handleDownload}
                         disabled={isGenerating}
-                        className="py-2 px-3.5 rounded-xl border border-card-border bg-card hover:bg-muted text-card-foreground text-xs sm:text-sm font-semibold transition-all shadow-2xs flex items-center gap-1.5 disabled:opacity-50"
+                        className="py-2.5 px-4 rounded-xl border-2 border-card-border/80 dark:border-white/30 bg-card hover:bg-muted text-card-foreground text-xs sm:text-sm font-extrabold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                     >
-                        <FiDownload className="w-4 h-4 text-muted-foreground" />
+                        <FiDownload className="w-4 h-4 text-foreground/70 dark:text-zinc-300" />
                         <span>{t('downloadImage')}</span>
                     </button>
 
                     <button
                         onClick={handleNativeShare}
                         disabled={isGenerating}
-                        className="py-2 px-4 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground text-xs sm:text-sm font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer active:scale-95"
+                        className="py-2.5 px-5 rounded-xl btn-primary border-2 border-white/40 dark:border-white/60 text-xs sm:text-sm font-extrabold transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer active:scale-95"
                     >
                         {isGenerating ? (
                             <div className="w-4 h-4 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />

@@ -26,8 +26,8 @@
 [data-theme='dark'] {
   --background: 9 9 11; /* #09090b deep obsidian */
   --foreground: 250 250 250; /* #fafafa */
-  --card: 24 24 27; /* #18181b zinc-900 */
-  --card-border: 39 39 42; /* #27272a zinc-800 */
+  --card: 20 20 24; /* #141418 elevated surface */
+  --card-border: 228 228 231; /* #e4e4e7 high-contrast perimeter */
   --card-foreground: 250 250 250; /* #fafafa */
   --primary: 129 140 248; /* #818cf8 indigo-400 */
   --primary-hover: 99 102 241; /* #6366f1 indigo-500 */
@@ -35,10 +35,10 @@
   --secondary: 52 211 153; /* #34d399 emerald-400 */
   --secondary-hover: 16 185 129; /* #10b981 emerald-500 */
   --secondary-foreground: 9 9 11; /* #09090b */
-  --muted: 39 39 42; /* #27272a zinc-800 */
-  --muted-foreground: 161 161 170; /* #a1a1aa zinc-400 */
-  --input-bg: 24 24 27; /* #18181b */
-  --input-border: 63 63 70; /* #3f3f46 */
+  --muted: 39 39 46; /* #27272e */
+  --muted-foreground: 212 212 216; /* #d4d4d8 high contrast */
+  --input-bg: 32 32 38; /* #202026 clearly distinguished from background */
+  --input-border: 161 161 170; /* #a1a1aa high-contrast input border */
   --danger: 251 113 133; /* #fb7185 rose-400 */
   --danger-hover: 244 63 94; /* #f43f5e */
   --success: 52 211 153; /* #34d399 emerald-400 */
@@ -100,54 +100,64 @@ button, a, input, select {
 
 .themed-input {
   background-color: rgb(var(--input-bg));
-  border: 1px solid rgb(var(--input-border));
+  border: 2px solid rgb(var(--input-border));
   color: rgb(var(--foreground));
 }
 .themed-input:focus {
   outline: none;
-  border-color: rgb(var(--primary));
-  box-shadow: 0 0 0 4px rgb(var(--primary) / 0.18);
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
 }
 
 /* Wow-Factor Buttons */
 .btn-primary {
   background: linear-gradient(135deg, #8b5cf6, #6366f1);
   color: #ffffff !important;
-  font-weight: 600;
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.35);
 }
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  border-color: #ffffff;
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
 }
-.btn-primary:active {
+.btn-primary:active:not(:disabled) {
   transform: translateY(0) scale(0.98);
+}
+.btn-primary:disabled {
+  opacity: 0.55;
+  border-color: rgba(255, 255, 255, 0.2);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn-secondary {
   background: linear-gradient(135deg, #10b981, #059669);
   color: #ffffff !important;
-  font-weight: 600;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.35);
 }
 .btn-secondary:hover {
   background: linear-gradient(135deg, #059669, #047857);
+  border-color: #ffffff;
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.45);
 }
 
 .btn-muted {
   background-color: rgb(var(--muted));
-  color: rgb(var(--muted-foreground));
-  border: 1px solid rgb(var(--card-border));
-  font-weight: 500;
+  color: #ffffff !important;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  font-weight: 700;
 }
 .btn-muted:hover {
-  background-color: rgb(var(--card-border));
-  color: rgb(var(--foreground));
-  border-color: rgb(var(--muted-foreground));
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff !important;
+  border-color: #ffffff;
   transform: translateY(-1px);
 }
 

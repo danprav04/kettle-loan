@@ -383,36 +383,36 @@ export default function CustomizationModal({ isOpen, onClose }: CustomizationMod
       aria-labelledby="customization-modal-title"
     >
       <div
-        className="w-full max-w-2xl bg-card border border-card-border dark:border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[88vh] overflow-hidden"
+        className="w-full max-w-2xl bg-card border-2 border-card-border dark:border-white shadow-[0_0_25px_rgba(255,255,255,0.06)] rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[88vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-card-border/80 dark:border-white/5 bg-muted/30 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b-2 border-card-border/80 dark:border-white/20 bg-muted/40 shrink-0">
           <div className="flex items-center gap-3">
-            <span className="p-2 sm:p-2.5 rounded-xl bg-primary/15 text-primary shrink-0">
-              <FiSliders size={20} />
+            <span className="p-2 sm:p-2.5 rounded-xl bg-primary/20 text-primary shrink-0 border border-primary/30">
+              <FiSliders size={22} />
             </span>
             <div>
-              <h2 id="customization-modal-title" className="text-base sm:text-lg font-bold text-foreground leading-tight">
+              <h2 id="customization-modal-title" className="text-xl sm:text-2xl font-extrabold font-heading text-foreground dark:text-white uppercase tracking-wide leading-tight">
                 {t('title')}
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              <p className="text-xs sm:text-sm text-foreground/80 dark:text-zinc-300 font-semibold mt-0.5">
                 {t('subtitle')}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer"
+            className="p-2 rounded-xl text-foreground/80 dark:text-zinc-200 hover:text-foreground hover:bg-black/10 dark:hover:bg-white/10 transition-all cursor-pointer font-bold"
             aria-label="Close"
           >
-            <FiX size={20} />
+            <FiX size={22} />
           </button>
         </div>
 
         {/* Navigation Tabs - Responsive Segmented Control */}
-        <div className="px-4 sm:px-6 py-2.5 border-b border-card-border/60 dark:border-white/5 bg-muted/20 shrink-0">
-          <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/60 dark:bg-white/5 rounded-2xl border border-card-border/40 dark:border-white/5">
+        <div className="px-4 sm:px-6 py-2.5 border-b-2 border-card-border/60 dark:border-white/15 bg-muted/20 shrink-0">
+          <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/60 dark:bg-white/5 rounded-2xl border-2 border-card-border/60 dark:border-white/20">
             <button
               type="button"
               onClick={() => setActiveTab('labels')}
@@ -763,11 +763,11 @@ export default function CustomizationModal({ isOpen, onClose }: CustomizationMod
         </div>
 
         {/* Footer */}
-        <div className="p-4 sm:p-5 border-t border-card-border/80 dark:border-white/5 bg-muted/20 shrink-0">
+        <div className="p-4 sm:p-5 border-t-2 border-card-border/80 dark:border-white/20 bg-muted/30 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="w-full py-2.5 sm:py-3 px-4 rounded-xl btn-primary font-bold text-sm sm:text-base cursor-pointer shadow-md transition-transform active:scale-[0.99]"
+            className="w-full py-3 sm:py-3.5 px-4 rounded-xl btn-primary font-extrabold text-sm sm:text-base border-2 border-white/40 dark:border-white/60 cursor-pointer shadow-md transition-transform active:scale-[0.99]"
           >
             {t('done')}
           </button>
