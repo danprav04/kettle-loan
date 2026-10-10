@@ -718,7 +718,7 @@ export default function BalanceDetailsPage() {
                                                                                             {tx.description}
                                                                                         </p>
                                                                                         {/* Desktop inline details */}
-                                                                                        <div className="hidden sm:flex text-xs sm:text-sm text-foreground/80 dark:text-zinc-300 font-medium items-center flex-wrap gap-1 mt-0.5">
+                                                                                        <div className="hidden sm:block text-xs sm:text-sm text-foreground/80 dark:text-zinc-300 font-medium mt-0.5 leading-relaxed">
                                                                                             {getEntryDetails(tx, memberMap, members, user, t)}
                                                                                         </div>
                                                                                     </div>
@@ -774,7 +774,7 @@ export default function BalanceDetailsPage() {
                                                                                                 <FiClock className="w-2.5 h-2.5" /> {t('unsynchronized')}
                                                                                             </span>
                                                                                         )}
-                                                                                        <span>{t('byAuthor', { author: tx.username })} &bull; {new Date(tx.created_at).toLocaleString()}</span>
+                                                                                        <span>{t('byAuthor', { author: tx.username })} &bull; <span className="whitespace-nowrap">{new Date(tx.created_at).toLocaleString()}</span></span>
                                                                                     </p>
                                                                                     <div className="flex items-center gap-1 font-mono text-[11px] shrink-0">
                                                                                         <span className="text-muted-foreground dark:text-zinc-400 uppercase font-sans font-bold text-[10px]">{t('totalAfterLog')}</span>
@@ -832,44 +832,59 @@ export default function BalanceDetailsPage() {
                                     const amt = parseFloat(entry.amount);
                                     const isNegative = amt < 0;
                                     return (
-                                        <li key={entry.id} className="p-3.5 sm:p-5 flex justify-between items-start sm:items-center hover:bg-muted/30 transition-colors gap-3">
-                                            <div className="flex items-start sm:items-center gap-3 sm:gap-3.5 min-w-0">
-                                                <div className={`p-2 sm:p-2.5 rounded-xl shrink-0 mt-0.5 sm:mt-0 ${
-                                                    isNegative ? 'bg-danger/15 text-danger' : 'bg-success/15 text-success'
-                                                }`}>
-                                                    {isNegative ? <FiArrowUpRight className="w-4 h-4" /> : <FiArrowDownLeft className="w-4 h-4" />}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="font-extrabold sm:font-bold text-foreground text-sm sm:text-base break-words line-clamp-2 sm:line-clamp-none">{entry.description}</p>
-                                                    <div className="text-xs text-muted-foreground italic flex items-center flex-wrap gap-1 mt-0.5 leading-relaxed">
-                                                        {getEntryDetails(entry, memberMap, members, user, t)}
+                                        <li key={entry.id} className="p-3.5 sm:p-5 hover:bg-muted/30 transition-colors">
+                                            <div className="flex justify-between items-start sm:items-center gap-3">
+                                                <div className="flex items-start sm:items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
+                                                    <div className={`p-1.5 sm:p-2.5 rounded-xl shrink-0 mt-0.5 sm:mt-0 ${
+                                                        isNegative ? 'bg-danger/15 text-danger' : 'bg-success/15 text-success'
+                                                    }`}>
+                                                        {isNegative ? <FiArrowUpRight className="w-4 h-4" /> : <FiArrowDownLeft className="w-4 h-4" />}
                                                     </div>
-                                                    <p className="text-muted-foreground text-xs mt-1 flex items-center flex-wrap gap-y-1">
-                                                        {(entry.pending_sync || entry.offline_timestamp || typeof entry.id === 'string') && (
-                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30 rounded-full me-1.5 shrink-0">
-                                                                <FiClock className="w-2.5 h-2.5" /> {t('unsynchronized')}
-                                                            </span>
-                                                        )}
-                                                        <span>{t('byAuthor', { author: entry.username })} &bull; {new Date(entry.created_at).toLocaleString()}</span>
-                                                    </p>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-extrabold sm:font-bold text-foreground text-sm sm:text-base break-words leading-snug">{entry.description}</p>
+                                                        <div className="hidden sm:block text-xs text-muted-foreground italic mt-0.5 leading-relaxed">
+                                                            {getEntryDetails(entry, memberMap, members, user, t)}
+                                                        </div>
+                                                        <p className="hidden sm:flex text-muted-foreground text-xs mt-1 items-center flex-wrap gap-y-1">
+                                                            {(entry.pending_sync || entry.offline_timestamp || typeof entry.id === 'string') && (
+                                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30 rounded-full me-1.5 shrink-0">
+                                                                    <FiClock className="w-2.5 h-2.5" /> {t('unsynchronized')}
+                                                                </span>
+                                                            )}
+                                                            <span>{t('byAuthor', { author: entry.username })} &bull; {new Date(entry.created_at).toLocaleString()}</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                                                    <div className={`text-xs sm:text-sm font-black font-mono px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg whitespace-nowrap ${
+                                                        isNegative ? 'text-danger bg-danger/10 border border-danger/30' : 'text-success bg-success/10 border border-success/30'
+                                                    }`}>
+                                                        {isNegative ? '' : '+'}{amt.toFixed(0)} {currency}
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setShareModalState({
+                                                            isOpen: true,
+                                                            entry: entry,
+                                                        })}
+                                                        className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+                                                        title={t('shareEntry')}
+                                                    >
+                                                        <FiShare2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                                                <div className={`text-xs sm:text-sm font-black font-mono px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg whitespace-nowrap ${
-                                                    isNegative ? 'text-danger bg-danger/10 border border-danger/30' : 'text-success bg-success/10 border border-success/30'
-                                                }`}>
-                                                    {isNegative ? '' : '+'}{amt.toFixed(0)} {currency}
+                                            <div className="sm:hidden mt-1.5 pl-8 space-y-1">
+                                                <div className="text-xs text-muted-foreground italic leading-relaxed">
+                                                    {getEntryDetails(entry, memberMap, members, user, t)}
                                                 </div>
-                                                <button
-                                                    onClick={() => setShareModalState({
-                                                        isOpen: true,
-                                                        entry: entry,
-                                                    })}
-                                                    className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
-                                                    title={t('shareEntry')}
-                                                >
-                                                    <FiShare2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                                </button>
+                                                <p className="text-muted-foreground text-[11px] flex items-center flex-wrap gap-1">
+                                                    {(entry.pending_sync || entry.offline_timestamp || typeof entry.id === 'string') && (
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30 rounded-full shrink-0">
+                                                            <FiClock className="w-2.5 h-2.5" /> {t('unsynchronized')}
+                                                        </span>
+                                                    )}
+                                                    <span>{t('byAuthor', { author: entry.username })} &bull; <span className="whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</span></span>
+                                                </p>
                                             </div>
                                         </li>
                                     );

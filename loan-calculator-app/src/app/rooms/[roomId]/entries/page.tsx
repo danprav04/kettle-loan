@@ -253,86 +253,151 @@ export default function EntriesPage() {
                     ) : processedEntries.length === 0 ? (
                         <p className="p-6 text-center text-foreground/80 dark:text-zinc-300 font-bold">{t('noEntries')}</p>
                     ) : (
-                        <ul>
+                        <ul className="divide-y divide-card-border">
                             {processedEntries.map((entry, index) => {
                                 const showProxy = entry.created_by_user_id && entry.created_by_user_id !== entry.user_id;
                                 const recorderName = memberMap.get(entry.created_by_user_id || 0);
+                                const isPendingSync = Boolean(entry.pending_sync || entry.offline_timestamp || typeof entry.id === 'string');
+                                const amountNum = parseFloat(entry.amount);
+                                const canModifyEntry = canModify(entry);
+
+                                const actionButtonsCount =
+                                    (customizations.entryShareModal ? 1 : 0) +
+                                    (customizations.entryEditsHistory ? 1 : 0) +
+                                    (canModifyEntry && customizations.coreEntryEditing !== false ? 1 : 0) +
+                                    (canModifyEntry && customizations.coreEntryDeletion !== false ? 1 : 0);
+
+                                const stackAuthorDateOnMobile =
+                                    actionButtonsCount >= 3 ||
+                                    (entry.username?.length || 0) > 12 ||
+                                    isPendingSync;
+
+                                const actionButtons = actionButtonsCount > 0 ? (
+                                    <div className="flex items-center gap-1 sm:gap-1.5 opacity-90 sm:opacity-85 group-hover:opacity-100 transition-opacity shrink-0">
+                                        {customizations.entryShareModal && (
+                                            <button
+                                                onClick={() => setEntryToShare(entry)}
+                                                className="text-foreground dark:text-zinc-200 hover:text-primary p-1.5 sm:p-2 rounded-lg hover:bg-primary/20 border border-transparent hover:border-primary/40 transition-colors"
+                                                title={t('shareEntry')}
+                                            >
+                                                <FiShare2 className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
+                                            </button>
+                                        )}
+                                        {customizations.entryEditsHistory && (
+                                            <button
+                                                onClick={() => setEntryForHistory(entry.id)}
+                                                className="text-foreground dark:text-zinc-200 hover:text-primary p-1.5 sm:p-2 rounded-lg hover:bg-primary/20 border border-transparent hover:border-primary/40 transition-colors"
+                                                title={t('viewEditHistory')}
+                                            >
+                                                <FiClock className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
+                                            </button>
+                                        )}
+                                        {canModifyEntry && (
+                                            <>
+                                                {customizations.coreEntryEditing !== false && (
+                                                    <button
+                                                        onClick={() => setEntryToEdit(entry)}
+                                                        className="text-foreground dark:text-zinc-200 hover:text-primary p-1.5 sm:p-2 rounded-lg hover:bg-primary/20 border border-transparent hover:border-primary/40 transition-colors"
+                                                        title={t('editEntry')}
+                                                    >
+                                                        <FiEdit3 className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
+                                                    </button>
+                                                )}
+                                                {customizations.coreEntryDeletion !== false && (
+                                                    <button
+                                                        onClick={() => openConfirmDialog(entry)}
+                                                        className="text-foreground dark:text-zinc-200 hover:text-danger p-1.5 sm:p-2 rounded-lg hover:bg-danger/20 border border-transparent hover:border-danger/40 transition-colors"
+                                                        title={t('deleteEntry')}
+                                                    >
+                                                        <FiTrash2 className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                ) : null;
 
                                 return (
-                                    <li key={entry.id} className="p-3.5 sm:p-4 border-b border-card-border flex justify-between items-start sm:items-center animate-fadeIn group hover:bg-muted/30 transition-colors gap-2.5" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
-                                        <div className="flex-grow min-w-0 pr-1 sm:pr-2">
-                                            <p className="font-extrabold text-sm sm:text-lg text-card-foreground tracking-tight break-words">{entry.description}</p>
-                                            <div className="text-xs sm:text-sm text-foreground/80 dark:text-zinc-300 font-medium flex items-center flex-wrap gap-1 mt-1 leading-relaxed">
+                                    <li key={entry.id} className="p-3.5 sm:p-4 animate-fadeIn group hover:bg-muted/30 transition-colors" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
+                                        {/* Top row: Description + Amount (and Desktop Balance/Actions) */}
+                                        <div className="flex justify-between items-start sm:items-center gap-3">
+                                            <div className="flex-grow min-w-0 sm:pr-2">
+                                                <p className="font-extrabold text-[15px] sm:text-lg text-card-foreground tracking-tight break-words leading-snug">
+                                                    {entry.description}
+                                                </p>
+
+                                                {/* Desktop inline details */}
+                                                <div className="hidden sm:block">
+                                                    <div className="text-sm text-foreground/80 dark:text-zinc-300 font-medium mt-1 leading-relaxed">
+                                                        {getEntryDetails(entry, memberMap, members, user, t)}
+                                                    </div>
+                                                    {showProxy && (
+                                                        <div className="text-xs text-purple-400 dark:text-purple-300 font-bold mt-1">
+                                                            {t('loggedOnBehalfBy', { name: recorderName || `User #${entry.created_by_user_id}` })}
+                                                        </div>
+                                                    )}
+                                                    <p className="text-xs text-muted-foreground dark:text-zinc-400 flex items-center mt-2 flex-wrap gap-y-1 font-semibold">
+                                                        {isPendingSync && (
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-black bg-amber-500/20 text-amber-500 dark:text-amber-300 border border-amber-500/50 rounded-full me-2 shrink-0">
+                                                                <FiClock className="w-3.5 h-3.5" /> {t('unsynchronized')}
+                                                            </span>
+                                                        )}
+                                                        <span>{t('byAuthor', { author: entry.username })} &bull; {new Date(entry.created_at).toLocaleString()}</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center space-x-2 sm:space-x-3 rtl:space-x-reverse shrink-0">
+                                                <div className="text-right">
+                                                    <div className={`text-base sm:text-xl font-black font-mono whitespace-nowrap ${amountNum < 0 ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-500 dark:text-emerald-400'}`}>
+                                                        {amountNum.toFixed(0)} {currency}
+                                                    </div>
+                                                </div>
+                                                <div className="text-right w-24 hidden sm:block">
+                                                    <div className={`text-base font-black font-mono ${entry.runningBalance >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+                                                        {entry.runningBalance.toFixed(0)} {currency}
+                                                    </div>
+                                                    <div className="text-[11px] text-foreground/80 dark:text-zinc-300 font-extrabold uppercase">{t('myBalance')}</div>
+                                                </div>
+                                                {actionButtons && (
+                                                    <div className="hidden sm:block">
+                                                        {actionButtons}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Mobile full-width details & footer */}
+                                        <div className="sm:hidden mt-1.5 space-y-1">
+                                            <div className="text-xs text-foreground/80 dark:text-zinc-300 font-medium leading-relaxed">
                                                 {getEntryDetails(entry, memberMap, members, user, t)}
                                             </div>
                                             {showProxy && (
-                                                <div className="text-xs text-purple-400 dark:text-purple-300 font-bold mt-1">
+                                                <div className="text-xs text-purple-400 dark:text-purple-300 font-bold leading-snug">
                                                     {t('loggedOnBehalfBy', { name: recorderName || `User #${entry.created_by_user_id}` })}
                                                 </div>
                                             )}
-                                            <p className="text-xs text-muted-foreground dark:text-zinc-400 flex items-center mt-2 flex-wrap gap-y-1 font-semibold">
-                                                {(entry.pending_sync || entry.offline_timestamp || typeof entry.id === 'string') && (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-black bg-amber-500/20 text-amber-500 dark:text-amber-300 border border-amber-500/50 rounded-full me-2 shrink-0">
-                                                        <FiClock className="w-3.5 h-3.5" /> {t('unsynchronized')}
-                                                    </span>
-                                                )}
-                                                <span>{t('byAuthor', { author: entry.username })} &bull; {new Date(entry.created_at).toLocaleString()}</span>
-                                            </p>
-                                        </div>
-                                        <div className="flex items-center space-x-2 sm:space-x-3 rtl:space-x-reverse shrink-0">
-                                            <div className="text-right">
-                                                <div className={`text-base sm:text-xl font-black font-mono whitespace-nowrap ${parseFloat(entry.amount) < 0 ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-500 dark:text-emerald-400'}`}>
-                                                    {parseFloat(entry.amount).toFixed(0)} {currency}
+                                            <div className="flex items-center justify-between gap-2 pt-1">
+                                                <div className="text-[11px] text-muted-foreground dark:text-zinc-400 font-semibold min-w-0 flex-1 leading-snug">
+                                                    {isPendingSync && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-black bg-amber-500/20 text-amber-500 dark:text-amber-300 border border-amber-500/50 rounded-full me-1.5 mb-0.5 shrink-0">
+                                                            <FiClock className="w-3 h-3" /> {t('unsynchronized')}
+                                                        </span>
+                                                    )}
+                                                    {stackAuthorDateOnMobile ? (
+                                                        <>
+                                                            <span className="block truncate">{t('byAuthor', { author: entry.username })}</span>
+                                                            <span className="block text-muted-foreground/80 dark:text-zinc-400/90 whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <span>{t('byAuthor', { author: entry.username })}</span>
+                                                            <span className="mx-1">&bull;</span>
+                                                            <span className="whitespace-nowrap">{new Date(entry.created_at).toLocaleString()}</span>
+                                                        </>
+                                                    )}
                                                 </div>
-                                            </div>
-                                            <div className="text-right w-24 hidden sm:block">
-                                                <div className={`text-base font-black font-mono ${entry.runningBalance >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
-                                                    {entry.runningBalance.toFixed(0)} {currency}
-                                                </div>
-                                                <div className="text-[11px] text-foreground/80 dark:text-zinc-300 font-extrabold uppercase">{t('myBalance')}</div>
-                                            </div>
-
-                                            <div className="flex items-center gap-1.5 opacity-85 group-hover:opacity-100 transition-opacity">
-                                                {customizations.entryShareModal && (
-                                                    <button
-                                                        onClick={() => setEntryToShare(entry)}
-                                                        className="text-foreground dark:text-zinc-200 hover:text-primary p-2 rounded-lg hover:bg-primary/20 border border-transparent hover:border-primary/40 transition-colors"
-                                                        title={t('shareEntry')}
-                                                    >
-                                                        <FiShare2 size={18} />
-                                                    </button>
-                                                )}
-                                                {customizations.entryEditsHistory && (
-                                                    <button
-                                                        onClick={() => setEntryForHistory(entry.id)}
-                                                        className="text-foreground dark:text-zinc-200 hover:text-primary p-2 rounded-lg hover:bg-primary/20 border border-transparent hover:border-primary/40 transition-colors"
-                                                        title={t('viewEditHistory')}
-                                                    >
-                                                        <FiClock size={18} />
-                                                    </button>
-                                                )}
-                                                {canModify(entry) && (
-                                                    <>
-                                                        {customizations.coreEntryEditing !== false && (
-                                                             <button
-                                                                onClick={() => setEntryToEdit(entry)}
-                                                                className="text-foreground dark:text-zinc-200 hover:text-primary p-2 rounded-lg hover:bg-primary/20 border border-transparent hover:border-primary/40 transition-colors"
-                                                                title={t('editEntry')}
-                                                            >
-                                                                <FiEdit3 size={18} />
-                                                            </button>
-                                                        )}
-                                                        {customizations.coreEntryDeletion !== false && (
-                                                            <button
-                                                                onClick={() => openConfirmDialog(entry)}
-                                                                className="text-foreground dark:text-zinc-200 hover:text-danger p-2 rounded-lg hover:bg-danger/20 border border-transparent hover:border-danger/40 transition-colors"
-                                                                title={t('deleteEntry')}
-                                                            >
-                                                                <FiTrash2 size={18} />
-                                                            </button>
-                                                        )}
-                                                    </>
-                                                )}
+                                                {actionButtons}
                                             </div>
                                         </div>
                                     </li>

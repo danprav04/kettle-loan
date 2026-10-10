@@ -31,7 +31,7 @@ export const getEntryPayerAndParticipantStrings = (
     if (entry.payer_shares && Array.isArray(entry.payer_shares) && entry.payer_shares.length > 0) {
         payersText = entry.payer_shares.map(p => {
             const name = p.userId === currentUser?.userId ? t('entryParticipantYou') : (memberMap.get(p.userId) || `ID:${p.userId}`);
-            return `${name} (${formatPercentage(Number(p.percentage))})`;
+            return `${name}\u00A0(${formatPercentage(Number(p.percentage))})`;
         }).join(', ');
     } else {
         payersText = entry.user_id === currentUser?.userId ? t('entryParticipantYou') : (memberMap.get(entry.user_id) || actorUsername);
@@ -41,7 +41,7 @@ export const getEntryPayerAndParticipantStrings = (
     if (entry.beneficiary_shares && Array.isArray(entry.beneficiary_shares) && entry.beneficiary_shares.length > 0) {
         participantsText = entry.beneficiary_shares.map(b => {
             const name = b.userId === currentUser?.userId ? t('entryParticipantYou') : (memberMap.get(b.userId) || `ID:${b.userId}`);
-            return `${name} (${formatPercentage(Number(b.percentage))})`;
+            return `${name}\u00A0(${formatPercentage(Number(b.percentage))})`;
         }).join(', ');
     } else {
         const participants = entry.split_with_user_ids || [];
@@ -89,9 +89,21 @@ export const getEntryDetails = (
     if (isLoanWithoutShares) {
         return (
             <>
-                <span>{t('entryLoanTo', { borrower: borrowerText! })}</span>
-                <span className="mx-1.5">&bull;</span>
-                <span>{t('entryFromGroup')}</span>
+                <span className="block sm:inline">{t('entryLoanTo', { borrower: borrowerText! })}</span>
+                <span className="hidden sm:inline mx-1.5">&bull;</span>
+                <span className="block sm:inline mt-0.5 sm:mt-0">{t('entryFromGroup')}</span>
+            </>
+        );
+    }
+
+    const shouldStackOnMobile = (payersText.length + participantsText.length) > 26;
+
+    if (shouldStackOnMobile) {
+        return (
+            <>
+                <span className="block sm:inline">{t('entryPaidBy', { payer: payersText })}</span>
+                <span className="hidden sm:inline mx-1.5">&bull;</span>
+                <span className="block sm:inline mt-0.5 sm:mt-0">{t('entryFor', { participants: participantsText })}</span>
             </>
         );
     }
