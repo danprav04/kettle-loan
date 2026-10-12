@@ -163,5 +163,50 @@ describe('rebalanceSharesWithLocks', () => {
       expect(result.nextLocked.has(1)).toBe(true);
       expect(result.nextLocked.has(2)).toBe(true);
     });
+
+    it('preserves a manually locked 0% share when unlocking a 100% locked member', () => {
+      // User 1 was locked at 100%, Users 2, 3, 4 are at 0%.
+      // User manually locks User 2 at 0%, then unlocks User 1 -> locked set is now {2}.
+      const currentShares: ShareItem[] = [
+        { userId: 1, percentage: 100 },
+        { userId: 2, percentage: 0 },
+        { userId: 3, percentage: 0 },
+        { userId: 4, percentage: 0 },
+      ];
+      const lockedAfterManualToggle = new Set<number>([2]);
+
+      const result = rebalanceSharesWithLocks([1, 2, 3, 4], lockedAfterManualToggle, currentShares);
+
+      expect(result.nextShares).toHaveLength(4);
+      expect(result.nextShares.find((s) => s.userId === 2)?.percentage).toBe(0);
+      expect(result.nextLocked.has(2)).toBe(true);
+      expect(result.nextLocked.has(1)).toBe(false);
+
+      // Remaining 100% is split equally among unlocked users 1, 3, 4
+      expect(result.nextShares.find((s) => s.userId === 1)?.percentage).toBe(33.333334);
+      expect(result.nextShares.find((s) => s.userId === 3)?.percentage).toBe(33.333333);
+      expect(result.nextShares.find((s) => s.userId === 4)?.percentage).toBe(33.333333);
+      const sum = result.nextShares.reduce((a, b) => a + b.percentage, 0);
+      expect(sum).toBe(100);
+    });
+
+    it('preserves a manually locked equal share when another member is deselected', () => {
+      // 4 members start at 25% each. User manually locks user 1 at 25%, then deselects user 4.
+      const currentShares: ShareItem[] = [
+        { userId: 1, percentage: 25 },
+        { userId: 2, percentage: 25 },
+        { userId: 3, percentage: 25 },
+        { userId: 4, percentage: 25 },
+      ];
+      const locked = new Set<number>([1]);
+
+      const result = rebalanceSharesWithLocks([1, 2, 3], locked, currentShares);
+
+      expect(result.nextShares).toHaveLength(3);
+      expect(result.nextShares.find((s) => s.userId === 1)?.percentage).toBe(25);
+      expect(result.nextShares.find((s) => s.userId === 2)?.percentage).toBe(37.5);
+      expect(result.nextShares.find((s) => s.userId === 3)?.percentage).toBe(37.5);
+      expect(result.nextLocked.has(1)).toBe(true);
+    });
   });
 });

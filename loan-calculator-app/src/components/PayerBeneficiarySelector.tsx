@@ -61,6 +61,9 @@ export default function PayerBeneficiarySelector({
   const [presetNameInput, setPresetNameInput] = useState('');
   const [isSavingPreset, setIsSavingPreset] = useState(false);
   const initialSelectedUserIdsRef = useRef<Set<number>>(new Set(shares.map((s) => s.userId)));
+  if (initialSelectedUserIdsRef.current.size === 0 && shares.length > 0) {
+    shares.forEach((s) => initialSelectedUserIdsRef.current.add(s.userId));
+  }
 
   const isMemberActiveParticipant = (m: SelectorMember) => {
     if (m.role === 'observer') return false;
@@ -83,6 +86,29 @@ export default function PayerBeneficiarySelector({
     const { nextShares, nextLocked } = rebalanceSharesWithLocks(nextUserIds, lockedUserIds, shares);
     setLockedUserIds(nextLocked);
     onChange(nextShares);
+  };
+
+  const toggleLock = (userId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = new Set(lockedUserIds);
+    if (next.has(userId)) {
+      next.delete(userId);
+      setInputStrs((prev) => {
+        const copy = { ...prev };
+        delete copy[userId];
+        return copy;
+      });
+      const { nextShares, nextLocked } = rebalanceSharesWithLocks(
+        shares.map((s) => s.userId),
+        next,
+        shares
+      );
+      setLockedUserIds(nextLocked);
+      onChange(nextShares);
+    } else {
+      next.add(userId);
+      setLockedUserIds(next);
+    }
   };
 
   const rebalanceEqual = (userIds: number[]) => {
@@ -153,7 +179,7 @@ export default function PayerBeneficiarySelector({
         percentage: s.userId === userId ? 100 : 0,
       }));
       onChange(nextShares.length > 0 ? nextShares : [{ userId, percentage: 100 }]);
-      setLockedUserIds(new Set([userId]));
+      setLockedUserIds(new Set(lockedUserIds).add(userId));
       return;
     }
 
@@ -224,10 +250,15 @@ export default function PayerBeneficiarySelector({
 
   const distributeRemaining = () => {
     if (shares.length === 0 || !hasLeftover) return;
-    const count = shares.length;
+    const unlockedShares = shares.filter((s) => !lockedUserIds.has(s.userId));
+    const targetAll = unlockedShares.length === 0;
+    const count = targetAll ? shares.length : unlockedShares.length;
     const extraPerPerson = remainingMonetary / count;
 
     const nextShares = shares.map((s) => {
+      if (!targetAll && lockedUserIds.has(s.userId)) {
+        return s;
+      }
       const currentMon = (totalAmount * s.percentage) / 100;
       const nextMon = Math.max(0, currentMon + extraPerPerson);
       const nextPct = totalAmount > 0 ? (nextMon / totalAmount) * 100 : 0;
@@ -237,7 +268,11 @@ export default function PayerBeneficiarySelector({
     const currTotPct = nextShares.reduce((a, b) => a + b.percentage, 0);
     const diffPct = Math.round((100 - currTotPct) * 1e6) / 1e6;
     if (nextShares.length > 0 && Math.abs(diffPct) > 1e-8 && Math.abs(diffPct) <= 0.05) {
-      nextShares[0].percentage = Math.round((nextShares[0].percentage + diffPct) * 1e6) / 1e6;
+      const firstUnlocked = nextShares.find((s) => !lockedUserIds.has(s.userId));
+      const targetShare = firstUnlocked || nextShares[0];
+      if (targetShare) {
+        targetShare.percentage = Math.round((targetShare.percentage + diffPct) * 1e6) / 1e6;
+      }
     }
     onChange(nextShares);
   };
@@ -528,26 +563,20 @@ export default function PayerBeneficiarySelector({
 
               {isSelected && (
                 <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  {isLocked && (
-                    <span
-                      className="text-[10px] bg-warning/20 hover:bg-warning/30 text-warning px-1.5 py-0.5 rounded font-mono font-bold tracking-tighter shrink-0 transition-colors cursor-pointer border border-warning/30"
-                      title="Click to unlock this custom amount"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const next = new Set(lockedUserIds);
-                        next.delete(member.id);
-                        const { nextShares, nextLocked } = rebalanceSharesWithLocks(
-                          shares.map((s) => s.userId),
-                          next,
-                          shares
-                        );
-                        setLockedUserIds(nextLocked);
-                        onChange(nextShares);
-                      }}
-                    >
-                      {t('lockedBadge')}
-                    </span>
-                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => toggleLock(member.id, e)}
+                    title={isLocked ? t('unlockTooltip') : t('lockTooltip')}
+                    aria-label={isLocked ? t('unlockTooltip') : t('lockTooltip')}
+                    aria-pressed={isLocked}
+                    className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold tracking-tighter shrink-0 transition-colors cursor-pointer border ${
+                      isLocked
+                        ? 'bg-warning/20 hover:bg-warning/30 text-warning border-warning/30'
+                        : 'bg-muted/60 hover:bg-warning/15 text-muted-foreground hover:text-warning border-card-border hover:border-warning/30'
+                    }`}
+                  >
+                    {isLocked ? t('lockedBadge') : t('unlockedBadge')}
+                  </button>
                   <span className="text-[11px] text-muted-foreground font-mono font-medium shrink-0">
                     ({pct.toFixed(1)}%)
                   </span>

@@ -359,6 +359,7 @@ export default function EditEntryModal({
                 {isMultiParty ? (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-1 items-start">
                     <PayerBeneficiarySelector
+                      key={`payer-${entry.id}`}
                       members={members}
                       shares={payerShares}
                       onChange={setPayerShares}
@@ -373,6 +374,7 @@ export default function EditEntryModal({
                       onDeletePreset={deletePreset}
                     />
                     <PayerBeneficiarySelector
+                      key={`beneficiary-${entry.id}`}
                       members={members}
                       shares={beneficiaryShares}
                       onChange={setBeneficiaryShares}
