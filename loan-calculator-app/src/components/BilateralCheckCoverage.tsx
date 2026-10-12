@@ -158,7 +158,6 @@ export default function BilateralCheckCoverage({
     const [sortBy, setSortBy] = useState<'amount' | 'date'>('amount');
     const [scaleMode, setScaleMode] = useState<'exact' | 'compact'>('exact');
     const [zoomFactor, setZoomFactor] = useState<number>(1);
-    const [hoveredBlockId, setHoveredBlockId] = useState<string | number | null>(null);
 
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const stacksRef = useRef<HTMLDivElement | null>(null);
@@ -555,16 +554,10 @@ export default function BilateralCheckCoverage({
      */
     const pxPerUnit = useMemo(() => {
         if (maxTotal <= 0) return 1;
-        const refSmall = Math.max(minShareAmount, maxTotal * 0.003, 1);
-        const exactBase = Math.max(700 / maxTotal, 36 / refSmall);
-        if (scaleMode === 'exact') {
-            return exactBase * zoomFactor;
-        }
-        const compactBase = Math.max(480 / maxTotal, 14 / refSmall);
-        return compactBase * zoomFactor;
-    }, [maxTotal, minShareAmount, scaleMode, zoomFactor]);
+        return zoomFactor;
+    }, [maxTotal, zoomFactor]);
 
-    const totalStackHeightPx = Math.max(240, Math.round(maxTotal * pxPerUnit));
+    const totalStackHeightPx = Math.max(0, Math.round(maxTotal * pxPerUnit));
 
     // Generate ruler tick marks dynamically based on current zoom level so ticks stay well-spaced
     const rulerTicks = useMemo(() => {
@@ -613,11 +606,8 @@ export default function BilateralCheckCoverage({
     };
 
     const renderCheckBlock = (item: CheckBlockItem, side: 'left' | 'right') => {
-        const isHovered = hoveredBlockId === item.id;
-        // Exact 1-to-1 pixel height for this check's money amount
-        const exactHeightPx = Math.max(4, item.shareAmount * pxPerUnit);
-        // When hovered, expand small checks just enough (42px) to be comfortably readable, then return to 1:1 on mouse leave
-        const displayHeightPx = isHovered ? Math.max(exactHeightPx, 42) : exactHeightPx;
+        const exactHeightPx = Math.max(1, item.shareAmount * pxPerUnit);
+        const displayHeightPx = exactHeightPx;
 
         const isTall = displayHeightPx >= 140;
         const isMedium = displayHeightPx >= 56 && displayHeightPx < 140;
@@ -655,16 +645,11 @@ export default function BilateralCheckCoverage({
                 key={item.id}
                 data-check-block={String(item.id)}
                 style={{ height: `${displayHeightPx}px` }}
-                onMouseEnter={() => setHoveredBlockId(item.id)}
-                onMouseLeave={() => setHoveredBlockId(null)}
-                onClick={() => setHoveredBlockId(prev => (prev === item.id ? null : item.id))}
-                className="pb-[2px] last:pb-0 box-border w-full relative group"
+                className="pb-0 box-border w-full relative group"
                 title={`${item.description} — ${formatCurrencyAmount(item.shareAmount)} ${currency} (${t('bilateralFullCheckTotal', { amount: formatCurrencyAmount(item.fullAmount), currency })}) • ${t('bilateralCumulative', { amount: formatCurrencyAmount(item.cumulativeAmount), currency })}${dateLabel ? ` • ${dateLabel}` : ''}`}
             >
                 <div
                     className={`h-full w-full rounded-xl border transition-colors duration-150 overflow-clip relative shadow-2xs ${colorClasses} ${
-                        isHovered ? 'ring-2 ring-primary/50 shadow-md z-20 bg-card/90' : ''
-                    } ${
                         isMicro
                             ? 'px-2 py-0 flex items-center justify-between gap-1'
                             : isSingleLine
@@ -789,7 +774,7 @@ export default function BilateralCheckCoverage({
     const renderUncoveredGapBlock = (debtorName: string, creditorName: string) => {
         if (netDiff < 0.01) return null;
 
-        const exactGapHeightPx = Math.max(24, netDiff * pxPerUnit);
+        const exactGapHeightPx = Math.max(1, netDiff * pxPerUnit);
         const isCompactGap = exactGapHeightPx < 64;
 
         return (
