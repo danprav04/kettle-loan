@@ -31,6 +31,7 @@ import {
 import { getEntryPayerAndParticipantStrings } from '@/lib/entry-formatting';
 import InfoTooltip from '@/components/InfoTooltip';
 import DebtSettlementMap from '@/components/DebtSettlementMap';
+import BilateralCheckCoverage from '@/components/BilateralCheckCoverage';
 
 interface Member extends StatsMember {
     permissions?: {
@@ -416,6 +417,14 @@ export default function StatsPage() {
                                 currentUserId={user?.userId}
                             />
                         )}
+
+                        {/* Bilateral Check Coverage (Side-by-Side) */}
+                        <BilateralCheckCoverage
+                            entries={entries}
+                            members={members}
+                            currency={currency}
+                            currentUserId={user?.userId}
+                        />
 
                         {/* Member Contributions Table */}
                         <div className="space-y-3 pt-2">
