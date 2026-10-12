@@ -401,12 +401,14 @@ export default function BilateralCheckCoverage({
     const renderCheckBlock = (item: CheckBlockItem, side: 'left' | 'right') => {
         const isHovered = hoveredBlockId === item.id;
         // Exact 1-to-1 pixel height for this check's money amount
-        const exactHeightPx = Math.max(6, item.shareAmount * pxPerUnit);
+        const exactHeightPx = Math.max(4, item.shareAmount * pxPerUnit);
+        // When hovered, expand small checks just enough (42px) to be comfortably readable, then return to 1:1 on mouse leave
+        const displayHeightPx = isHovered ? Math.max(exactHeightPx, 42) : exactHeightPx;
 
-        const isTall = exactHeightPx >= 140;
-        const isMedium = exactHeightPx >= 52 && exactHeightPx < 140;
-        const isSingleLine = exactHeightPx >= 24 && exactHeightPx < 52;
-        const isMicro = exactHeightPx < 24;
+        const isTall = displayHeightPx >= 140;
+        const isMedium = displayHeightPx >= 56 && displayHeightPx < 140;
+        const isSingleLine = displayHeightPx >= 32 && displayHeightPx < 56;
+        const isMicro = displayHeightPx < 32;
 
         const colorClasses = item.isSettlement
             ? 'bg-purple-500/15 hover:bg-purple-500/25 border-purple-500/40 text-purple-950 dark:text-purple-100'
@@ -425,15 +427,16 @@ export default function BilateralCheckCoverage({
         return (
             <div
                 key={item.id}
-                style={{ height: `${exactHeightPx}px` }}
+                style={{ height: `${displayHeightPx}px` }}
                 onMouseEnter={() => setHoveredBlockId(item.id)}
                 onMouseLeave={() => setHoveredBlockId(null)}
-                className="pb-[2px] last:pb-0 box-border w-full relative group"
+                onClick={() => setHoveredBlockId(prev => (prev === item.id ? null : item.id))}
+                className="pb-[2px] last:pb-0 box-border w-full relative group transition-[height] duration-150 ease-out"
                 title={`${item.description} — ${formatCurrencyAmount(item.shareAmount)} ${currency} (${t('bilateralFullCheckTotal', { amount: formatCurrencyAmount(item.fullAmount), currency })}) • ${t('bilateralCumulative', { amount: formatCurrencyAmount(item.cumulativeAmount), currency })}${dateLabel ? ` • ${dateLabel}` : ''}`}
             >
                 <div
                     className={`h-full w-full rounded-xl border transition-all duration-150 overflow-clip relative shadow-2xs ${colorClasses} ${
-                        isHovered ? 'ring-2 ring-primary/50 shadow-md z-20' : ''
+                        isHovered ? 'ring-2 ring-primary/50 shadow-md z-20 bg-card/90' : ''
                     } ${
                         isMicro
                             ? 'px-2 py-0 flex items-center justify-between gap-1'
