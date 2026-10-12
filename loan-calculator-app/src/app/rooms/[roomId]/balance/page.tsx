@@ -496,21 +496,19 @@ export default function BalanceDetailsPage() {
 
             {/* Content Container */}
             <div className="bg-card shadow-xl rounded-2xl border border-card-border flex flex-col flex-grow overflow-hidden max-h-[75vh]">
-                <div className="p-3.5 sm:p-5 border-b border-card-border bg-muted/40 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="p-3.5 sm:p-5 border-b border-card-border bg-muted/40 shrink-0 flex flex-col gap-3">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                         <div className="p-2 sm:p-2.5 rounded-xl bg-primary/15 text-primary border border-primary/30 shadow-sm shrink-0">
                             {viewMode === 'balance' ? <FiUsers className="w-4 h-4 sm:w-5 sm:h-5" /> : <FiActivity className="w-4 h-4 sm:w-5 sm:h-5" />}
                         </div>
-                        <div>
-                            <h1 className="text-base sm:text-2xl font-extrabold font-heading text-card-foreground uppercase tracking-wide">
-                                {viewMode === 'balance' ? t('peerBalancesTitle') : `${t('activityHistoryTab')} (${filteredHistory.length})`}
-                            </h1>
-                        </div>
+                        <h1 className="text-base sm:text-xl font-extrabold font-heading text-card-foreground uppercase tracking-wide leading-snug">
+                            {viewMode === 'balance' ? t('peerBalancesTitle') : `${t('activityHistoryTab')} (${filteredHistory.length})`}
+                        </h1>
                     </div>
                     {viewMode === 'balance' && (
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
-                            {/* Mobile row 1: Perspective dropdown + Mode toggle */}
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between flex-wrap gap-2 sm:gap-2.5 w-full">
+                            {/* Group 1: Perspective dropdown + Mode toggle */}
+                            <div className="flex items-center flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto min-w-0">
                                 {members.length > 1 && (
                                     <div className="flex-1 sm:flex-initial flex items-center justify-between sm:justify-start gap-1.5 sm:gap-2 bg-background px-2.5 sm:px-3 py-1.5 rounded-xl border border-card-border shadow-sm min-w-0">
                                         <span className="text-[10px] sm:text-[11px] text-foreground font-bold uppercase tracking-wider shrink-0">{t('perspectiveLabel')}:</span>
@@ -538,7 +536,7 @@ export default function BalanceDetailsPage() {
                                         title={t('simplifiedModeTooltip')}
                                     >
                                         <FiZap className="w-3.5 h-3.5 shrink-0" />
-                                        <span className="text-[11px] sm:text-xs">{t('settlementModeSimplified')}</span>
+                                        <span className="text-[11px] sm:text-xs whitespace-nowrap">{t('settlementModeSimplified')}</span>
                                     </button>
                                     <button
                                         onClick={() => handleSettlementModeChange('direct')}
@@ -550,14 +548,14 @@ export default function BalanceDetailsPage() {
                                         title={t('directModeTooltip')}
                                     >
                                         <FiLayers className="w-3.5 h-3.5 shrink-0" />
-                                        <span className="text-[11px] sm:text-xs">{t('settlementModeDirect')}</span>
+                                        <span className="text-[11px] sm:text-xs whitespace-nowrap">{t('settlementModeDirect')}</span>
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Mobile row 2: Total Balance badge + PDF Share button */}
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
-                                <div className={`flex-1 sm:flex-initial flex items-center justify-between sm:justify-start gap-2 px-3 sm:px-3.5 py-1.5 rounded-xl border font-bold text-xs sm:text-sm shadow-sm transition-all ${
+                            {/* Group 2: Total Balance badge + PDF Share button */}
+                            <div className="flex items-center flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto sm:ms-auto">
+                                <div className={`flex-1 sm:flex-initial flex items-center justify-between sm:justify-start gap-2 px-3 sm:px-3.5 py-1.5 rounded-xl border font-bold text-xs sm:text-sm shadow-sm transition-all min-w-0 ${
                                     totalPerspectiveBalance >= 0.5
                                         ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/60 dark:border-emerald-400'
                                         : totalPerspectiveBalance <= -0.5

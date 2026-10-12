@@ -47,6 +47,7 @@ function CoveragePageContent() {
             setMembers((localData.members || []) as StatsMember[]);
             if (localData.name) setRoomName(localData.name);
             if (localData.currency) setCurrency(localData.currency);
+            setIsLoading(false);
         }
 
         if (isOnline) {
@@ -78,7 +79,7 @@ function CoveragePageContent() {
     }, [fetchData]);
 
     return (
-        <div className="max-w-5xl mx-auto animate-scaleIn h-full overflow-y-auto pb-12 space-y-4">
+        <div className="max-w-5xl mx-auto animate-scaleIn pb-12 space-y-4">
             {/* Top Navigation Bar */}
             <div className="flex items-center justify-between flex-wrap gap-2">
                 <button

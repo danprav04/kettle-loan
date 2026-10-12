@@ -62,26 +62,73 @@ interface CheckBlockItem {
     percentageOfMax: number;
 }
 
-const MIN_ZOOM = 0.15;
-const MAX_ZOOM = 40;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 1000;
 
 function clampZoom(val: number): number {
-    return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(val * 1000) / 1000));
+    return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(val * 10000) / 10000));
 }
 
-function findScrollContainer(el: HTMLElement | null): HTMLElement | null {
-    let curr = el?.parentElement || null;
-    while (curr) {
+function applyScrollDelta(el: HTMLElement | null, deltaY: number) {
+    if (!el || Math.abs(deltaY) < 0.25) return;
+    let remaining = deltaY;
+    let curr: HTMLElement | null = el.parentElement;
+    while (curr && Math.abs(remaining) >= 0.25) {
         const style = window.getComputedStyle(curr);
-        if (
-            (style.overflowY === 'auto' || style.overflowY === 'scroll') &&
-            curr.scrollHeight > curr.clientHeight
-        ) {
-            return curr;
+        const isScrollableY =
+            (style.overflowY === 'auto' ||
+                style.overflowY === 'scroll' ||
+                style.overflowY === 'overlay') &&
+            curr.scrollHeight > curr.clientHeight;
+        if (isScrollableY) {
+            const before = curr.scrollTop;
+            curr.scrollTop = before + remaining;
+            const consumed = curr.scrollTop - before;
+            remaining -= consumed;
         }
         curr = curr.parentElement;
     }
-    return (document.scrollingElement as HTMLElement) || null;
+    if (Math.abs(remaining) >= 0.25 && document.scrollingElement) {
+        document.scrollingElement.scrollTop += remaining;
+    }
+}
+
+function findAnchorElementAtPoint(
+    stacksEl: HTMLElement,
+    clientX: number,
+    clientY: number
+): HTMLElement {
+    if (typeof document !== 'undefined') {
+        const hit = document.elementFromPoint(clientX, clientY);
+        const directBlock = hit?.closest('[data-check-block]') as HTMLElement | null;
+        if (directBlock && stacksEl.contains(directBlock)) {
+            return directBlock;
+        }
+    }
+
+    // If cursor is in the gap between blocks/columns or over ruler, find the check block spanning clientY closest to clientX
+    const blocks = stacksEl.querySelectorAll<HTMLElement>('[data-check-block]');
+    let bestBlock: HTMLElement | null = null;
+    let bestHorizDist = Infinity;
+    let bestHeight = Infinity;
+
+    blocks.forEach(block => {
+        const r = block.getBoundingClientRect();
+        if (clientY >= r.top - 3 && clientY <= r.bottom + 3) {
+            const horizDist =
+                clientX < r.left ? r.left - clientX : clientX > r.right ? clientX - r.right : 0;
+            if (
+                horizDist < bestHorizDist - 4 ||
+                (Math.abs(horizDist - bestHorizDist) <= 4 && r.height < bestHeight)
+            ) {
+                bestHorizDist = horizDist;
+                bestHeight = r.height;
+                bestBlock = block;
+            }
+        }
+    });
+
+    return bestBlock || stacksEl;
 }
 
 export default function BilateralCheckCoverage({
@@ -117,29 +164,41 @@ export default function BilateralCheckCoverage({
     const zoomFactorRef = useRef<number>(zoomFactor);
     zoomFactorRef.current = zoomFactor;
 
+    const lastPointerRef = useRef<{ clientX: number; clientY: number } | null>(null);
+
     const pendingAnchorRef = useRef<{
-        offsetFromTop: number;
+        anchorEl: HTMLElement;
+        fraction: number;
         clientY: number;
-        oldZoom: number;
-        newZoom: number;
     } | null>(null);
 
     const applyZoomWithAnchor = useCallback(
-        (computeNext: (prev: number) => number, anchorClientY?: number) => {
+        (
+            computeNext: (prev: number) => number,
+            anchorPoint?: { clientX: number; clientY: number }
+        ) => {
             const oldZoom = zoomFactorRef.current;
             const newZoom = clampZoom(computeNext(oldZoom));
-            if (Math.abs(newZoom - oldZoom) < 0.0005) return;
+            if (Math.abs(newZoom - oldZoom) < 0.0001) return;
 
             const stacksEl = stacksRef.current;
-            if (stacksEl) {
-                const rect = stacksEl.getBoundingClientRect();
-                const clientY = anchorClientY ?? window.innerHeight / 2;
-                const offsetFromTop = Math.max(0, clientY - rect.top);
+            // Only capture DOM baseline if not already awaiting a commit from an earlier wheel event in the same frame
+            if (stacksEl && !pendingAnchorRef.current) {
+                const pt = anchorPoint ??
+                    lastPointerRef.current ?? {
+                        clientX: window.innerWidth / 2,
+                        clientY: window.innerHeight / 2
+                    };
+                const anchorEl = findAnchorElementAtPoint(stacksEl, pt.clientX, pt.clientY);
+                const rect = anchorEl.getBoundingClientRect();
+                const fraction =
+                    rect.height > 0
+                        ? Math.max(0, Math.min(1, (pt.clientY - rect.top) / rect.height))
+                        : 0;
                 pendingAnchorRef.current = {
-                    offsetFromTop,
-                    clientY,
-                    oldZoom,
-                    newZoom
+                    anchorEl,
+                    fraction,
+                    clientY: pt.clientY
                 };
             }
             zoomFactorRef.current = newZoom;
@@ -148,30 +207,31 @@ export default function BilateralCheckCoverage({
         []
     );
 
-    // Preserve cursor-anchored vertical position when timeline zoom changes (like video editing timelines)
+    // Preserve exact cursor-anchored DOM block position when timeline zoom changes
     useLayoutEffect(() => {
-        if (!pendingAnchorRef.current) return;
-        const { offsetFromTop, clientY, oldZoom, newZoom } = pendingAnchorRef.current;
+        const pending = pendingAnchorRef.current;
+        if (!pending) return;
         pendingAnchorRef.current = null;
 
-        const stacksEl = stacksRef.current;
-        const scrollContainer = findScrollContainer(stacksEl);
-        if (stacksEl && scrollContainer && oldZoom > 0) {
-            const newRect = stacksEl.getBoundingClientRect();
-            const scaleRatio = newZoom / oldZoom;
-            const newOffsetFromTop = offsetFromTop * scaleRatio;
-            const deltaScroll = newRect.top + newOffsetFromTop - clientY;
-            scrollContainer.scrollTop += deltaScroll;
-        }
-    }, [zoomFactor]);
+        const { anchorEl, fraction, clientY } = pending;
+        if (!anchorEl || !anchorEl.isConnected) return;
+
+        const newRect = anchorEl.getBoundingClientRect();
+        const newTargetY = newRect.top + fraction * newRect.height;
+        const deltaScroll = newTargetY - clientY;
+
+        applyScrollDelta(stacksRef.current, deltaScroll);
+    }, [zoomFactor, scaleMode]);
 
     // Ctrl + Mouse Wheel & Ctrl + (+/-) / Ctrl + 0 timeline zoom shortcuts
     useEffect(() => {
         const handleWheel = (e: WheelEvent) => {
             if (!(e.ctrlKey || e.metaKey)) return;
             e.preventDefault();
+            const pt = { clientX: e.clientX, clientY: e.clientY };
+            lastPointerRef.current = pt;
             const factor = Math.exp(-e.deltaY * 0.0028);
-            applyZoomWithAnchor(prev => prev * factor, e.clientY);
+            applyZoomWithAnchor(prev => prev * factor, pt);
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -574,13 +634,12 @@ export default function BilateralCheckCoverage({
         return (
             <div
                 key={item.id}
+                data-check-block={String(item.id)}
                 style={{ height: `${displayHeightPx}px` }}
                 onMouseEnter={() => setHoveredBlockId(item.id)}
                 onMouseLeave={() => setHoveredBlockId(null)}
                 onClick={() => setHoveredBlockId(prev => (prev === item.id ? null : item.id))}
-                className={`pb-[2px] last:pb-0 box-border w-full relative group ${
-                    isHovered ? 'transition-[height] duration-150 ease-out' : ''
-                }`}
+                className="pb-[2px] last:pb-0 box-border w-full relative group"
                 title={`${item.description} — ${formatCurrencyAmount(item.shareAmount)} ${currency} (${t('bilateralFullCheckTotal', { amount: formatCurrencyAmount(item.fullAmount), currency })}) • ${t('bilateralCumulative', { amount: formatCurrencyAmount(item.cumulativeAmount), currency })}${dateLabel ? ` • ${dateLabel}` : ''}`}
             >
                 <div
@@ -717,6 +776,7 @@ export default function BilateralCheckCoverage({
         return (
             <div
                 key="uncovered-gap"
+                data-check-block="uncovered-gap"
                 style={{ height: `${exactGapHeightPx}px` }}
                 className="pb-0 box-border w-full"
             >
@@ -755,7 +815,12 @@ export default function BilateralCheckCoverage({
         : null;
 
     return (
-        <div className="space-y-3 pt-2">
+        <div
+            className="space-y-3 pt-2"
+            onMouseMove={e => {
+                lastPointerRef.current = { clientX: e.clientX, clientY: e.clientY };
+            }}
+        >
             {/* Section Header */}
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>

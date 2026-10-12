@@ -1,7 +1,7 @@
 // src/app/rooms/[roomId]/entries/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
@@ -52,6 +52,7 @@ function EntriesPageContent() {
     const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [highlightedEntryId, setHighlightedEntryId] = useState<string | null>(targetEntryId);
+    const listContainerRef = useRef<HTMLDivElement | null>(null);
 
     // Modals state
     const [entryToEdit, setEntryToEdit] = useState<Entry | null>(null);
@@ -75,6 +76,7 @@ function EntriesPageContent() {
             if (localData.name) setRoomName(localData.name);
             if (localData.currency) setCurrency(localData.currency);
             if (localData.currentUserPermissions) setCurrentUserPermissions(localData.currentUserPermissions);
+            setIsLoading(false);
         }
 
         if (isOnline) {
@@ -180,16 +182,36 @@ function EntriesPageContent() {
     }, [members]);
 
     useEffect(() => {
-        if (!targetEntryId || processedEntries.length === 0) return;
+        if (isLoading || !targetEntryId || processedEntries.length === 0) return;
         setHighlightedEntryId(targetEntryId);
-        const timer = setTimeout(() => {
+
+        const scrollToTarget = (behavior: ScrollBehavior) => {
             const el = document.getElementById(`entry-row-${targetEntryId}`);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const container = listContainerRef.current;
+            if (!el) return;
+            if (container) {
+                const elRect = el.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                const delta =
+                    elRect.top + elRect.height / 2 - (containerRect.top + containerRect.height / 2);
+                if (Math.abs(delta) > 2) {
+                    container.scrollBy({ top: delta, behavior });
+                }
+            } else {
+                el.scrollIntoView({ behavior, block: 'center' });
             }
-        }, 80);
-        return () => clearTimeout(timer);
-    }, [targetEntryId, processedEntries.length]);
+        };
+
+        const rafId = requestAnimationFrame(() => scrollToTarget('auto'));
+        const t1 = setTimeout(() => scrollToTarget('smooth'), 120);
+        const t2 = setTimeout(() => scrollToTarget('smooth'), 350);
+
+        return () => {
+            cancelAnimationFrame(rafId);
+            clearTimeout(t1);
+            clearTimeout(t2);
+        };
+    }, [targetEntryId, isLoading, processedEntries.length]);
 
     useEffect(() => {
         if (notification) {
@@ -262,7 +284,7 @@ function EntriesPageContent() {
                     <h1 className="text-xl sm:text-2xl font-extrabold font-heading text-card-foreground uppercase tracking-wide">{t('allEntries')}</h1>
                     <span className="text-xs sm:text-sm text-foreground/80 font-bold font-mono px-2.5 py-1 rounded-lg bg-muted border border-card-border">{t('currencyLabel')}: {currency}</span>
                 </div>
-                <div className="overflow-y-auto flex-grow">
+                <div ref={listContainerRef} className="overflow-y-auto flex-grow">
                     {isLoading ? (
                         <p className="p-6 text-center text-foreground/80 dark:text-zinc-300 font-bold">{t('loadingEntries')}</p>
                     ) : processedEntries.length === 0 ? (
@@ -338,12 +360,12 @@ function EntriesPageContent() {
                                     <li
                                         key={entry.id}
                                         id={`entry-row-${entry.id}`}
-                                        className={`p-3.5 sm:p-4 animate-fadeIn group transition-colors ${
+                                        className={`p-3.5 sm:p-4 group transition-colors ${
                                             isHighlighted
                                                 ? 'bg-primary/15 ring-2 ring-primary/60 ring-inset'
-                                                : 'hover:bg-muted/30'
+                                                : 'animate-fadeIn hover:bg-muted/30'
                                         }`}
-                                        style={{ animationDelay: isHighlighted ? '0ms' : `${Math.min(index * 25, 250)}ms`, opacity: 0 }}
+                                        style={isHighlighted ? undefined : { animationDelay: `${Math.min(index * 25, 250)}ms`, opacity: 0 }}
                                     >
                                         {/* Top row: Description + Amount (and Desktop Balance/Actions) */}
                                         <div className="flex justify-between items-start sm:items-center gap-3">
