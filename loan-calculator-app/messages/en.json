@@ -329,7 +329,9 @@
     "bilateralOpenFullPage": "Open Full-Page 1:1 Coverage View",
     "bilateralBackToStats": "Room Statistics",
     "bilateralBackToBalance": "Detailed Balances",
-    "bilateralCumulative": "∑ {amount} {currency}"
+    "bilateralCumulative": "∑ {amount} {currency}",
+    "bilateralGoToEntry": "Go to check in All Entries",
+    "bilateralZoomHint": "Ctrl + Scroll or Ctrl +/- to zoom"
   },
   "Dialog": {
     "cancel": "Cancel",

@@ -1,8 +1,8 @@
 // src/app/rooms/[roomId]/entries/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
 import { getRoomData, Entry, deleteLocalEntry, saveRoomData, removeOutboxEntryMutations } from '@/lib/offline-sync';
@@ -30,9 +30,11 @@ interface User {
 
 type ProcessedEntry = Entry & { runningBalance: number };
 
-export default function EntriesPage() {
+function EntriesPageContent() {
     const params = useParams<{ roomId: string }>();
     const { roomId } = params;
+    const searchParams = useSearchParams();
+    const targetEntryId = searchParams.get('entryId');
     const t = useTranslations('Room');
     const tNotif = useTranslations('Notifications');
     const { isOnline } = useSync();
@@ -49,6 +51,7 @@ export default function EntriesPage() {
     const [notification, setNotification] = useState<string | null>(null);
     const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [highlightedEntryId, setHighlightedEntryId] = useState<string | null>(targetEntryId);
 
     // Modals state
     const [entryToEdit, setEntryToEdit] = useState<Entry | null>(null);
@@ -175,6 +178,18 @@ export default function EntriesPage() {
     const memberMap = useMemo(() => {
         return new Map(members.map(m => [m.id, m.username]));
     }, [members]);
+
+    useEffect(() => {
+        if (!targetEntryId || processedEntries.length === 0) return;
+        setHighlightedEntryId(targetEntryId);
+        const timer = setTimeout(() => {
+            const el = document.getElementById(`entry-row-${targetEntryId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 80);
+        return () => clearTimeout(timer);
+    }, [targetEntryId, processedEntries.length]);
 
     useEffect(() => {
         if (notification) {
@@ -317,8 +332,19 @@ export default function EntriesPage() {
                                     </div>
                                 ) : null;
 
+                                const isHighlighted = highlightedEntryId !== null && String(entry.id) === String(highlightedEntryId);
+
                                 return (
-                                    <li key={entry.id} className="p-3.5 sm:p-4 animate-fadeIn group hover:bg-muted/30 transition-colors" style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}>
+                                    <li
+                                        key={entry.id}
+                                        id={`entry-row-${entry.id}`}
+                                        className={`p-3.5 sm:p-4 animate-fadeIn group transition-colors ${
+                                            isHighlighted
+                                                ? 'bg-primary/15 ring-2 ring-primary/60 ring-inset'
+                                                : 'hover:bg-muted/30'
+                                        }`}
+                                        style={{ animationDelay: isHighlighted ? '0ms' : `${Math.min(index * 25, 250)}ms`, opacity: 0 }}
+                                    >
                                         {/* Top row: Description + Amount (and Desktop Balance/Actions) */}
                                         <div className="flex justify-between items-start sm:items-center gap-3">
                                             <div className="flex-grow min-w-0 sm:pr-2">
@@ -453,5 +479,13 @@ export default function EntriesPage() {
                 userRunningBalance={entryToShare?.runningBalance}
             />
         </div>
+    );
+}
+
+export default function EntriesPage() {
+    return (
+        <Suspense fallback={<div className="p-6 text-center text-muted-foreground text-sm">Loading...</div>}>
+            <EntriesPageContent />
+        </Suspense>
     );
 }

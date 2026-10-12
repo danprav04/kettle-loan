@@ -329,7 +329,9 @@
     "bilateralOpenFullPage": "פתח תצוגת כיסוי 1:1 בעמוד מלא",
     "bilateralBackToStats": "סטטיסטיקות חדר",
     "bilateralBackToBalance": "פירוט יתרות",
-    "bilateralCumulative": "∑ {amount} {currency}"
+    "bilateralCumulative": "∑ {amount} {currency}",
+    "bilateralGoToEntry": "עבור לרשומה בכל הרשומות",
+    "bilateralZoomHint": "Ctrl + גלילה או Ctrl +/- לזום"
   },
   "Dialog": {
     "cancel": "ביטול",

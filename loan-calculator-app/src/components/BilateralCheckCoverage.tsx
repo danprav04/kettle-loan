@@ -1,7 +1,14 @@
 // src/components/BilateralCheckCoverage.tsx
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, {
+    useState,
+    useMemo,
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useCallback
+} from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import {
@@ -16,7 +23,8 @@ import {
     FiMinimize2,
     FiZoomIn,
     FiZoomOut,
-    FiExternalLink
+    FiExternalLink,
+    FiEdit3
 } from 'react-icons/fi';
 import {
     calculatePeerToPeerBalances,
@@ -54,7 +62,27 @@ interface CheckBlockItem {
     percentageOfMax: number;
 }
 
-const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
+const MIN_ZOOM = 0.15;
+const MAX_ZOOM = 40;
+
+function clampZoom(val: number): number {
+    return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(val * 1000) / 1000));
+}
+
+function findScrollContainer(el: HTMLElement | null): HTMLElement | null {
+    let curr = el?.parentElement || null;
+    while (curr) {
+        const style = window.getComputedStyle(curr);
+        if (
+            (style.overflowY === 'auto' || style.overflowY === 'scroll') &&
+            curr.scrollHeight > curr.clientHeight
+        ) {
+            return curr;
+        }
+        curr = curr.parentElement;
+    }
+    return (document.scrollingElement as HTMLElement) || null;
+}
 
 export default function BilateralCheckCoverage({
     entries = [],
@@ -82,8 +110,101 @@ export default function BilateralCheckCoverage({
     const [personBId, setPersonBId] = useState<number | null>(initialPersonBId);
     const [sortBy, setSortBy] = useState<'amount' | 'date'>('amount');
     const [scaleMode, setScaleMode] = useState<'exact' | 'compact'>('exact');
-    const [zoomIndex, setZoomIndex] = useState<number>(2); // 1.0x default
+    const [zoomFactor, setZoomFactor] = useState<number>(1);
     const [hoveredBlockId, setHoveredBlockId] = useState<string | number | null>(null);
+
+    const stacksRef = useRef<HTMLDivElement | null>(null);
+    const zoomFactorRef = useRef<number>(zoomFactor);
+    zoomFactorRef.current = zoomFactor;
+
+    const pendingAnchorRef = useRef<{
+        offsetFromTop: number;
+        clientY: number;
+        oldZoom: number;
+        newZoom: number;
+    } | null>(null);
+
+    const applyZoomWithAnchor = useCallback(
+        (computeNext: (prev: number) => number, anchorClientY?: number) => {
+            const oldZoom = zoomFactorRef.current;
+            const newZoom = clampZoom(computeNext(oldZoom));
+            if (Math.abs(newZoom - oldZoom) < 0.0005) return;
+
+            const stacksEl = stacksRef.current;
+            if (stacksEl) {
+                const rect = stacksEl.getBoundingClientRect();
+                const clientY = anchorClientY ?? window.innerHeight / 2;
+                const offsetFromTop = Math.max(0, clientY - rect.top);
+                pendingAnchorRef.current = {
+                    offsetFromTop,
+                    clientY,
+                    oldZoom,
+                    newZoom
+                };
+            }
+            zoomFactorRef.current = newZoom;
+            setZoomFactor(newZoom);
+        },
+        []
+    );
+
+    // Preserve cursor-anchored vertical position when timeline zoom changes (like video editing timelines)
+    useLayoutEffect(() => {
+        if (!pendingAnchorRef.current) return;
+        const { offsetFromTop, clientY, oldZoom, newZoom } = pendingAnchorRef.current;
+        pendingAnchorRef.current = null;
+
+        const stacksEl = stacksRef.current;
+        const scrollContainer = findScrollContainer(stacksEl);
+        if (stacksEl && scrollContainer && oldZoom > 0) {
+            const newRect = stacksEl.getBoundingClientRect();
+            const scaleRatio = newZoom / oldZoom;
+            const newOffsetFromTop = offsetFromTop * scaleRatio;
+            const deltaScroll = newRect.top + newOffsetFromTop - clientY;
+            scrollContainer.scrollTop += deltaScroll;
+        }
+    }, [zoomFactor]);
+
+    // Ctrl + Mouse Wheel & Ctrl + (+/-) / Ctrl + 0 timeline zoom shortcuts
+    useEffect(() => {
+        const handleWheel = (e: WheelEvent) => {
+            if (!(e.ctrlKey || e.metaKey)) return;
+            e.preventDefault();
+            const factor = Math.exp(-e.deltaY * 0.0028);
+            applyZoomWithAnchor(prev => prev * factor, e.clientY);
+        };
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!(e.ctrlKey || e.metaKey)) return;
+            if (
+                e.key === '+' ||
+                e.key === '=' ||
+                e.code === 'Equal' ||
+                e.code === 'NumpadAdd'
+            ) {
+                e.preventDefault();
+                applyZoomWithAnchor(prev => prev * 1.28);
+            } else if (
+                e.key === '-' ||
+                e.key === '_' ||
+                e.code === 'Minus' ||
+                e.code === 'NumpadSubtract'
+            ) {
+                e.preventDefault();
+                applyZoomWithAnchor(prev => prev / 1.28);
+            } else if (e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0') {
+                e.preventDefault();
+                applyZoomWithAnchor(() => 1);
+            }
+        };
+
+        window.addEventListener('wheel', handleWheel, { passive: false });
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('wheel', handleWheel);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [applyZoomWithAnchor]);
 
     // Sync initial query params if provided
     useEffect(() => {
@@ -347,35 +468,31 @@ export default function BilateralCheckCoverage({
 
     const personAName = personA?.username || `#${personAId}`;
     const personBName = personB?.username || `#${personBId}`;
-    const zoomFactor = ZOOM_STEPS[zoomIndex] ?? 1;
 
     /**
      * Strict 1-to-1 monetary pixel scale:
      * Every 1 unit of currency has the exact same height in pixels (`pxPerUnit`).
-     * - In 'exact' mode: sized so a typical small check (~minShareAmount) is ~38px tall,
-     *   meaning a 290 ILS check is strictly 290/78 = 3.73x taller than a 78 ILS check,
-     *   and a 2,442 ILS check is strictly 31.3x taller than a 78 ILS check.
-     * - In 'compact' mode: uses a compressed 1-to-1 scale (~0.38x) so the stack is shorter
-     *   while still keeping 290 strictly 3.73x taller than 78.
+     * Supports continuous timeline zoom (`0.15x` to `40x`) via Ctrl+Wheel, Ctrl+Plus/Minus, or slider.
      */
     const pxPerUnit = useMemo(() => {
         if (maxTotal <= 0) return 1;
-        // Reference small check (prevent a 0.10 rounding cent from blowing up scale)
-        const refSmall = Math.max(minShareAmount, maxTotal * 0.008, 1);
-        const exactBase = Math.max(640 / maxTotal, 38 / refSmall);
+        const refSmall = Math.max(minShareAmount, maxTotal * 0.003, 1);
+        const exactBase = Math.max(700 / maxTotal, 36 / refSmall);
         if (scaleMode === 'exact') {
             return exactBase * zoomFactor;
         }
-        const compactBase = Math.max(480 / maxTotal, 16 / refSmall);
+        const compactBase = Math.max(480 / maxTotal, 14 / refSmall);
         return compactBase * zoomFactor;
     }, [maxTotal, minShareAmount, scaleMode, zoomFactor]);
 
     const totalStackHeightPx = Math.max(240, Math.round(maxTotal * pxPerUnit));
 
-    // Generate ruler tick marks (e.g., 500, 1000, 1500, 2000...)
+    // Generate ruler tick marks dynamically based on current zoom level so ticks stay well-spaced
     const rulerTicks = useMemo(() => {
-        if (maxTotal <= 0) return [];
-        const rawStep = maxTotal / 6;
+        if (maxTotal <= 0 || pxPerUnit <= 0) return [];
+        // Aim for roughly 1 tick every ~160px of vertical height
+        const targetTickCount = Math.max(4, Math.min(60, Math.floor(totalStackHeightPx / 160)));
+        const rawStep = maxTotal / targetTickCount;
         const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep || 1)));
         const residual = rawStep / magnitude;
         let niceStep = magnitude;
@@ -385,17 +502,35 @@ export default function BilateralCheckCoverage({
 
         if (niceStep <= 0) return [];
         const ticks: number[] = [];
-        for (let val = niceStep; val < maxTotal * 0.98; val += niceStep) {
+        for (let val = niceStep; val < maxTotal * 0.99; val += niceStep) {
             ticks.push(Math.round(val * 100) / 100);
         }
         return ticks;
-    }, [maxTotal]);
+    }, [maxTotal, pxPerUnit, totalStackHeightPx]);
 
     const formatShortDate = (dateStr: string) => {
         if (!dateStr) return '';
         const d = new Date(dateStr);
         if (isNaN(d.getTime())) return '';
         return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    };
+
+    // Logarithmic slider conversion: slider value in [-100, 100] -> zoomFactor in [MIN_ZOOM, MAX_ZOOM]
+    const sliderValue = useMemo(() => {
+        if (zoomFactor >= 1) {
+            return Math.round((Math.log(zoomFactor) / Math.log(MAX_ZOOM)) * 100);
+        }
+        return Math.round(-(Math.log(zoomFactor) / Math.log(MIN_ZOOM)) * 100);
+    }, [zoomFactor]);
+
+    const handleSliderChange = (val: number) => {
+        let nextZoom = 1;
+        if (val > 0) {
+            nextZoom = Math.pow(MAX_ZOOM, val / 100);
+        } else if (val < 0) {
+            nextZoom = Math.pow(MIN_ZOOM, -val / 100);
+        }
+        applyZoomWithAnchor(() => nextZoom);
     };
 
     const renderCheckBlock = (item: CheckBlockItem, side: 'left' | 'right') => {
@@ -423,6 +558,18 @@ export default function BilateralCheckCoverage({
             : 'text-sky-600 dark:text-sky-400';
 
         const dateLabel = formatShortDate(item.createdAt);
+        const entryHref = roomId ? `/rooms/${roomId}/entries?entryId=${encodeURIComponent(String(item.id))}` : null;
+
+        const goToEntryBtn = entryHref ? (
+            <Link
+                href={entryHref}
+                onClick={e => e.stopPropagation()}
+                title={t('bilateralGoToEntry')}
+                className="p-1 rounded-lg bg-card/80 hover:bg-primary hover:text-primary-foreground text-muted-foreground border border-card-border/70 transition-colors shrink-0 shadow-2xs"
+            >
+                <FiEdit3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            </Link>
+        ) : null;
 
         return (
             <div
@@ -431,11 +578,13 @@ export default function BilateralCheckCoverage({
                 onMouseEnter={() => setHoveredBlockId(item.id)}
                 onMouseLeave={() => setHoveredBlockId(null)}
                 onClick={() => setHoveredBlockId(prev => (prev === item.id ? null : item.id))}
-                className="pb-[2px] last:pb-0 box-border w-full relative group transition-[height] duration-150 ease-out"
+                className={`pb-[2px] last:pb-0 box-border w-full relative group ${
+                    isHovered ? 'transition-[height] duration-150 ease-out' : ''
+                }`}
                 title={`${item.description} — ${formatCurrencyAmount(item.shareAmount)} ${currency} (${t('bilateralFullCheckTotal', { amount: formatCurrencyAmount(item.fullAmount), currency })}) • ${t('bilateralCumulative', { amount: formatCurrencyAmount(item.cumulativeAmount), currency })}${dateLabel ? ` • ${dateLabel}` : ''}`}
             >
                 <div
-                    className={`h-full w-full rounded-xl border transition-all duration-150 overflow-clip relative shadow-2xs ${colorClasses} ${
+                    className={`h-full w-full rounded-xl border transition-colors duration-150 overflow-clip relative shadow-2xs ${colorClasses} ${
                         isHovered ? 'ring-2 ring-primary/50 shadow-md z-20 bg-card/90' : ''
                     } ${
                         isMicro
@@ -446,7 +595,7 @@ export default function BilateralCheckCoverage({
                     }`}
                 >
                     {isMicro ? (
-                        /* Micro layout (< 24px): ultra-compact single line so height stays strictly 1:1 */
+                        /* Micro layout (< 32px when unhovered): ultra-compact single line so height stays strictly 1:1 */
                         <>
                             <span className="font-bold text-[10px] leading-none text-foreground truncate">
                                 {item.description}
@@ -456,7 +605,7 @@ export default function BilateralCheckCoverage({
                             </span>
                         </>
                     ) : isSingleLine ? (
-                        /* Single-line layout (24px – 52px) */
+                        /* Single-line layout (32px – 56px, including hovered thin checks) */
                         <>
                             <div className="flex items-center gap-1.5 min-w-0">
                                 <span className="font-bold text-xs text-foreground truncate">
@@ -468,17 +617,20 @@ export default function BilateralCheckCoverage({
                                     </span>
                                 )}
                             </div>
-                            <div className="flex items-baseline gap-1 shrink-0">
-                                <span className={`font-mono font-black text-xs sm:text-sm ${accentTextClass}`}>
-                                    {formatCurrencyAmount(item.shareAmount)}
-                                </span>
-                                <span className="text-[10px] font-semibold text-muted-foreground">
-                                    {currency}
-                                </span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <div className="flex items-baseline gap-1">
+                                    <span className={`font-mono font-black text-xs sm:text-sm ${accentTextClass}`}>
+                                        {formatCurrencyAmount(item.shareAmount)}
+                                    </span>
+                                    <span className="text-[10px] font-semibold text-muted-foreground">
+                                        {currency}
+                                    </span>
+                                </div>
+                                {goToEntryBtn}
                             </div>
                         </>
                     ) : (
-                        /* Medium (52px – 140px) & Tall (>= 140px) layout */
+                        /* Medium (56px – 140px) & Tall (>= 140px) layout */
                         <>
                             {/* Top header row */}
                             <div className="flex items-start justify-between gap-2 min-w-0">
@@ -502,32 +654,38 @@ export default function BilateralCheckCoverage({
                                         </div>
                                     )}
                                 </div>
-                                <div className="text-end shrink-0">
-                                    <div className="flex items-baseline justify-end gap-1">
-                                        <span className={`font-mono font-black text-sm sm:text-base ${accentTextClass}`}>
-                                            {formatCurrencyAmount(item.shareAmount)}
-                                        </span>
-                                        <span className="text-[10px] font-semibold text-muted-foreground">
-                                            {currency}
-                                        </span>
-                                    </div>
-                                    {dateLabel && (
-                                        <div className="text-[10px] font-medium text-muted-foreground">
-                                            {dateLabel}
+                                <div className="flex items-start gap-1.5 shrink-0">
+                                    <div className="text-end">
+                                        <div className="flex items-baseline justify-end gap-1">
+                                            <span className={`font-mono font-black text-sm sm:text-base ${accentTextClass}`}>
+                                                {formatCurrencyAmount(item.shareAmount)}
+                                            </span>
+                                            <span className="text-[10px] font-semibold text-muted-foreground">
+                                                {currency}
+                                            </span>
                                         </div>
-                                    )}
+                                        {dateLabel && (
+                                            <div className="text-[10px] font-medium text-muted-foreground">
+                                                {dateLabel}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {goToEntryBtn}
                                 </div>
                             </div>
 
                             {/* Center sticky badge for very tall blocks (>= 180px) so scrolling alongside smaller blocks keeps context visible */}
                             {isTall && exactHeightPx >= 180 && (
-                                <div className="sticky top-28 my-auto py-2 px-3 rounded-xl bg-card/85 backdrop-blur-xs border border-card-border/80 shadow-xs flex items-center justify-between gap-2 mx-auto w-full max-w-md">
+                                <div className="sticky top-36 my-auto py-2 px-3 rounded-xl bg-card/85 backdrop-blur-xs border border-card-border/80 shadow-xs flex items-center justify-between gap-2 mx-auto w-full max-w-md">
                                     <span className="text-xs font-extrabold text-foreground truncate">
                                         {item.description}
                                     </span>
-                                    <span className={`font-mono font-black text-sm sm:text-base shrink-0 ${accentTextClass}`}>
-                                        {formatCurrencyAmount(item.shareAmount)} {currency}
-                                    </span>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <span className={`font-mono font-black text-sm sm:text-base ${accentTextClass}`}>
+                                            {formatCurrencyAmount(item.shareAmount)} {currency}
+                                        </span>
+                                        {goToEntryBtn}
+                                    </div>
                                 </div>
                             )}
 
@@ -613,7 +771,7 @@ export default function BilateralCheckCoverage({
                     </p>
                 </div>
 
-                {/* Controls: Full Page Link + Scale Mode + Zoom + Sort */}
+                {/* Controls: Full Page Link + Scale Mode + Sort */}
                 <div className="flex items-center gap-2 flex-wrap">
                     {!isDedicatedPage && fullPageHref && (
                         <Link
@@ -655,31 +813,6 @@ export default function BilateralCheckCoverage({
                         </button>
                     </div>
 
-                    {/* Zoom Controls */}
-                    <div className="flex items-center bg-background rounded-xl border border-card-border shadow-xs p-0.5">
-                        <button
-                            type="button"
-                            onClick={() => setZoomIndex(i => Math.max(0, i - 1))}
-                            disabled={zoomIndex === 0}
-                            title={t('bilateralZoomOut')}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-35 transition-colors cursor-pointer"
-                        >
-                            <FiZoomOut className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="px-1.5 font-mono text-[11px] font-bold text-foreground">
-                            {Math.round(zoomFactor * 100)}%
-                        </span>
-                        <button
-                            type="button"
-                            onClick={() => setZoomIndex(i => Math.min(ZOOM_STEPS.length - 1, i + 1))}
-                            disabled={zoomIndex === ZOOM_STEPS.length - 1}
-                            title={t('bilateralZoomIn')}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-35 transition-colors cursor-pointer"
-                        >
-                            <FiZoomIn className="w-3.5 h-3.5" />
-                        </button>
-                    </div>
-
                     {/* Sort Toggle */}
                     <div className="flex items-center p-0.5 bg-background rounded-xl border border-card-border shadow-xs text-xs font-bold">
                         <button
@@ -712,16 +845,16 @@ export default function BilateralCheckCoverage({
 
             {/* Main Card */}
             <div className="p-4 sm:p-5 rounded-2xl bg-card border border-card-border shadow-sm space-y-4">
-                {/* Sticky Header Wrapper on Dedicated Page so scrolling tall 1:1 stacks keeps member headers visible */}
+                {/* Sticky Header Wrapper on Dedicated Page so scrolling tall 1:1 stacks keeps member headers + timeline zoom bar visible */}
                 <div
                     className={
                         isDedicatedPage
-                            ? 'sticky top-0 z-30 bg-card/95 backdrop-blur-md py-2 -mx-2 px-2 rounded-xl border-b border-card-border/60 space-y-3'
+                            ? 'sticky top-0 z-30 bg-card/95 backdrop-blur-md py-2.5 -mx-2 px-2 rounded-xl border-b border-card-border/60 space-y-2.5'
                             : 'space-y-3'
                     }
                 >
                     {/* 1. Pair Selector Bar */}
-                    <div className="grid grid-cols-1 sm:grid-cols-11 gap-2 sm:gap-3 items-center p-3 rounded-xl bg-muted/40 border border-card-border">
+                    <div className="grid grid-cols-1 sm:grid-cols-11 gap-2 sm:gap-3 items-center p-2.5 sm:p-3 rounded-xl bg-muted/40 border border-card-border">
                         {/* Person A Selector */}
                         <div className="sm:col-span-5 flex items-center gap-2">
                             <div className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center text-xs shrink-0">
@@ -731,7 +864,7 @@ export default function BilateralCheckCoverage({
                                 aria-label={t('bilateralPersonA')}
                                 value={personAId ?? ''}
                                 onChange={e => handleSelectA(Number(e.target.value))}
-                                className="w-full rounded-xl bg-background border border-card-border px-3 py-2 text-xs sm:text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all cursor-pointer"
+                                className="w-full rounded-xl bg-background border border-card-border px-3 py-1.5 text-xs sm:text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all cursor-pointer"
                             >
                                 {eligibleMembers.map(member => (
                                     <option key={member.id} value={member.id}>
@@ -763,7 +896,7 @@ export default function BilateralCheckCoverage({
                                 aria-label={t('bilateralPersonB')}
                                 value={personBId ?? ''}
                                 onChange={e => handleSelectB(Number(e.target.value))}
-                                className="w-full rounded-xl bg-background border border-card-border px-3 py-2 text-xs sm:text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all cursor-pointer"
+                                className="w-full rounded-xl bg-background border border-card-border px-3 py-1.5 text-xs sm:text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all cursor-pointer"
                             >
                                 {eligibleMembers.map(member => (
                                     <option key={member.id} value={member.id}>
@@ -775,11 +908,60 @@ export default function BilateralCheckCoverage({
                         </div>
                     </div>
 
+                    {/* Timeline Zoom Bar (Video-Editor Style: Slider + +/- + Ctrl+Wheel hint) */}
+                    <div className="flex items-center justify-between flex-wrap gap-2 px-3 py-1.5 rounded-xl bg-background/80 border border-card-border">
+                        <span className="text-[11px] font-semibold text-muted-foreground">
+                            {t('bilateralZoomHint')}
+                        </span>
+
+                        <div className="flex items-center gap-2 ms-auto">
+                            <button
+                                type="button"
+                                onClick={() => applyZoomWithAnchor(prev => prev / 1.3)}
+                                disabled={zoomFactor <= MIN_ZOOM}
+                                title={`${t('bilateralZoomOut')} (Ctrl -)`}
+                                className="p-1.5 rounded-lg bg-card hover:bg-muted border border-card-border text-muted-foreground hover:text-foreground disabled:opacity-35 transition-colors cursor-pointer"
+                            >
+                                <FiZoomOut className="w-3.5 h-3.5" />
+                            </button>
+
+                            <input
+                                type="range"
+                                min={-100}
+                                max={100}
+                                step={1}
+                                value={sliderValue}
+                                onChange={e => handleSliderChange(Number(e.target.value))}
+                                aria-label="Scale zoom"
+                                className="w-28 sm:w-40 accent-primary cursor-pointer h-1.5 bg-muted rounded-lg"
+                            />
+
+                            <button
+                                type="button"
+                                onClick={() => applyZoomWithAnchor(prev => prev * 1.3)}
+                                disabled={zoomFactor >= MAX_ZOOM}
+                                title={`${t('bilateralZoomIn')} (Ctrl +)`}
+                                className="p-1.5 rounded-lg bg-card hover:bg-muted border border-card-border text-muted-foreground hover:text-foreground disabled:opacity-35 transition-colors cursor-pointer"
+                            >
+                                <FiZoomIn className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => applyZoomWithAnchor(() => 1)}
+                                title="Reset zoom (Ctrl + 0)"
+                                className="px-2 py-1 rounded-lg bg-card hover:bg-muted border border-card-border font-mono text-[11px] font-extrabold text-foreground min-w-[54px] text-center cursor-pointer transition-colors"
+                            >
+                                {Math.round(zoomFactor * 100)}%
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Column Headers */}
                     {(leftChecks.length > 0 || rightChecks.length > 0) && (
                         <div className="grid grid-cols-2 gap-3 sm:gap-5">
                             {/* Left Column Header: Person A paid for Person B */}
-                            <div className="p-3 rounded-xl bg-emerald-500/8 border border-emerald-500/20 flex flex-col justify-between gap-1">
+                            <div className="p-2.5 sm:p-3 rounded-xl bg-emerald-500/8 border border-emerald-500/20 flex flex-col justify-between gap-1">
                                 <div className="flex items-center justify-between gap-1 flex-wrap">
                                     <span className="text-xs sm:text-sm font-extrabold text-emerald-700 dark:text-emerald-300 truncate">
                                         {t('bilateralPaidForHeader', {
@@ -802,7 +984,7 @@ export default function BilateralCheckCoverage({
                             </div>
 
                             {/* Right Column Header: Person B paid for Person A */}
-                            <div className="p-3 rounded-xl bg-sky-500/8 border border-sky-500/20 flex flex-col justify-between gap-1">
+                            <div className="p-2.5 sm:p-3 rounded-xl bg-sky-500/8 border border-sky-500/20 flex flex-col justify-between gap-1">
                                 <div className="flex items-center justify-between gap-1 flex-wrap">
                                     <span className="text-xs sm:text-sm font-extrabold text-sky-700 dark:text-sky-300 truncate">
                                         {t('bilateralPaidForHeader', {
@@ -840,7 +1022,7 @@ export default function BilateralCheckCoverage({
                     </div>
                 ) : (
                     <>
-                        {/* Summary Banner at Top as well for immediate clarity */}
+                        {/* Summary Banner */}
                         <div
                             className={`p-3 rounded-xl border text-xs flex items-center justify-between flex-wrap gap-2 ${
                                 netDiff < 0.01
@@ -881,7 +1063,10 @@ export default function BilateralCheckCoverage({
                         </div>
 
                         {/* 2, 3, 4. Strict 1:1 Proportional Parallel Columns with Monetary Ruler & Uncovered Gap Block */}
-                        <div className="relative rounded-2xl bg-background/50 border border-card-border p-3 sm:p-4">
+                        <div
+                            ref={stacksRef}
+                            className="relative rounded-2xl bg-background/50 border border-card-border p-3 sm:p-4"
+                        >
                             {/* Monetary ruler tick lines across the stack */}
                             <div
                                 className="pointer-events-none absolute inset-x-3 sm:inset-x-4 top-3 sm:top-4 z-0"

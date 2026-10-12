@@ -329,7 +329,9 @@
     "bilateralOpenFullPage": "Открыть на отдельной странице (1:1)",
     "bilateralBackToStats": "Статистика комнаты",
     "bilateralBackToBalance": "Детальный баланс",
-    "bilateralCumulative": "∑ {amount} {currency}"
+    "bilateralCumulative": "∑ {amount} {currency}",
+    "bilateralGoToEntry": "Перейти к чеку во всех записях",
+    "bilateralZoomHint": "Ctrl + колесико или Ctrl +/- для масштаба"
   },
   "Dialog": {
     "cancel": "Отмена",
