@@ -79,9 +79,9 @@ function CoveragePageContent() {
     }, [fetchData]);
 
     return (
-        <div className="max-w-5xl mx-auto animate-scaleIn pb-12 space-y-4">
+        <div className="max-w-5xl mx-auto animate-scaleIn flex flex-col h-full gap-3 overflow-hidden">
             {/* Top Navigation Bar */}
-            <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center justify-between flex-wrap gap-2 shrink-0">
                 <button
                     onClick={() => router.back()}
                     className="font-bold py-2 px-4 rounded-xl btn-primary text-xs sm:text-sm shadow-sm transition-all active:scale-95 cursor-pointer"
@@ -113,17 +113,17 @@ function CoveragePageContent() {
             </div>
 
             {isLoading ? (
-                <div className="bg-card shadow-lg rounded-2xl border border-card-border p-16 text-center flex flex-col items-center justify-center gap-3">
+                <div className="bg-card shadow-lg rounded-2xl border border-card-border p-16 text-center flex flex-col items-center justify-center gap-3 flex-1 min-h-0">
                     <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                     <p className="text-muted-foreground text-xs font-semibold">{t('loadingStats')}</p>
                 </div>
             ) : entries.length === 0 ? (
-                <div className="bg-card shadow-lg rounded-2xl border border-card-border p-16 text-center flex flex-col items-center justify-center gap-2">
+                <div className="bg-card shadow-lg rounded-2xl border border-card-border p-16 text-center flex flex-col items-center justify-center gap-2 flex-1 min-h-0">
                     <FiColumns className="w-10 h-10 text-muted-foreground/40" />
                     <p className="text-muted-foreground text-sm font-medium">{t('noEntriesStats')}</p>
                 </div>
             ) : (
-                <div className="bg-card shadow-lg rounded-2xl border border-card-border p-4 sm:p-6">
+                <div className="bg-card shadow-lg rounded-2xl border border-card-border p-3 sm:p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
                     <BilateralCheckCoverage
                         entries={entries}
                         members={members}

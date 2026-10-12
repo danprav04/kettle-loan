@@ -160,6 +160,7 @@ export default function BilateralCheckCoverage({
     const [zoomFactor, setZoomFactor] = useState<number>(1);
     const [hoveredBlockId, setHoveredBlockId] = useState<string | number | null>(null);
 
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const stacksRef = useRef<HTMLDivElement | null>(null);
     const zoomFactorRef = useRef<number>(zoomFactor);
     zoomFactorRef.current = zoomFactor;
@@ -182,23 +183,37 @@ export default function BilateralCheckCoverage({
             if (Math.abs(newZoom - oldZoom) < 0.0001) return;
 
             const stacksEl = stacksRef.current;
+            const scrollEl = scrollContainerRef.current;
             // Only capture DOM baseline if not already awaiting a commit from an earlier wheel event in the same frame
             if (stacksEl && !pendingAnchorRef.current) {
-                const pt = anchorPoint ??
-                    lastPointerRef.current ?? {
-                        clientX: window.innerWidth / 2,
-                        clientY: window.innerHeight / 2
-                    };
-                const anchorEl = findAnchorElementAtPoint(stacksEl, pt.clientX, pt.clientY);
+                const scrollRect = scrollEl?.getBoundingClientRect();
+                const rawPt = anchorPoint ?? lastPointerRef.current;
+
+                let clientX = rawPt ? rawPt.clientX : window.innerWidth / 2;
+                let clientY = rawPt ? rawPt.clientY : window.innerHeight / 2;
+
+                // Ensure anchor point is always inside the checks scroll viewport (never up in the header)
+                if (scrollRect && scrollRect.height > 0) {
+                    if (
+                        !rawPt ||
+                        clientY < scrollRect.top ||
+                        clientY > scrollRect.bottom
+                    ) {
+                        clientX = scrollRect.left + scrollRect.width / 2;
+                        clientY = scrollRect.top + scrollRect.height / 2;
+                    }
+                }
+
+                const anchorEl = findAnchorElementAtPoint(stacksEl, clientX, clientY);
                 const rect = anchorEl.getBoundingClientRect();
                 const fraction =
                     rect.height > 0
-                        ? Math.max(0, Math.min(1, (pt.clientY - rect.top) / rect.height))
+                        ? Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
                         : 0;
                 pendingAnchorRef.current = {
                     anchorEl,
                     fraction,
-                    clientY: pt.clientY
+                    clientY
                 };
             }
             zoomFactorRef.current = newZoom;
@@ -220,7 +235,11 @@ export default function BilateralCheckCoverage({
         const newTargetY = newRect.top + fraction * newRect.height;
         const deltaScroll = newTargetY - clientY;
 
-        applyScrollDelta(stacksRef.current, deltaScroll);
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop += deltaScroll;
+        } else {
+            applyScrollDelta(stacksRef.current, deltaScroll);
+        }
     }, [zoomFactor, scaleMode]);
 
     // Ctrl + Mouse Wheel & Ctrl + (+/-) / Ctrl + 0 timeline zoom shortcuts
@@ -816,13 +835,17 @@ export default function BilateralCheckCoverage({
 
     return (
         <div
-            className="space-y-3 pt-2"
+            className={
+                isDedicatedPage
+                    ? 'flex flex-col h-full min-h-0 gap-2.5'
+                    : 'space-y-3 pt-2'
+            }
             onMouseMove={e => {
                 lastPointerRef.current = { clientX: e.clientX, clientY: e.clientY };
             }}
         >
             {/* Section Header */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center justify-between flex-wrap gap-2 shrink-0">
                 <div>
                     <h2 className="text-base sm:text-lg font-extrabold text-card-foreground flex items-center gap-2">
                         <div className="p-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 shadow-2xs">
@@ -831,9 +854,11 @@ export default function BilateralCheckCoverage({
                         <span>{t('bilateralTitle')}</span>
                         <InfoTooltip content={t('bilateralTooltip')} align="left" />
                     </h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                        {t('bilateralSubtitle')}
-                    </p>
+                    {!isDedicatedPage && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            {t('bilateralSubtitle')}
+                        </p>
+                    )}
                 </div>
 
                 {/* Controls: Full Page Link + Scale Mode + Sort */}
@@ -908,18 +933,18 @@ export default function BilateralCheckCoverage({
                 </div>
             </div>
 
-            {/* Main Card */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-card border border-card-border shadow-sm space-y-4">
-                {/* Sticky Header Wrapper on Dedicated Page so scrolling tall 1:1 stacks keeps member headers + timeline zoom bar visible */}
-                <div
-                    className={
-                        isDedicatedPage
-                            ? 'sticky top-0 z-30 bg-card/95 backdrop-blur-md py-2.5 -mx-2 px-2 rounded-xl border-b border-card-border/60 space-y-2.5'
-                            : 'space-y-3'
-                    }
-                >
+            {/* Main Container */}
+            <div
+                className={
+                    isDedicatedPage
+                        ? 'flex flex-col flex-1 min-h-0 gap-2'
+                        : 'p-4 sm:p-5 rounded-2xl bg-card border border-card-border shadow-sm space-y-3'
+                }
+            >
+                {/* Stationary Header Section (Above Scroll) */}
+                <div className="shrink-0 space-y-2">
                     {/* 1. Pair Selector Bar */}
-                    <div className="grid grid-cols-1 sm:grid-cols-11 gap-2 sm:gap-3 items-center p-2.5 sm:p-3 rounded-xl bg-muted/40 border border-card-border">
+                    <div className="grid grid-cols-1 sm:grid-cols-11 gap-2 sm:gap-3 items-center p-2 sm:p-2.5 rounded-xl bg-muted/40 border border-card-border">
                         {/* Person A Selector */}
                         <div className="sm:col-span-5 flex items-center gap-2">
                             <div className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center text-xs shrink-0">
@@ -946,7 +971,7 @@ export default function BilateralCheckCoverage({
                                 type="button"
                                 onClick={handleSwapPair}
                                 title={t('bilateralSwapPair')}
-                                className="p-2 rounded-xl bg-background hover:bg-muted border border-card-border text-muted-foreground hover:text-primary transition-all active:scale-90 cursor-pointer shadow-2xs"
+                                className="p-1.5 rounded-xl bg-background hover:bg-muted border border-card-border text-muted-foreground hover:text-primary transition-all active:scale-90 cursor-pointer shadow-2xs"
                             >
                                 <FiRepeat className="w-4 h-4" />
                             </button>
@@ -973,7 +998,7 @@ export default function BilateralCheckCoverage({
                         </div>
                     </div>
 
-                    {/* Timeline Zoom Bar (Video-Editor Style: Slider + +/- + Ctrl+Wheel hint) */}
+                    {/* Timeline Zoom Bar + Net Summary Row */}
                     <div className="flex items-center justify-between flex-wrap gap-2 px-3 py-1.5 rounded-xl bg-background/80 border border-card-border">
                         <span className="text-[11px] font-semibold text-muted-foreground">
                             {t('bilateralZoomHint')}
@@ -1026,7 +1051,7 @@ export default function BilateralCheckCoverage({
                     {(leftChecks.length > 0 || rightChecks.length > 0) && (
                         <div className="grid grid-cols-2 gap-3 sm:gap-5">
                             {/* Left Column Header: Person A paid for Person B */}
-                            <div className="p-2.5 sm:p-3 rounded-xl bg-emerald-500/8 border border-emerald-500/20 flex flex-col justify-between gap-1">
+                            <div className="p-2 sm:p-2.5 rounded-xl bg-emerald-500/8 border border-emerald-500/20 flex flex-col justify-between gap-1">
                                 <div className="flex items-center justify-between gap-1 flex-wrap">
                                     <span className="text-xs sm:text-sm font-extrabold text-emerald-700 dark:text-emerald-300 truncate">
                                         {t('bilateralPaidForHeader', {
@@ -1049,7 +1074,7 @@ export default function BilateralCheckCoverage({
                             </div>
 
                             {/* Right Column Header: Person B paid for Person A */}
-                            <div className="p-2.5 sm:p-3 rounded-xl bg-sky-500/8 border border-sky-500/20 flex flex-col justify-between gap-1">
+                            <div className="p-2 sm:p-2.5 rounded-xl bg-sky-500/8 border border-sky-500/20 flex flex-col justify-between gap-1">
                                 <div className="flex items-center justify-between gap-1 flex-wrap">
                                     <span className="text-xs sm:text-sm font-extrabold text-sky-700 dark:text-sky-300 truncate">
                                         {t('bilateralPaidForHeader', {
@@ -1072,24 +1097,11 @@ export default function BilateralCheckCoverage({
                             </div>
                         </div>
                     )}
-                </div>
 
-                {/* Empty State if no mutual checks exist between this pair */}
-                {leftChecks.length === 0 && rightChecks.length === 0 ? (
-                    <div className="py-12 px-4 text-center rounded-xl bg-background/60 border border-dashed border-card-border space-y-2">
-                        <FiUsers className="w-8 h-8 text-muted-foreground/40 mx-auto" />
-                        <p className="text-xs sm:text-sm font-semibold text-muted-foreground">
-                            {t('bilateralNoTransactions', {
-                                memberA: personAName,
-                                memberB: personBName
-                            })}
-                        </p>
-                    </div>
-                ) : (
-                    <>
-                        {/* Summary Banner */}
+                    {/* Summary Banner (Also part of fixed header so scroll begins strictly with the check columns) */}
+                    {(leftChecks.length > 0 || rightChecks.length > 0) && (
                         <div
-                            className={`p-3 rounded-xl border text-xs flex items-center justify-between flex-wrap gap-2 ${
+                            className={`px-3 py-2 rounded-xl border text-xs flex items-center justify-between flex-wrap gap-2 ${
                                 netDiff < 0.01
                                     ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-300'
                                     : 'bg-amber-500/10 border-amber-500/25 text-foreground'
@@ -1126,11 +1138,33 @@ export default function BilateralCheckCoverage({
                                 {t('bilateralCoverageRatio', { percent: coveragePercent })}
                             </span>
                         </div>
+                    )}
+                </div>
 
-                        {/* 2, 3, 4. Strict 1:1 Proportional Parallel Columns with Monetary Ruler & Uncovered Gap Block */}
+                {/* Empty State if no mutual checks exist between this pair */}
+                {leftChecks.length === 0 && rightChecks.length === 0 ? (
+                    <div className="py-12 px-4 text-center rounded-xl bg-background/60 border border-dashed border-card-border space-y-2">
+                        <FiUsers className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+                        <p className="text-xs sm:text-sm font-semibold text-muted-foreground">
+                            {t('bilateralNoTransactions', {
+                                memberA: personAName,
+                                memberB: personBName
+                            })}
+                        </p>
+                    </div>
+                ) : (
+                    /* Scrollable Checks Viewport — begins strictly below the header */
+                    <div
+                        ref={scrollContainerRef}
+                        className={
+                            isDedicatedPage
+                                ? 'flex-1 min-h-0 overflow-y-auto rounded-2xl bg-background/50 border border-card-border'
+                                : 'max-h-[75vh] overflow-y-auto rounded-2xl bg-background/50 border border-card-border'
+                        }
+                    >
                         <div
                             ref={stacksRef}
-                            className="relative rounded-2xl bg-background/50 border border-card-border p-3 sm:p-4"
+                            className="relative p-3 sm:p-4"
                         >
                             {/* Monetary ruler tick lines across the stack */}
                             <div
@@ -1169,7 +1203,7 @@ export default function BilateralCheckCoverage({
                                 </div>
                             </div>
                         </div>
-                    </>
+                    </div>
                 )}
             </div>
         </div>
