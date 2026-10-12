@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import * as XLSX from 'xlsx';
 import { useSync } from '@/components/SyncProvider';
@@ -19,7 +20,9 @@ import {
     FiCheckCircle,
     FiUsers,
     FiAward,
-    FiRepeat
+    FiRepeat,
+    FiColumns,
+    FiArrowRight
 } from 'react-icons/fi';
 import {
     calculateRoomStats,
@@ -31,7 +34,6 @@ import {
 import { getEntryPayerAndParticipantStrings } from '@/lib/entry-formatting';
 import InfoTooltip from '@/components/InfoTooltip';
 import DebtSettlementMap from '@/components/DebtSettlementMap';
-import BilateralCheckCoverage from '@/components/BilateralCheckCoverage';
 
 interface Member extends StatsMember {
     permissions?: {
@@ -239,42 +241,52 @@ export default function StatsPage() {
                     {tRoom('backToRoom')}
                 </button>
 
-                {customizations.exportReports && (
-                    <div className="relative group">
-                        <button
-                            disabled={isExporting || !stats}
-                            className="font-bold py-2 px-4 rounded-xl btn-secondary flex items-center text-xs sm:text-sm shadow-sm disabled:opacity-50 transition-all active:scale-95"
-                        >
-                            <FiDownload className="me-2" /> {t('exportData')}
-                        </button>
-                        <div className="absolute right-0 rtl:left-0 rtl:right-auto mt-2 w-52 bg-card rounded-xl shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 border border-card-border overflow-hidden">
-                            <div className="py-1 divide-y divide-card-border/50">
-                                <button
-                                    onClick={() => handleExport('xlsx')}
-                                    className="w-full text-start flex items-center px-4 py-2.5 text-xs text-foreground hover:bg-muted font-medium transition-colors"
-                                >
-                                    <FiGrid className="me-2.5 text-primary text-sm shrink-0" />
-                                    <div>
-                                        <div className="font-bold">{t('exportXLSX')}</div>
-                                        <div className="text-[10px] text-muted-foreground">{t('summarySheet')} + {t('entriesSheet')}</div>
-                                    </div>
-                                </button>
-                                <button
-                                    onClick={() => handleExport('csv')}
-                                    className="w-full text-start flex items-center px-4 py-2.5 text-xs text-foreground hover:bg-muted font-medium transition-colors"
-                                >
-                                    <FiFileText className="me-2.5 text-primary text-sm shrink-0" /> {t('exportCSV')}
-                                </button>
-                                <button
-                                    onClick={() => handleExport('txt')}
-                                    className="w-full text-start flex items-center px-4 py-2.5 text-xs text-foreground hover:bg-muted font-medium transition-colors"
-                                >
-                                    <FiFileText className="me-2.5 text-primary text-sm shrink-0" /> {t('exportTXT')}
-                                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Link
+                        href={`/rooms/${roomId}/coverage`}
+                        className="font-bold py-2 px-4 rounded-xl bg-card hover:bg-muted text-primary border border-primary/30 flex items-center gap-2 text-xs sm:text-sm shadow-sm transition-all active:scale-95"
+                    >
+                        <FiColumns className="w-4 h-4 shrink-0" />
+                        <span>{t('bilateralTitle')}</span>
+                    </Link>
+
+                    {customizations.exportReports && (
+                        <div className="relative group">
+                            <button
+                                disabled={isExporting || !stats}
+                                className="font-bold py-2 px-4 rounded-xl btn-secondary flex items-center text-xs sm:text-sm shadow-sm disabled:opacity-50 transition-all active:scale-95"
+                            >
+                                <FiDownload className="me-2" /> {t('exportData')}
+                            </button>
+                            <div className="absolute right-0 rtl:left-0 rtl:right-auto mt-2 w-52 bg-card rounded-xl shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 border border-card-border overflow-hidden">
+                                <div className="py-1 divide-y divide-card-border/50">
+                                    <button
+                                        onClick={() => handleExport('xlsx')}
+                                        className="w-full text-start flex items-center px-4 py-2.5 text-xs text-foreground hover:bg-muted font-medium transition-colors"
+                                    >
+                                        <FiGrid className="me-2.5 text-primary text-sm shrink-0" />
+                                        <div>
+                                            <div className="font-bold">{t('exportXLSX')}</div>
+                                            <div className="text-[10px] text-muted-foreground">{t('summarySheet')} + {t('entriesSheet')}</div>
+                                        </div>
+                                    </button>
+                                    <button
+                                        onClick={() => handleExport('csv')}
+                                        className="w-full text-start flex items-center px-4 py-2.5 text-xs text-foreground hover:bg-muted font-medium transition-colors"
+                                    >
+                                        <FiFileText className="me-2.5 text-primary text-sm shrink-0" /> {t('exportCSV')}
+                                    </button>
+                                    <button
+                                        onClick={() => handleExport('txt')}
+                                        className="w-full text-start flex items-center px-4 py-2.5 text-xs text-foreground hover:bg-muted font-medium transition-colors"
+                                    >
+                                        <FiFileText className="me-2.5 text-primary text-sm shrink-0" /> {t('exportTXT')}
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             {/* Main Statistics Content Card */}
@@ -418,13 +430,33 @@ export default function StatsPage() {
                             />
                         )}
 
-                        {/* Bilateral Check Coverage (Side-by-Side) */}
-                        <BilateralCheckCoverage
-                            entries={entries}
-                            members={members}
-                            currency={currency}
-                            currentUserId={user?.userId}
-                        />
+                        {/* Bilateral Check Coverage Callout Card -> Dedicated Page */}
+                        <div className="p-4 sm:p-5 rounded-2xl bg-primary/5 border border-primary/25 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                                <div className="p-2.5 rounded-xl bg-primary/15 text-primary border border-primary/30 shrink-0 mt-0.5">
+                                    <FiColumns className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm sm:text-base font-extrabold text-card-foreground flex items-center gap-2">
+                                        <span>{t('bilateralTitle')}</span>
+                                        <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/25">
+                                            {t('bilateralScaleModeExact')}
+                                        </span>
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        {t('bilateralSubtitle')}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <Link
+                                href={`/rooms/${roomId}/coverage`}
+                                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl btn-primary font-bold text-xs sm:text-sm shadow-sm transition-all active:scale-95 shrink-0"
+                            >
+                                <span>{t('bilateralOpenFullPage')}</span>
+                                <FiArrowRight className="w-4 h-4 ltr:rotate-0 rtl:rotate-180 shrink-0" />
+                            </Link>
+                        </div>
 
                         {/* Member Contributions Table */}
                         <div className="space-y-3 pt-2">

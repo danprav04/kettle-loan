@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import {
     FiColumns,
@@ -10,7 +11,12 @@ import {
     FiTrendingUp,
     FiCheckCircle,
     FiAlertCircle,
-    FiUsers
+    FiUsers,
+    FiMaximize2,
+    FiMinimize2,
+    FiZoomIn,
+    FiZoomOut,
+    FiExternalLink
 } from 'react-icons/fi';
 import {
     calculatePeerToPeerBalances,
@@ -30,6 +36,10 @@ interface BilateralCheckCoverageProps {
     members: StatsMember[];
     currency: string;
     currentUserId?: number;
+    roomId?: string;
+    initialPersonAId?: number | null;
+    initialPersonBId?: number | null;
+    isDedicatedPage?: boolean;
 }
 
 interface CheckBlockItem {
@@ -37,17 +47,24 @@ interface CheckBlockItem {
     description: string;
     shareAmount: number;
     fullAmount: number;
+    cumulativeAmount: number;
     createdAt: string;
     isSettlement: boolean;
     isLoan: boolean;
     percentageOfMax: number;
 }
 
+const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
+
 export default function BilateralCheckCoverage({
     entries = [],
     members = [],
     currency,
-    currentUserId
+    currentUserId,
+    roomId,
+    initialPersonAId = null,
+    initialPersonBId = null,
+    isDedicatedPage = false
 }: BilateralCheckCoverageProps) {
     const t = useTranslations('Stats');
 
@@ -61,10 +78,22 @@ export default function BilateralCheckCoverage({
         });
     }, [members]);
 
-    const [personAId, setPersonAId] = useState<number | null>(null);
-    const [personBId, setPersonBId] = useState<number | null>(null);
+    const [personAId, setPersonAId] = useState<number | null>(initialPersonAId);
+    const [personBId, setPersonBId] = useState<number | null>(initialPersonBId);
     const [sortBy, setSortBy] = useState<'amount' | 'date'>('amount');
+    const [scaleMode, setScaleMode] = useState<'exact' | 'compact'>('exact');
+    const [zoomIndex, setZoomIndex] = useState<number>(2); // 1.0x default
     const [hoveredBlockId, setHoveredBlockId] = useState<string | number | null>(null);
+
+    // Sync initial query params if provided
+    useEffect(() => {
+        if (initialPersonAId && eligibleMembers.some(m => m.id === initialPersonAId)) {
+            setPersonAId(initialPersonAId);
+        }
+        if (initialPersonBId && eligibleMembers.some(m => m.id === initialPersonBId)) {
+            setPersonBId(initialPersonBId);
+        }
+    }, [initialPersonAId, initialPersonBId, eligibleMembers]);
 
     // Initialize default pair selection intelligently
     useEffect(() => {
@@ -75,21 +104,31 @@ export default function BilateralCheckCoverage({
         }
 
         const validIds = new Set(eligibleMembers.map(m => m.id));
-        if (personAId !== null && personBId !== null && validIds.has(personAId) && validIds.has(personBId) && personAId !== personBId) {
+        if (
+            personAId !== null &&
+            personBId !== null &&
+            validIds.has(personAId) &&
+            validIds.has(personBId) &&
+            personAId !== personBId
+        ) {
             return;
         }
 
-        // Find a pair with active mutual transactions, preferring currentUserId as Person A
-        const preferredA = (currentUserId && validIds.has(currentUserId))
-            ? currentUserId
-            : eligibleMembers[0].id;
+        const preferredA =
+            personAId && validIds.has(personAId)
+                ? personAId
+                : currentUserId && validIds.has(currentUserId)
+                ? currentUserId
+                : eligibleMembers[0].id;
 
         let bestA = preferredA;
-        let bestB = eligibleMembers.find(m => m.id !== preferredA)?.id ?? eligibleMembers[1].id;
+        let bestB =
+            personBId && validIds.has(personBId) && personBId !== preferredA
+                ? personBId
+                : eligibleMembers.find(m => m.id !== preferredA)?.id ?? eligibleMembers[1].id;
         let bestVolume = -1;
 
-        // First check partners of preferredA
-        if (entries.length > 0) {
+        if (entries.length > 0 && !(personBId && validIds.has(personBId) && personBId !== preferredA)) {
             const p2pPreferred = calculatePeerToPeerBalances(
                 entries as BalanceCalcEntry[],
                 members as BalanceCalcMember[],
@@ -107,7 +146,6 @@ export default function BilateralCheckCoverage({
                 }
             });
 
-            // If preferredA has no mutual transactions with anyone, find any pair with mutual transactions
             if (bestVolume <= 0) {
                 for (const mA of eligibleMembers) {
                     const p2p = calculatePeerToPeerBalances(
@@ -169,6 +207,7 @@ export default function BilateralCheckCoverage({
         leftTotal,
         rightTotal,
         maxTotal,
+        minShareAmount,
         netDiff,
         shorterSide,
         coveragePercent
@@ -180,6 +219,7 @@ export default function BilateralCheckCoverage({
                 leftTotal: 0,
                 rightTotal: 0,
                 maxTotal: 0,
+                minShareAmount: 0,
                 netDiff: 0,
                 shorterSide: 'none' as 'left' | 'right' | 'none',
                 coveragePercent: 100
@@ -201,14 +241,16 @@ export default function BilateralCheckCoverage({
                 leftTotal: 0,
                 rightTotal: 0,
                 maxTotal: 0,
+                minShareAmount: 0,
                 netDiff: 0,
                 shorterSide: 'none' as 'left' | 'right' | 'none',
                 coveragePercent: 100
             };
         }
 
-        const rawLeft: Omit<CheckBlockItem, 'percentageOfMax'>[] = [];
-        const rawRight: Omit<CheckBlockItem, 'percentageOfMax'>[] = [];
+        type RawItem = Omit<CheckBlockItem, 'percentageOfMax' | 'cumulativeAmount'>;
+        const rawLeft: RawItem[] = [];
+        const rawRight: RawItem[] = [];
 
         pairData.transactions.forEach((tx, idx) => {
             const contrib = tx.contribution;
@@ -218,9 +260,9 @@ export default function BilateralCheckCoverage({
             const shareAmount = Math.round(Math.abs(contrib) * 100) / 100;
             const fullAmount = Math.round(Math.abs(rawAmt || 0) * 100) / 100;
             const isSettlement = isSettlementEntry(tx as { description?: string | null });
-            const isLoan = !isSettlement && (rawAmt < 0);
+            const isLoan = !isSettlement && rawAmt < 0;
 
-            const item: Omit<CheckBlockItem, 'percentageOfMax'> = {
+            const item: RawItem = {
                 id: tx.id ?? `tx-${idx}`,
                 description: (tx.description as string) || '—',
                 shareAmount,
@@ -231,15 +273,13 @@ export default function BilateralCheckCoverage({
             };
 
             if (contrib > 0) {
-                // Person A paid for Person B (B's share)
                 rawLeft.push(item);
             } else {
-                // Person B paid for Person A (A's share)
                 rawRight.push(item);
             }
         });
 
-        const sortItems = (list: Omit<CheckBlockItem, 'percentageOfMax'>[]) => {
+        const sortItems = (list: RawItem[]) => {
             const copy = [...list];
             if (sortBy === 'amount') {
                 copy.sort((a, b) => b.shareAmount - a.shareAmount);
@@ -261,6 +301,9 @@ export default function BilateralCheckCoverage({
         const mTotal = Math.max(lTotal, rTotal);
         const diff = Math.round(Math.abs(lTotal - rTotal) * 100) / 100;
 
+        const allShares = [...sortedLeft, ...sortedRight].map(i => i.shareAmount).filter(v => v > 0);
+        const minShare = allShares.length > 0 ? Math.min(...allShares) : 0;
+
         let shorter: 'left' | 'right' | 'none' = 'none';
         if (diff >= 0.01) {
             shorter = lTotal < rTotal ? 'left' : 'right';
@@ -269,18 +312,25 @@ export default function BilateralCheckCoverage({
         const minTotal = Math.min(lTotal, rTotal);
         const covPct = mTotal > 0 ? Math.round((minTotal / mTotal) * 100) : 100;
 
-        const withPct = (list: Omit<CheckBlockItem, 'percentageOfMax'>[]): CheckBlockItem[] =>
-            list.map(item => ({
-                ...item,
-                percentageOfMax: mTotal > 0 ? Math.round((item.shareAmount / mTotal) * 1000) / 10 : 0
-            }));
+        const enrichList = (list: RawItem[]): CheckBlockItem[] => {
+            let running = 0;
+            return list.map(item => {
+                running = Math.round((running + item.shareAmount) * 100) / 100;
+                return {
+                    ...item,
+                    cumulativeAmount: running,
+                    percentageOfMax: mTotal > 0 ? Math.round((item.shareAmount / mTotal) * 1000) / 10 : 0
+                };
+            });
+        };
 
         return {
-            leftChecks: withPct(sortedLeft),
-            rightChecks: withPct(sortedRight),
+            leftChecks: enrichList(sortedLeft),
+            rightChecks: enrichList(sortedRight),
             leftTotal: lTotal,
             rightTotal: rTotal,
             maxTotal: mTotal,
+            minShareAmount: minShare,
             netDiff: diff,
             shorterSide: shorter,
             coveragePercent: covPct
@@ -297,13 +347,49 @@ export default function BilateralCheckCoverage({
 
     const personAName = personA?.username || `#${personAId}`;
     const personBName = personB?.username || `#${personBId}`;
+    const zoomFactor = ZOOM_STEPS[zoomIndex] ?? 1;
 
-    // Determine dynamic height of the two-column stack so blocks have comfortable breathing room
-    const maxBlockCount = Math.max(
-        leftChecks.length + (shorterSide === 'left' ? 1 : 0),
-        rightChecks.length + (shorterSide === 'right' ? 1 : 0)
-    );
-    const stackContainerHeight = Math.min(680, Math.max(320, maxBlockCount * 54));
+    /**
+     * Strict 1-to-1 monetary pixel scale:
+     * Every 1 unit of currency has the exact same height in pixels (`pxPerUnit`).
+     * - In 'exact' mode: sized so a typical small check (~minShareAmount) is ~38px tall,
+     *   meaning a 290 ILS check is strictly 290/78 = 3.73x taller than a 78 ILS check,
+     *   and a 2,442 ILS check is strictly 31.3x taller than a 78 ILS check.
+     * - In 'compact' mode: uses a compressed 1-to-1 scale (~0.38x) so the stack is shorter
+     *   while still keeping 290 strictly 3.73x taller than 78.
+     */
+    const pxPerUnit = useMemo(() => {
+        if (maxTotal <= 0) return 1;
+        // Reference small check (prevent a 0.10 rounding cent from blowing up scale)
+        const refSmall = Math.max(minShareAmount, maxTotal * 0.008, 1);
+        const exactBase = Math.max(640 / maxTotal, 38 / refSmall);
+        if (scaleMode === 'exact') {
+            return exactBase * zoomFactor;
+        }
+        const compactBase = Math.max(480 / maxTotal, 16 / refSmall);
+        return compactBase * zoomFactor;
+    }, [maxTotal, minShareAmount, scaleMode, zoomFactor]);
+
+    const totalStackHeightPx = Math.max(240, Math.round(maxTotal * pxPerUnit));
+
+    // Generate ruler tick marks (e.g., 500, 1000, 1500, 2000...)
+    const rulerTicks = useMemo(() => {
+        if (maxTotal <= 0) return [];
+        const rawStep = maxTotal / 6;
+        const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep || 1)));
+        const residual = rawStep / magnitude;
+        let niceStep = magnitude;
+        if (residual > 5) niceStep = 10 * magnitude;
+        else if (residual > 2) niceStep = 5 * magnitude;
+        else if (residual > 1) niceStep = 2 * magnitude;
+
+        if (niceStep <= 0) return [];
+        const ticks: number[] = [];
+        for (let val = niceStep; val < maxTotal * 0.98; val += niceStep) {
+            ticks.push(Math.round(val * 100) / 100);
+        }
+        return ticks;
+    }, [maxTotal]);
 
     const formatShortDate = (dateStr: string) => {
         if (!dateStr) return '';
@@ -314,15 +400,19 @@ export default function BilateralCheckCoverage({
 
     const renderCheckBlock = (item: CheckBlockItem, side: 'left' | 'right') => {
         const isHovered = hoveredBlockId === item.id;
-        // Approximate pixel height of this block to decide single-line vs multi-line internal layout
-        const approxPx = maxTotal > 0 ? (item.shareAmount / maxTotal) * stackContainerHeight : 48;
-        const isCompact = approxPx < 54;
+        // Exact 1-to-1 pixel height for this check's money amount
+        const exactHeightPx = Math.max(6, item.shareAmount * pxPerUnit);
+
+        const isTall = exactHeightPx >= 140;
+        const isMedium = exactHeightPx >= 52 && exactHeightPx < 140;
+        const isSingleLine = exactHeightPx >= 24 && exactHeightPx < 52;
+        const isMicro = exactHeightPx < 24;
 
         const colorClasses = item.isSettlement
-            ? 'bg-purple-500/12 hover:bg-purple-500/20 border-purple-500/35 text-purple-950 dark:text-purple-100'
+            ? 'bg-purple-500/15 hover:bg-purple-500/25 border-purple-500/40 text-purple-950 dark:text-purple-100'
             : side === 'left'
-            ? 'bg-emerald-500/12 hover:bg-emerald-500/20 border-emerald-500/35 text-emerald-950 dark:text-emerald-100'
-            : 'bg-sky-500/12 hover:bg-sky-500/20 border-sky-500/35 text-sky-950 dark:text-sky-100';
+            ? 'bg-emerald-500/14 hover:bg-emerald-500/24 border-emerald-500/40 text-emerald-950 dark:text-emerald-100'
+            : 'bg-sky-500/14 hover:bg-sky-500/24 border-sky-500/40 text-sky-950 dark:text-sky-100';
 
         const accentTextClass = item.isSettlement
             ? 'text-purple-600 dark:text-purple-400'
@@ -335,63 +425,123 @@ export default function BilateralCheckCoverage({
         return (
             <div
                 key={item.id}
-                style={{
-                    flexGrow: Math.max(item.shareAmount, 0.01),
-                    flexBasis: 0,
-                    minHeight: '32px'
-                }}
+                style={{ height: `${exactHeightPx}px` }}
                 onMouseEnter={() => setHoveredBlockId(item.id)}
                 onMouseLeave={() => setHoveredBlockId(null)}
-                className="pb-1 last:pb-0 box-border w-full transition-all duration-300"
-                title={`${item.description} — ${formatCurrencyAmount(item.shareAmount)} ${currency} (${t('bilateralFullCheckTotal', { amount: formatCurrencyAmount(item.fullAmount), currency })})${dateLabel ? ` • ${dateLabel}` : ''}`}
+                className="pb-[2px] last:pb-0 box-border w-full relative group"
+                title={`${item.description} — ${formatCurrencyAmount(item.shareAmount)} ${currency} (${t('bilateralFullCheckTotal', { amount: formatCurrencyAmount(item.fullAmount), currency })}) • ${t('bilateralCumulative', { amount: formatCurrencyAmount(item.cumulativeAmount), currency })}${dateLabel ? ` • ${dateLabel}` : ''}`}
             >
                 <div
-                    className={`h-full w-full rounded-xl border px-3 py-1.5 flex ${
-                        isCompact ? 'flex-row items-center justify-between gap-2' : 'flex-col justify-between'
-                    } transition-all duration-200 overflow-hidden relative shadow-2xs ${colorClasses} ${
-                        isHovered ? 'ring-2 ring-primary/40 shadow-md z-10' : ''
+                    className={`h-full w-full rounded-xl border transition-all duration-150 overflow-clip relative shadow-2xs ${colorClasses} ${
+                        isHovered ? 'ring-2 ring-primary/50 shadow-md z-20' : ''
+                    } ${
+                        isMicro
+                            ? 'px-2 py-0 flex items-center justify-between gap-1'
+                            : isSingleLine
+                            ? 'px-3 py-1 flex items-center justify-between gap-2'
+                            : 'px-3.5 py-2 flex flex-col justify-between'
                     }`}
                 >
-                    {/* Top / Left: Description & Date */}
-                    <div className="flex items-center justify-between gap-1.5 min-w-0">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="font-bold text-xs text-foreground truncate">
+                    {isMicro ? (
+                        /* Micro layout (< 24px): ultra-compact single line so height stays strictly 1:1 */
+                        <>
+                            <span className="font-bold text-[10px] leading-none text-foreground truncate">
                                 {item.description}
                             </span>
-                            {item.isSettlement && (
-                                <span className="text-[9px] uppercase font-extrabold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30 shrink-0">
-                                    {t('exportTypeSettlement')}
+                            <span className={`font-mono font-black text-[10px] leading-none shrink-0 ${accentTextClass}`}>
+                                {formatCurrencyAmount(item.shareAmount)} {currency}
+                            </span>
+                        </>
+                    ) : isSingleLine ? (
+                        /* Single-line layout (24px – 52px) */
+                        <>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="font-bold text-xs text-foreground truncate">
+                                    {item.description}
                                 </span>
-                            )}
-                        </div>
-                        {!isCompact && dateLabel && (
-                            <span className="text-[10px] font-medium text-muted-foreground shrink-0">
-                                {dateLabel}
-                            </span>
-                        )}
-                    </div>
+                                {item.isSettlement && (
+                                    <span className="text-[9px] uppercase font-extrabold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30 shrink-0">
+                                        {t('exportTypeSettlement')}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-baseline gap-1 shrink-0">
+                                <span className={`font-mono font-black text-xs sm:text-sm ${accentTextClass}`}>
+                                    {formatCurrencyAmount(item.shareAmount)}
+                                </span>
+                                <span className="text-[10px] font-semibold text-muted-foreground">
+                                    {currency}
+                                </span>
+                            </div>
+                        </>
+                    ) : (
+                        /* Medium (52px – 140px) & Tall (>= 140px) layout */
+                        <>
+                            {/* Top header row */}
+                            <div className="flex items-start justify-between gap-2 min-w-0">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-extrabold text-xs sm:text-sm text-foreground break-words line-clamp-2">
+                                            {item.description}
+                                        </span>
+                                        {item.isSettlement && (
+                                            <span className="text-[9px] uppercase font-extrabold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30 shrink-0">
+                                                {t('exportTypeSettlement')}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {item.fullAmount !== item.shareAmount && (
+                                        <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                                            {t('bilateralFullCheckTotal', {
+                                                amount: formatCurrencyAmount(item.fullAmount),
+                                                currency
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="text-end shrink-0">
+                                    <div className="flex items-baseline justify-end gap-1">
+                                        <span className={`font-mono font-black text-sm sm:text-base ${accentTextClass}`}>
+                                            {formatCurrencyAmount(item.shareAmount)}
+                                        </span>
+                                        <span className="text-[10px] font-semibold text-muted-foreground">
+                                            {currency}
+                                        </span>
+                                    </div>
+                                    {dateLabel && (
+                                        <div className="text-[10px] font-medium text-muted-foreground">
+                                            {dateLabel}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
 
-                    {/* Bottom / Right: Exact Share Amount & Percentage */}
-                    <div className={`flex items-baseline ${isCompact ? 'justify-end shrink-0 gap-1.5' : 'justify-between w-full pt-0.5'}`}>
-                        {!isCompact && (
-                            <span className="text-[10px] font-mono text-muted-foreground truncate">
-                                {item.fullAmount !== item.shareAmount
-                                    ? t('bilateralFullCheckTotal', {
-                                          amount: formatCurrencyAmount(item.fullAmount),
-                                          currency
-                                      })
-                                    : dateLabel}
-                            </span>
-                        )}
-                        <div className="flex items-baseline gap-1 shrink-0 ms-auto">
-                            <span className={`font-mono font-black text-xs sm:text-sm ${accentTextClass}`}>
-                                {formatCurrencyAmount(item.shareAmount)}
-                            </span>
-                            <span className="text-[10px] font-semibold text-muted-foreground">
-                                {currency}
-                            </span>
-                        </div>
-                    </div>
+                            {/* Center sticky badge for very tall blocks (>= 180px) so scrolling alongside smaller blocks keeps context visible */}
+                            {isTall && exactHeightPx >= 180 && (
+                                <div className="sticky top-28 my-auto py-2 px-3 rounded-xl bg-card/85 backdrop-blur-xs border border-card-border/80 shadow-xs flex items-center justify-between gap-2 mx-auto w-full max-w-md">
+                                    <span className="text-xs font-extrabold text-foreground truncate">
+                                        {item.description}
+                                    </span>
+                                    <span className={`font-mono font-black text-sm sm:text-base shrink-0 ${accentTextClass}`}>
+                                        {formatCurrencyAmount(item.shareAmount)} {currency}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Bottom footer row with cumulative sum */}
+                            {(isMedium || isTall) && (
+                                <div className="flex items-center justify-between gap-2 pt-1 border-t border-card-border/30 text-[10px] font-mono text-muted-foreground">
+                                    <span>
+                                        {t('bilateralCumulative', {
+                                            amount: formatCurrencyAmount(item.cumulativeAmount),
+                                            currency
+                                        })}
+                                    </span>
+                                    <span>{item.percentageOfMax}%</span>
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
             </div>
         );
@@ -400,28 +550,35 @@ export default function BilateralCheckCoverage({
     const renderUncoveredGapBlock = (debtorName: string, creditorName: string) => {
         if (netDiff < 0.01) return null;
 
+        const exactGapHeightPx = Math.max(24, netDiff * pxPerUnit);
+        const isCompactGap = exactGapHeightPx < 64;
+
         return (
             <div
                 key="uncovered-gap"
-                style={{
-                    flexGrow: Math.max(netDiff, 0.01),
-                    flexBasis: 0,
-                    minHeight: '46px'
-                }}
-                className="pb-0 box-border w-full transition-all duration-300"
+                style={{ height: `${exactGapHeightPx}px` }}
+                className="pb-0 box-border w-full"
             >
-                <div className="h-full w-full rounded-xl border-2 border-dashed border-amber-500/60 bg-amber-500/8 dark:bg-amber-500/10 px-3 py-2 flex flex-col items-center justify-center text-center overflow-hidden relative">
-                    <div className="flex items-center gap-1 text-[11px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                <div
+                    className={`h-full w-full rounded-xl border-2 border-dashed border-amber-500/65 bg-amber-500/8 dark:bg-amber-500/12 px-3 py-2 flex ${
+                        isCompactGap
+                            ? 'flex-row items-center justify-between gap-2'
+                            : 'flex-col items-center justify-center text-center'
+                    } overflow-clip relative`}
+                >
+                    <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
                         <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
                         <span>{t('bilateralUncoveredGap')}</span>
                     </div>
-                    <div className="font-mono font-black text-xs sm:text-sm text-amber-600 dark:text-amber-400 mt-0.5">
+                    <div className="font-mono font-black text-xs sm:text-base text-amber-600 dark:text-amber-400">
                         +{formatCurrencyAmount(netDiff)}{' '}
                         <span className="text-[10px] font-semibold opacity-80">{currency}</span>
                     </div>
-                    <div className="text-[10px] font-medium text-muted-foreground truncate max-w-full">
-                        {t('bilateralUncoveredSub', { debtor: debtorName, creditor: creditorName })}
-                    </div>
+                    {!isCompactGap && (
+                        <div className="text-[11px] font-semibold text-muted-foreground truncate max-w-full mt-0.5">
+                            {t('bilateralUncoveredSub', { debtor: debtorName, creditor: creditorName })}
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -429,6 +586,12 @@ export default function BilateralCheckCoverage({
 
     const creditorName = leftTotal >= rightTotal ? personAName : personBName;
     const debtorName = leftTotal >= rightTotal ? personBName : personAName;
+
+    const fullPageHref = roomId
+        ? `/rooms/${roomId}/coverage${
+              personAId && personBId ? `?a=${personAId}&b=${personBId}` : ''
+          }`
+        : null;
 
     return (
         <div className="space-y-3 pt-2">
@@ -447,16 +610,79 @@ export default function BilateralCheckCoverage({
                     </p>
                 </div>
 
-                {/* Sorting Toggle */}
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-muted-foreground hidden sm:inline">
-                        {t('bilateralSortLabel')}
-                    </span>
+                {/* Controls: Full Page Link + Scale Mode + Zoom + Sort */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    {!isDedicatedPage && fullPageHref && (
+                        <Link
+                            href={fullPageHref}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-xs font-extrabold transition-all shadow-2xs active:scale-95"
+                        >
+                            <FiExternalLink className="w-3.5 h-3.5 shrink-0" />
+                            <span>{t('bilateralOpenFullPage')}</span>
+                        </Link>
+                    )}
+
+                    {/* 1:1 Exact vs Compact Toggle */}
+                    <div className="flex items-center p-0.5 bg-background rounded-xl border border-card-border shadow-xs text-xs font-bold">
+                        <button
+                            type="button"
+                            onClick={() => setScaleMode('exact')}
+                            title={t('bilateralScaleExactTooltip')}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
+                                scaleMode === 'exact'
+                                    ? 'bg-primary text-primary-foreground shadow-xs'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            <FiMaximize2 className="w-3.5 h-3.5 shrink-0" />
+                            <span>{t('bilateralScaleModeExact')}</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setScaleMode('compact')}
+                            title={t('bilateralScaleCompactTooltip')}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
+                                scaleMode === 'compact'
+                                    ? 'bg-primary text-primary-foreground shadow-xs'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            <FiMinimize2 className="w-3.5 h-3.5 shrink-0" />
+                            <span>{t('bilateralScaleModeCompact')}</span>
+                        </button>
+                    </div>
+
+                    {/* Zoom Controls */}
+                    <div className="flex items-center bg-background rounded-xl border border-card-border shadow-xs p-0.5">
+                        <button
+                            type="button"
+                            onClick={() => setZoomIndex(i => Math.max(0, i - 1))}
+                            disabled={zoomIndex === 0}
+                            title={t('bilateralZoomOut')}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-35 transition-colors cursor-pointer"
+                        >
+                            <FiZoomOut className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="px-1.5 font-mono text-[11px] font-bold text-foreground">
+                            {Math.round(zoomFactor * 100)}%
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => setZoomIndex(i => Math.min(ZOOM_STEPS.length - 1, i + 1))}
+                            disabled={zoomIndex === ZOOM_STEPS.length - 1}
+                            title={t('bilateralZoomIn')}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-35 transition-colors cursor-pointer"
+                        >
+                            <FiZoomIn className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+
+                    {/* Sort Toggle */}
                     <div className="flex items-center p-0.5 bg-background rounded-xl border border-card-border shadow-xs text-xs font-bold">
                         <button
                             type="button"
                             onClick={() => setSortBy('amount')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
                                 sortBy === 'amount'
                                     ? 'bg-primary text-primary-foreground shadow-xs'
                                     : 'text-muted-foreground hover:text-foreground'
@@ -468,7 +694,7 @@ export default function BilateralCheckCoverage({
                         <button
                             type="button"
                             onClick={() => setSortBy('date')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
                                 sortBy === 'date'
                                     ? 'bg-primary text-primary-foreground shadow-xs'
                                     : 'text-muted-foreground hover:text-foreground'
@@ -483,75 +709,71 @@ export default function BilateralCheckCoverage({
 
             {/* Main Card */}
             <div className="p-4 sm:p-5 rounded-2xl bg-card border border-card-border shadow-sm space-y-4">
-                {/* 1. Pair Selector Bar */}
-                <div className="grid grid-cols-1 sm:grid-cols-11 gap-2 sm:gap-3 items-center p-3 rounded-xl bg-muted/40 border border-card-border">
-                    {/* Person A Selector */}
-                    <div className="sm:col-span-5 flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center text-xs shrink-0">
-                            {personAName.charAt(0).toUpperCase()}
+                {/* Sticky Header Wrapper on Dedicated Page so scrolling tall 1:1 stacks keeps member headers visible */}
+                <div
+                    className={
+                        isDedicatedPage
+                            ? 'sticky top-0 z-30 bg-card/95 backdrop-blur-md py-2 -mx-2 px-2 rounded-xl border-b border-card-border/60 space-y-3'
+                            : 'space-y-3'
+                    }
+                >
+                    {/* 1. Pair Selector Bar */}
+                    <div className="grid grid-cols-1 sm:grid-cols-11 gap-2 sm:gap-3 items-center p-3 rounded-xl bg-muted/40 border border-card-border">
+                        {/* Person A Selector */}
+                        <div className="sm:col-span-5 flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center text-xs shrink-0">
+                                {personAName.charAt(0).toUpperCase()}
+                            </div>
+                            <select
+                                aria-label={t('bilateralPersonA')}
+                                value={personAId ?? ''}
+                                onChange={e => handleSelectA(Number(e.target.value))}
+                                className="w-full rounded-xl bg-background border border-card-border px-3 py-2 text-xs sm:text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all cursor-pointer"
+                            >
+                                {eligibleMembers.map(member => (
+                                    <option key={member.id} value={member.id}>
+                                        {member.username}
+                                        {member.id === currentUserId ? ` (${t('youTag')})` : ''}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                        <select
-                            aria-label={t('bilateralPersonA')}
-                            value={personAId ?? ''}
-                            onChange={e => handleSelectA(Number(e.target.value))}
-                            className="w-full rounded-xl bg-background border border-card-border px-3 py-2 text-xs sm:text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all cursor-pointer"
-                        >
-                            {eligibleMembers.map(member => (
-                                <option key={member.id} value={member.id}>
-                                    {member.username}
-                                    {member.id === currentUserId ? ` (${t('youTag')})` : ''}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
 
-                    {/* Swap Button */}
-                    <div className="sm:col-span-1 flex justify-center">
-                        <button
-                            type="button"
-                            onClick={handleSwapPair}
-                            title={t('bilateralSwapPair')}
-                            className="p-2 rounded-xl bg-background hover:bg-muted border border-card-border text-muted-foreground hover:text-primary transition-all active:scale-90 cursor-pointer shadow-2xs"
-                        >
-                            <FiRepeat className="w-4 h-4" />
-                        </button>
-                    </div>
-
-                    {/* Person B Selector */}
-                    <div className="sm:col-span-5 flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-600 dark:text-sky-400 font-bold flex items-center justify-center text-xs shrink-0">
-                            {personBName.charAt(0).toUpperCase()}
+                        {/* Swap Button */}
+                        <div className="sm:col-span-1 flex justify-center">
+                            <button
+                                type="button"
+                                onClick={handleSwapPair}
+                                title={t('bilateralSwapPair')}
+                                className="p-2 rounded-xl bg-background hover:bg-muted border border-card-border text-muted-foreground hover:text-primary transition-all active:scale-90 cursor-pointer shadow-2xs"
+                            >
+                                <FiRepeat className="w-4 h-4" />
+                            </button>
                         </div>
-                        <select
-                            aria-label={t('bilateralPersonB')}
-                            value={personBId ?? ''}
-                            onChange={e => handleSelectB(Number(e.target.value))}
-                            className="w-full rounded-xl bg-background border border-card-border px-3 py-2 text-xs sm:text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all cursor-pointer"
-                        >
-                            {eligibleMembers.map(member => (
-                                <option key={member.id} value={member.id}>
-                                    {member.username}
-                                    {member.id === currentUserId ? ` (${t('youTag')})` : ''}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
 
-                {/* Empty State if no mutual checks exist between this pair */}
-                {leftChecks.length === 0 && rightChecks.length === 0 ? (
-                    <div className="py-12 px-4 text-center rounded-xl bg-background/60 border border-dashed border-card-border space-y-2">
-                        <FiUsers className="w-8 h-8 text-muted-foreground/40 mx-auto" />
-                        <p className="text-xs sm:text-sm font-semibold text-muted-foreground">
-                            {t('bilateralNoTransactions', {
-                                memberA: personAName,
-                                memberB: personBName
-                            })}
-                        </p>
+                        {/* Person B Selector */}
+                        <div className="sm:col-span-5 flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-600 dark:text-sky-400 font-bold flex items-center justify-center text-xs shrink-0">
+                                {personBName.charAt(0).toUpperCase()}
+                            </div>
+                            <select
+                                aria-label={t('bilateralPersonB')}
+                                value={personBId ?? ''}
+                                onChange={e => handleSelectB(Number(e.target.value))}
+                                className="w-full rounded-xl bg-background border border-card-border px-3 py-2 text-xs sm:text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all cursor-pointer"
+                            >
+                                {eligibleMembers.map(member => (
+                                    <option key={member.id} value={member.id}>
+                                        {member.username}
+                                        {member.id === currentUserId ? ` (${t('youTag')})` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
-                ) : (
-                    <>
-                        {/* Column Headers */}
+
+                    {/* Column Headers */}
+                    {(leftChecks.length > 0 || rightChecks.length > 0) && (
                         <div className="grid grid-cols-2 gap-3 sm:gap-5">
                             {/* Left Column Header: Person A paid for Person B */}
                             <div className="p-3 rounded-xl bg-emerald-500/8 border border-emerald-500/20 flex flex-col justify-between gap-1">
@@ -599,39 +821,23 @@ export default function BilateralCheckCoverage({
                                 </div>
                             </div>
                         </div>
+                    )}
+                </div>
 
-                        {/* 2, 3, 4. Proportional Parallel Columns with Reference Grid & Uncovered Gap Block */}
-                        <div className="relative rounded-2xl bg-background/50 border border-card-border p-3 sm:p-4">
-                            {/* Subtle horizontal reference guide lines (25%, 50%, 75%) */}
-                            <div className="pointer-events-none absolute inset-x-3 sm:inset-x-4 inset-y-3 sm:inset-y-4 flex flex-col justify-between z-0">
-                                <div className="border-t border-dashed border-card-border/40 w-full" />
-                                <div className="border-t border-dashed border-card-border/50 w-full" />
-                                <div className="border-t border-dashed border-card-border/50 w-full" />
-                                <div className="border-t border-dashed border-card-border/50 w-full" />
-                                <div className="border-t border-dashed border-card-border/40 w-full" />
-                            </div>
-
-                            <div
-                                className="relative z-10 grid grid-cols-2 gap-3 sm:gap-5 items-stretch"
-                                style={{ minHeight: `${stackContainerHeight}px` }}
-                            >
-                                {/* Left Column Stack: Person A paid for Person B */}
-                                <div className="flex flex-col h-full w-full">
-                                    {leftChecks.map(item => renderCheckBlock(item, 'left'))}
-                                    {shorterSide === 'left' &&
-                                        renderUncoveredGapBlock(personAName, personBName)}
-                                </div>
-
-                                {/* Right Column Stack: Person B paid for Person A */}
-                                <div className="flex flex-col h-full w-full">
-                                    {rightChecks.map(item => renderCheckBlock(item, 'right'))}
-                                    {shorterSide === 'right' &&
-                                        renderUncoveredGapBlock(personBName, personAName)}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Bottom Summary Banner */}
+                {/* Empty State if no mutual checks exist between this pair */}
+                {leftChecks.length === 0 && rightChecks.length === 0 ? (
+                    <div className="py-12 px-4 text-center rounded-xl bg-background/60 border border-dashed border-card-border space-y-2">
+                        <FiUsers className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+                        <p className="text-xs sm:text-sm font-semibold text-muted-foreground">
+                            {t('bilateralNoTransactions', {
+                                memberA: personAName,
+                                memberB: personBName
+                            })}
+                        </p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Summary Banner at Top as well for immediate clarity */}
                         <div
                             className={`p-3 rounded-xl border text-xs flex items-center justify-between flex-wrap gap-2 ${
                                 netDiff < 0.01
@@ -669,6 +875,46 @@ export default function BilateralCheckCoverage({
                             <span className="font-mono text-[11px] font-extrabold px-2.5 py-0.5 rounded-lg bg-card border border-card-border text-muted-foreground">
                                 {t('bilateralCoverageRatio', { percent: coveragePercent })}
                             </span>
+                        </div>
+
+                        {/* 2, 3, 4. Strict 1:1 Proportional Parallel Columns with Monetary Ruler & Uncovered Gap Block */}
+                        <div className="relative rounded-2xl bg-background/50 border border-card-border p-3 sm:p-4">
+                            {/* Monetary ruler tick lines across the stack */}
+                            <div
+                                className="pointer-events-none absolute inset-x-3 sm:inset-x-4 top-3 sm:top-4 z-0"
+                                style={{ height: `${totalStackHeightPx}px` }}
+                            >
+                                {rulerTicks.map(tickVal => {
+                                    const topPx = tickVal * pxPerUnit;
+                                    return (
+                                        <div
+                                            key={tickVal}
+                                            style={{ top: `${topPx}px` }}
+                                            className="absolute inset-x-0 border-t border-dashed border-card-border/60 flex justify-center"
+                                        >
+                                            <span className="-top-2.5 relative px-1.5 py-0.2 rounded bg-card/90 text-[9px] font-mono font-bold text-muted-foreground border border-card-border/50">
+                                                {formatCurrencyAmount(tickVal)} {currency}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="relative z-10 grid grid-cols-2 gap-3 sm:gap-5 items-start">
+                                {/* Left Column Stack: Person A paid for Person B */}
+                                <div className="flex flex-col w-full">
+                                    {leftChecks.map(item => renderCheckBlock(item, 'left'))}
+                                    {shorterSide === 'left' &&
+                                        renderUncoveredGapBlock(personAName, personBName)}
+                                </div>
+
+                                {/* Right Column Stack: Person B paid for Person A */}
+                                <div className="flex flex-col w-full">
+                                    {rightChecks.map(item => renderCheckBlock(item, 'right'))}
+                                    {shorterSide === 'right' &&
+                                        renderUncoveredGapBlock(personBName, personAName)}
+                                </div>
+                            </div>
                         </div>
                     </>
                 )}

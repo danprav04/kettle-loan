@@ -3,12 +3,13 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useSync } from '@/components/SyncProvider';
 import { getRoomData, Entry, addLocalEntry, saveRoomData, calculateAllMemberBalances, calculatePeerToPeerBalances, PeerBreakdown } from '@/lib/offline-sync';
 import { handleApi } from '@/lib/api';
 import { useUser } from '@/components/UserProvider';
-import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign, FiArrowDownLeft, FiArrowUpRight, FiCheckCircle, FiUsers, FiActivity, FiShare2, FiZap, FiLayers, FiInfo } from 'react-icons/fi';
+import { FiChevronDown, FiSearch, FiRotateCcw, FiStar, FiClock, FiDollarSign, FiArrowDownLeft, FiArrowUpRight, FiCheckCircle, FiUsers, FiActivity, FiShare2, FiZap, FiLayers, FiInfo, FiColumns } from 'react-icons/fi';
 import { getEntryDetails, getEntryPayerAndParticipantStrings } from '@/lib/entry-formatting';
 import ShareEntryModal from '@/components/ShareEntryModal';
 
@@ -405,6 +406,14 @@ export default function BalanceDetailsPage() {
                     {t('backToRoom')}
                 </button>
 
+                <Link
+                    href={`/rooms/${roomId}/coverage${activePerspectiveUserId ? `?a=${activePerspectiveUserId}` : ''}`}
+                    className="font-bold py-2 px-4 rounded-xl bg-card hover:bg-muted text-primary border border-primary/30 flex items-center gap-2 text-xs sm:text-sm shadow-sm transition-all active:scale-95"
+                >
+                    <FiColumns className="w-4 h-4 shrink-0" />
+                    <span>{t('bilateralCoverageBtn')}</span>
+                </Link>
+
                 {/* View Switcher & Default Saver */}
                 <div className="flex items-center gap-2" style={{ display: 'none' }}>
                     <div className="bg-card p-1 rounded-xl border border-card-border shadow-sm flex items-center" style={{ display: 'none' }}>
@@ -693,12 +702,21 @@ export default function BalanceDetailsPage() {
                                                     )}
                                                     {p2pData?.transactions && p2pData.transactions.length > 0 ? (
                                                         <div className="mt-3.5 space-y-2">
-                                                            <div className="flex items-center justify-between text-xs font-extrabold text-foreground dark:text-zinc-300 uppercase tracking-wider px-1 pb-1">
+                                                            <div className="flex items-center justify-between flex-wrap gap-2 text-xs font-extrabold text-foreground dark:text-zinc-300 uppercase tracking-wider px-1 pb-1">
                                                                 <span className="flex items-center gap-1.5">
                                                                     <FiClock className="w-4 h-4 shrink-0" />
                                                                     <span className="truncate">{t('mutualActivityLog')}</span>
                                                                 </span>
-                                                                <span className="hidden sm:inline shrink-0">{t('netImpactLabel')} / {t('totalAfterHeader')}</span>
+                                                                <div className="flex items-center gap-3">
+                                                                    <Link
+                                                                        href={`/rooms/${roomId}/coverage?a=${activePerspectiveUserId}&b=${member.id}`}
+                                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-[11px] font-extrabold normal-case tracking-normal transition-all active:scale-95"
+                                                                    >
+                                                                        <FiColumns className="w-3.5 h-3.5 shrink-0" />
+                                                                        <span>{t('comparePairCoverageBtn')}</span>
+                                                                    </Link>
+                                                                    <span className="hidden sm:inline shrink-0">{t('netImpactLabel')} / {t('totalAfterHeader')}</span>
+                                                                </div>
                                                             </div>
                                                             <div className="divide-y divide-card-border bg-card rounded-2xl border border-card-border overflow-hidden shadow-md">
                                                                 {p2pData.transactions.map((tx, index) => {

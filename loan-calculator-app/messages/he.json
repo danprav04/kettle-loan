@@ -221,7 +221,9 @@
     "fetchingRate": "טוען שער חליפין…",
     "rateUnavailable": "שער חליפין אינו זמין",
     "rateNotAvailableError": "שער החליפין טרם נטען. אנא המתן.",
-    "appendNoteToDescription": "הוסף סכום מקורי לתיאור"
+    "appendNoteToDescription": "הוסף סכום מקורי לתיאור",
+    "bilateralCoverageBtn": "כיסוי צ'קים הדדי",
+    "comparePairCoverageBtn": "השוואת צ'קים (1:1)"
   },
   "Stats": {
     "title": "סטטיסטיקות חדר",
@@ -317,7 +319,17 @@
     "bilateralNoTransactions": "לא נמצאו הוצאות או העברות הדדיות בין {memberA} לבין {memberB}.",
     "bilateralNeedMoreMembers": "נדרשים לפחות 2 משתתפים פעילים להשוואת כיסוי הדדי.",
     "bilateralFullCheckTotal": "סכום כולל: {amount} {currency}",
-    "bilateralCoverageRatio": "{percent}% מכוסה"
+    "bilateralCoverageRatio": "{percent}% מכוסה",
+    "bilateralScaleModeExact": "יחס 1:1 מדויק",
+    "bilateralScaleModeCompact": "מכווץ",
+    "bilateralScaleExactTooltip": "קנה מידה כספי 1:1 מדויק: לכל יחידת מטבע יש גובה פיקסלים זהה בדיוק בכל הבלוקים, גם עבור הוצאות גדולות מאוד",
+    "bilateralScaleCompactTooltip": "קנה מידה מכווץ להתאמת עמודות ארוכות למסך תוך שמירה על יחס גבהים ברור בין סכומים",
+    "bilateralZoomIn": "הגדל קנה מידה",
+    "bilateralZoomOut": "הקטן קנה מידה",
+    "bilateralOpenFullPage": "פתח תצוגת כיסוי 1:1 בעמוד מלא",
+    "bilateralBackToStats": "סטטיסטיקות חדר",
+    "bilateralBackToBalance": "פירוט יתרות",
+    "bilateralCumulative": "∑ {amount} {currency}"
   },
   "Dialog": {
     "cancel": "ביטול",

@@ -221,7 +221,9 @@
     "fetchingRate": "Fetching rate…",
     "rateUnavailable": "Rate unavailable",
     "rateNotAvailableError": "Exchange rate not ready. Please wait.",
-    "appendNoteToDescription": "Append original amount to description"
+    "appendNoteToDescription": "Append original amount to description",
+    "bilateralCoverageBtn": "Bilateral Check Coverage",
+    "comparePairCoverageBtn": "Compare Checks (1:1)"
   },
   "Stats": {
     "title": "Room Statistics",
@@ -317,7 +319,17 @@
     "bilateralNoTransactions": "No mutual expenses or transfers found between {memberA} and {memberB}.",
     "bilateralNeedMoreMembers": "At least 2 active participants are required to compare bilateral check coverage.",
     "bilateralFullCheckTotal": "Full check: {amount} {currency}",
-    "bilateralCoverageRatio": "{percent}% covered"
+    "bilateralCoverageRatio": "{percent}% covered",
+    "bilateralScaleModeExact": "1:1 Exact Scale",
+    "bilateralScaleModeCompact": "Compressed",
+    "bilateralScaleExactTooltip": "Strict 1-to-1 monetary scale: every 1 unit of currency has the exact same pixel height across all blocks, even for very large checks",
+    "bilateralScaleCompactTooltip": "Compressed proportional scale to fit tall stacks in a shorter view while keeping larger checks taller than smaller ones",
+    "bilateralZoomIn": "Increase scale",
+    "bilateralZoomOut": "Decrease scale",
+    "bilateralOpenFullPage": "Open Full-Page 1:1 Coverage View",
+    "bilateralBackToStats": "Room Statistics",
+    "bilateralBackToBalance": "Detailed Balances",
+    "bilateralCumulative": "∑ {amount} {currency}"
   },
   "Dialog": {
     "cancel": "Cancel",

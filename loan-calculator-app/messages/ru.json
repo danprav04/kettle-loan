@@ -221,7 +221,9 @@
     "fetchingRate": "Получение курса…",
     "rateUnavailable": "Курс недоступен",
     "rateNotAvailableError": "Курс обмена еще не готов. Пожалуйста, подождите.",
-    "appendNoteToDescription": "Добавить исходную сумму в описание"
+    "appendNoteToDescription": "Добавить исходную сумму в описание",
+    "bilateralCoverageBtn": "Взаимное покрытие чеков",
+    "comparePairCoverageBtn": "Покрытие чеков (1:1)"
   },
   "Stats": {
     "title": "Статистика комнаты",
@@ -317,7 +319,17 @@
     "bilateralNoTransactions": "Нет взаимных расходов или переводов между {memberA} и {memberB}.",
     "bilateralNeedMoreMembers": "Для сравнения взаимного покрытия чеков требуется минимум 2 активных участника.",
     "bilateralFullCheckTotal": "Весь чек: {amount} {currency}",
-    "bilateralCoverageRatio": "Покрыто {percent}%"
+    "bilateralCoverageRatio": "Покрыто {percent}%",
+    "bilateralScaleModeExact": "Масштаб 1:1 (Точный)",
+    "bilateralScaleModeCompact": "Сжатый",
+    "bilateralScaleExactTooltip": "Строгий масштаб 1 к 1: каждая единица валюты имеет абсолютно одинаковую высоту в пикселях во всех блоках, даже если чеки огромные",
+    "bilateralScaleCompactTooltip": "Сжатый пропорциональный масштаб для компактного просмотра при сохранении разницы размеров",
+    "bilateralZoomIn": "Увеличить масштаб",
+    "bilateralZoomOut": "Уменьшить масштаб",
+    "bilateralOpenFullPage": "Открыть на отдельной странице (1:1)",
+    "bilateralBackToStats": "Статистика комнаты",
+    "bilateralBackToBalance": "Детальный баланс",
+    "bilateralCumulative": "∑ {amount} {currency}"
   },
   "Dialog": {
     "cancel": "Отмена",
