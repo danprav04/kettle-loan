@@ -79,17 +79,17 @@ function CoveragePageContent() {
     }, [fetchData]);
 
     return (
-        <div className="max-w-5xl mx-auto animate-scaleIn flex flex-col h-full gap-3 overflow-hidden">
+        <div className="w-full max-w-5xl mx-auto animate-scaleIn flex flex-col min-h-full gap-3 overflow-hidden">
             {/* Top Navigation Bar */}
             <div className="flex items-center justify-between flex-wrap gap-2 shrink-0">
                 <button
                     onClick={() => router.back()}
-                    className="font-bold py-2 px-4 rounded-xl btn-primary text-xs sm:text-sm shadow-sm transition-all active:scale-95 cursor-pointer"
+                    className="w-full sm:w-auto font-bold py-2.5 px-4 rounded-xl btn-primary text-xs sm:text-sm shadow-sm transition-all active:scale-95 cursor-pointer"
                 >
                     {tRoom('backToRoom')}
                 </button>
 
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="w-full sm:w-auto flex items-center gap-2">
                     {roomName && (
                         <span className="text-xs font-bold text-muted-foreground bg-card px-3 py-1.5 rounded-xl border border-card-border hidden sm:inline-block">
                             {roomName}
@@ -97,17 +97,17 @@ function CoveragePageContent() {
                     )}
                     <Link
                         href={`/rooms/${roomId}/balance`}
-                        className="inline-flex items-center gap-1.5 font-bold py-2 px-3.5 rounded-xl bg-card hover:bg-muted text-foreground border border-card-border text-xs sm:text-sm shadow-xs transition-all active:scale-95"
+                        className="min-w-0 flex-1 justify-center inline-flex items-center gap-1.5 font-bold py-2.5 px-2 sm:px-3.5 rounded-xl bg-card hover:bg-muted text-foreground border border-card-border text-xs sm:text-sm shadow-xs transition-all active:scale-95"
                     >
                         <FiUsers className="w-4 h-4 text-primary shrink-0" />
-                        <span>{t('bilateralBackToBalance')}</span>
+                        <span className="truncate">{t('bilateralBackToBalance')}</span>
                     </Link>
                     <Link
                         href={`/rooms/${roomId}/stats`}
-                        className="inline-flex items-center gap-1.5 font-bold py-2 px-3.5 rounded-xl bg-card hover:bg-muted text-foreground border border-card-border text-xs sm:text-sm shadow-xs transition-all active:scale-95"
+                        className="min-w-0 flex-1 justify-center inline-flex items-center gap-1.5 font-bold py-2.5 px-2 sm:px-3.5 rounded-xl bg-card hover:bg-muted text-foreground border border-card-border text-xs sm:text-sm shadow-xs transition-all active:scale-95"
                     >
                         <FiBarChart2 className="w-4 h-4 text-primary shrink-0" />
-                        <span>{t('bilateralBackToStats')}</span>
+                        <span className="truncate">{t('bilateralBackToStats')}</span>
                     </Link>
                 </div>
             </div>
@@ -123,7 +123,7 @@ function CoveragePageContent() {
                     <p className="text-muted-foreground text-sm font-medium">{t('noEntriesStats')}</p>
                 </div>
             ) : (
-                <div className="bg-card shadow-lg rounded-2xl border border-card-border p-3 sm:p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
+                <div className="bg-card shadow-lg rounded-xl sm:rounded-2xl border border-card-border p-2.5 sm:p-5 flex-1 min-h-0 flex flex-col overflow-hidden">
                     <BilateralCheckCoverage
                         entries={entries}
                         members={members}

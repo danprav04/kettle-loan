@@ -832,7 +832,7 @@ export default function BilateralCheckCoverage({
             {/* Section Header */}
             <div className="flex items-center justify-between flex-wrap gap-2 shrink-0">
                 <div>
-                    <h2 className="text-base sm:text-lg font-extrabold text-card-foreground flex items-center gap-2">
+                    <h2 className="text-base sm:text-lg font-extrabold text-card-foreground flex items-center gap-1.5 sm:gap-2">
                         <div className="p-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 shadow-2xs">
                             <FiColumns className="w-4 h-4" />
                         </div>
@@ -847,7 +847,7 @@ export default function BilateralCheckCoverage({
                 </div>
 
                 {/* Controls: Full Page Link + Scale Mode + Sort */}
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="w-full sm:w-auto flex items-center gap-2 flex-wrap">
                     {!isDedicatedPage && fullPageHref && (
                         <Link
                             href={fullPageHref}
@@ -859,60 +859,60 @@ export default function BilateralCheckCoverage({
                     )}
 
                     {/* 1:1 Exact vs Compact Toggle */}
-                    <div className="flex items-center p-0.5 bg-background rounded-xl border border-card-border shadow-xs text-xs font-bold">
+                    <div className="flex flex-1 sm:flex-none items-center p-0.5 bg-background rounded-xl border border-card-border shadow-xs text-xs font-bold">
                         <button
                             type="button"
                             onClick={() => setScaleMode('exact')}
                             title={t('bilateralScaleExactTooltip')}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
+                            className={`min-w-0 flex-1 sm:flex-none justify-center flex items-center gap-1.5 px-2 py-1.5 sm:px-2.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
                                 scaleMode === 'exact'
                                     ? 'bg-primary text-primary-foreground shadow-xs'
                                     : 'text-muted-foreground hover:text-foreground'
                             }`}
                         >
                             <FiMaximize2 className="w-3.5 h-3.5 shrink-0" />
-                            <span>{t('bilateralScaleModeExact')}</span>
+                            <span className="truncate">{t('bilateralScaleModeExact')}</span>
                         </button>
                         <button
                             type="button"
                             onClick={() => setScaleMode('compact')}
                             title={t('bilateralScaleCompactTooltip')}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
+                            className={`min-w-0 flex-1 sm:flex-none justify-center flex items-center gap-1.5 px-2 py-1.5 sm:px-2.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
                                 scaleMode === 'compact'
                                     ? 'bg-primary text-primary-foreground shadow-xs'
                                     : 'text-muted-foreground hover:text-foreground'
                             }`}
                         >
                             <FiMinimize2 className="w-3.5 h-3.5 shrink-0" />
-                            <span>{t('bilateralScaleModeCompact')}</span>
+                            <span className="truncate">{t('bilateralScaleModeCompact')}</span>
                         </button>
                     </div>
 
                     {/* Sort Toggle */}
-                    <div className="flex items-center p-0.5 bg-background rounded-xl border border-card-border shadow-xs text-xs font-bold">
+                    <div className="flex flex-1 sm:flex-none items-center p-0.5 bg-background rounded-xl border border-card-border shadow-xs text-xs font-bold">
                         <button
                             type="button"
                             onClick={() => setSortBy('amount')}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
+                            className={`min-w-0 flex-1 sm:flex-none justify-center flex items-center gap-1.5 px-2 py-1.5 sm:px-2.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
                                 sortBy === 'amount'
                                     ? 'bg-primary text-primary-foreground shadow-xs'
                                     : 'text-muted-foreground hover:text-foreground'
                             }`}
                         >
                             <FiTrendingUp className="w-3.5 h-3.5 shrink-0" />
-                            <span>{t('bilateralSortByAmount')}</span>
+                            <span className="truncate">{t('bilateralSortByAmount')}</span>
                         </button>
                         <button
                             type="button"
                             onClick={() => setSortBy('date')}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
+                            className={`min-w-0 flex-1 sm:flex-none justify-center flex items-center gap-1.5 px-2 py-1.5 sm:px-2.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
                                 sortBy === 'date'
                                     ? 'bg-primary text-primary-foreground shadow-xs'
                                     : 'text-muted-foreground hover:text-foreground'
                             }`}
                         >
                             <FiCalendar className="w-3.5 h-3.5 shrink-0" />
-                            <span>{t('bilateralSortByDate')}</span>
+                            <span className="truncate">{t('bilateralSortByDate')}</span>
                         </button>
                     </div>
                 </div>
@@ -984,12 +984,12 @@ export default function BilateralCheckCoverage({
                     </div>
 
                     {/* Timeline Zoom Bar + Net Summary Row */}
-                    <div className="flex items-center justify-between flex-wrap gap-2 px-3 py-1.5 rounded-xl bg-background/80 border border-card-border">
-                        <span className="text-[11px] font-semibold text-muted-foreground">
+                    <div className="flex items-center justify-between flex-wrap gap-2 px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl bg-background/80 border border-card-border">
+                        <span className="w-full sm:w-auto text-[10px] sm:text-[11px] font-semibold text-muted-foreground">
                             {t('bilateralZoomHint')}
                         </span>
 
-                        <div className="flex items-center gap-2 ms-auto">
+                        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2">
                             <button
                                 type="button"
                                 onClick={() => applyZoomWithAnchor(prev => prev / 1.3)}
@@ -1008,7 +1008,7 @@ export default function BilateralCheckCoverage({
                                 value={sliderValue}
                                 onChange={e => handleSliderChange(Number(e.target.value))}
                                 aria-label="Scale zoom"
-                                className="w-28 sm:w-40 accent-primary cursor-pointer h-1.5 bg-muted rounded-lg"
+                                className="flex-1 sm:flex-none w-auto sm:w-40 accent-primary cursor-pointer h-1.5 bg-muted rounded-lg"
                             />
 
                             <button
@@ -1034,11 +1034,11 @@ export default function BilateralCheckCoverage({
 
                     {/* Column Headers */}
                     {(leftChecks.length > 0 || rightChecks.length > 0) && (
-                        <div className="grid grid-cols-2 gap-3 sm:gap-5">
+                        <div className="grid grid-cols-2 gap-2 sm:gap-5">
                             {/* Left Column Header: Person A paid for Person B */}
-                            <div className="p-2 sm:p-2.5 rounded-xl bg-emerald-500/8 border border-emerald-500/20 flex flex-col justify-between gap-1">
+                            <div className="min-w-0 p-2 sm:p-2.5 rounded-xl bg-emerald-500/8 border border-emerald-500/20 flex flex-col justify-between gap-1">
                                 <div className="flex items-center justify-between gap-1 flex-wrap">
-                                    <span className="text-xs sm:text-sm font-extrabold text-emerald-700 dark:text-emerald-300 truncate">
+                                    <span className="min-w-0 text-[11px] sm:text-sm font-extrabold text-emerald-700 dark:text-emerald-300 truncate">
                                         {t('bilateralPaidForHeader', {
                                             payer: personAName,
                                             beneficiary: personBName
@@ -1059,9 +1059,9 @@ export default function BilateralCheckCoverage({
                             </div>
 
                             {/* Right Column Header: Person B paid for Person A */}
-                            <div className="p-2 sm:p-2.5 rounded-xl bg-sky-500/8 border border-sky-500/20 flex flex-col justify-between gap-1">
+                            <div className="min-w-0 p-2 sm:p-2.5 rounded-xl bg-sky-500/8 border border-sky-500/20 flex flex-col justify-between gap-1">
                                 <div className="flex items-center justify-between gap-1 flex-wrap">
-                                    <span className="text-xs sm:text-sm font-extrabold text-sky-700 dark:text-sky-300 truncate">
+                                    <span className="min-w-0 text-[11px] sm:text-sm font-extrabold text-sky-700 dark:text-sky-300 truncate">
                                         {t('bilateralPaidForHeader', {
                                             payer: personBName,
                                             beneficiary: personAName
