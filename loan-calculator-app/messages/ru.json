@@ -335,6 +335,7 @@
     "bilateralCumulative": "∑ {amount} {currency}",
     "bilateralGoToEntry": "Перейти к чеку во всех записях",
     "bilateralZoomHint": "Ctrl + колесико или Ctrl +/- для масштаба",
+    "bilateralMobileZoomHint": "Щипок 2 пальцами или 2x тап для масштаба",
     "bilateralMobileViewBoth": "Сравнение",
     "bilateralCheckDetails": "Детали чека",
     "bilateralShareLabel": "Доля",

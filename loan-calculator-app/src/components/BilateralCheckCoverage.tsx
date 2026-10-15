@@ -162,7 +162,13 @@ export default function BilateralCheckCoverage({
     const [mobileTab, setMobileTab] = useState<'both' | 'left' | 'right'>('both');
     const [selectedCheck, setSelectedCheck] = useState<CheckBlockItem | null>(null);
 
+    const [scrollContainerEl, setScrollContainerEl] = useState<HTMLDivElement | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+    const setScrollContainerNode = useCallback((node: HTMLDivElement | null) => {
+        scrollContainerRef.current = node;
+        setScrollContainerEl(node);
+    }, []);
+
     const stacksRef = useRef<HTMLDivElement | null>(null);
     const zoomFactorRef = useRef<number>(zoomFactor);
     zoomFactorRef.current = zoomFactor;
@@ -287,13 +293,15 @@ export default function BilateralCheckCoverage({
         };
     }, [applyZoomWithAnchor]);
 
-    // Touch pinch-to-zoom gesture on mobile
+    // Touch pinch-to-zoom and gesture handling on mobile
     useEffect(() => {
-        const container = scrollContainerRef.current;
-        if (!container) return;
+        if (!scrollContainerEl) return;
 
         let startDistance: number | null = null;
         let startZoom = 1;
+        let lastTapTime = 0;
+        let lastTapX = 0;
+        let lastTapY = 0;
 
         const onTouchStart = (e: TouchEvent) => {
             if (e.touches.length === 2) {
@@ -301,26 +309,55 @@ export default function BilateralCheckCoverage({
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
                 startDistance = Math.hypot(dx, dy);
                 startZoom = zoomFactorRef.current;
+            } else if (e.touches.length === 1) {
+                // Double tap detection
+                const now = Date.now();
+                const tapX = e.touches[0].clientX;
+                const tapY = e.touches[0].clientY;
+                const timeDiff = now - lastTapTime;
+                const distDiff = Math.hypot(tapX - lastTapX, tapY - lastTapY);
+
+                if (timeDiff < 320 && distDiff < 35) {
+                    // Double-tap to toggle zoom
+                    if (e.cancelable) e.preventDefault();
+                    const mid = { clientX: tapX, clientY: tapY };
+                    applyZoomWithAnchor(prev => (prev > 1.25 ? 1 : prev * 1.8), mid);
+                    lastTapTime = 0;
+                    return;
+                }
+                lastTapTime = now;
+                lastTapX = tapX;
+                lastTapY = tapY;
+                startDistance = null;
             } else {
                 startDistance = null;
             }
         };
 
         const onTouchMove = (e: TouchEvent) => {
-            if (e.touches.length === 2 && startDistance && startDistance > 10) {
-                if (e.cancelable) {
-                    e.preventDefault();
-                }
+            if (e.touches.length === 2) {
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
                 const currentDist = Math.hypot(dx, dy);
-                const scale = currentDist / startDistance;
-                const targetZoom = startZoom * scale;
-                const mid = {
-                    clientX: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-                    clientY: (e.touches[0].clientY + e.touches[1].clientY) / 2
-                };
-                applyZoomWithAnchor(() => targetZoom, mid);
+
+                if (!startDistance) {
+                    startDistance = currentDist;
+                    startZoom = zoomFactorRef.current;
+                    return;
+                }
+
+                if (startDistance > 5) {
+                    if (e.cancelable) {
+                        e.preventDefault();
+                    }
+                    const scale = currentDist / startDistance;
+                    const targetZoom = startZoom * scale;
+                    const mid = {
+                        clientX: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                        clientY: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                    };
+                    applyZoomWithAnchor(() => targetZoom, mid);
+                }
             }
         };
 
@@ -330,18 +367,49 @@ export default function BilateralCheckCoverage({
             }
         };
 
-        container.addEventListener('touchstart', onTouchStart, { passive: true });
-        container.addEventListener('touchmove', onTouchMove, { passive: false });
-        container.addEventListener('touchend', onTouchEnd, { passive: true });
-        container.addEventListener('touchcancel', onTouchEnd, { passive: true });
+        // iOS Safari native gesture events
+        let gestureStartZoom = 1;
+        const onGestureStart = (e: Event) => {
+            if (e.cancelable) e.preventDefault();
+            gestureStartZoom = zoomFactorRef.current;
+        };
+
+        const onGestureChange = (e: any) => {
+            if (e.cancelable) e.preventDefault();
+            if (typeof e.scale === 'number') {
+                const targetZoom = gestureStartZoom * e.scale;
+                const mid = {
+                    clientX: e.clientX ?? window.innerWidth / 2,
+                    clientY: e.clientY ?? window.innerHeight / 2
+                };
+                applyZoomWithAnchor(() => targetZoom, mid);
+            }
+        };
+
+        const onGestureEnd = (e: Event) => {
+            if (e.cancelable) e.preventDefault();
+        };
+
+        scrollContainerEl.addEventListener('touchstart', onTouchStart, { passive: false });
+        scrollContainerEl.addEventListener('touchmove', onTouchMove, { passive: false });
+        scrollContainerEl.addEventListener('touchend', onTouchEnd, { passive: true });
+        scrollContainerEl.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+        // Safari gesture event listeners
+        scrollContainerEl.addEventListener('gesturestart', onGestureStart as EventListener, { passive: false });
+        scrollContainerEl.addEventListener('gesturechange', onGestureChange as EventListener, { passive: false });
+        scrollContainerEl.addEventListener('gestureend', onGestureEnd as EventListener, { passive: false });
 
         return () => {
-            container.removeEventListener('touchstart', onTouchStart);
-            container.removeEventListener('touchmove', onTouchMove);
-            container.removeEventListener('touchend', onTouchEnd);
-            container.removeEventListener('touchcancel', onTouchEnd);
+            scrollContainerEl.removeEventListener('touchstart', onTouchStart);
+            scrollContainerEl.removeEventListener('touchmove', onTouchMove);
+            scrollContainerEl.removeEventListener('touchend', onTouchEnd);
+            scrollContainerEl.removeEventListener('touchcancel', onTouchEnd);
+            scrollContainerEl.removeEventListener('gesturestart', onGestureStart as EventListener);
+            scrollContainerEl.removeEventListener('gesturechange', onGestureChange as EventListener);
+            scrollContainerEl.removeEventListener('gestureend', onGestureEnd as EventListener);
         };
-    }, [applyZoomWithAnchor]);
+    }, [scrollContainerEl, applyZoomWithAnchor]);
 
     // Sync initial query params if provided
     useEffect(() => {
@@ -1052,6 +1120,9 @@ export default function BilateralCheckCoverage({
                         <span className="text-[11px] font-semibold text-muted-foreground hidden sm:inline">
                             {t('bilateralZoomHint')}
                         </span>
+                        <span className="text-[10px] font-semibold text-muted-foreground sm:hidden truncate max-w-[150px]">
+                            {t('bilateralMobileZoomHint')}
+                        </span>
 
                         <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-between sm:justify-end">
                             <button
@@ -1252,7 +1323,8 @@ export default function BilateralCheckCoverage({
                 ) : (
                     /* Scrollable Checks Viewport — begins strictly below the header */
                     <div
-                        ref={scrollContainerRef}
+                        ref={setScrollContainerNode}
+                        style={{ touchAction: 'pan-y' }}
                         className={
                             isDedicatedPage
                                 ? 'flex-1 min-h-0 overflow-y-auto rounded-2xl bg-background/50 border border-card-border'

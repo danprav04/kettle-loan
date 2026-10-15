@@ -335,6 +335,7 @@
     "bilateralCumulative": "∑ {amount} {currency}",
     "bilateralGoToEntry": "עבור לרשומה בכל הרשומות",
     "bilateralZoomHint": "Ctrl + גלילה או Ctrl +/- לזום",
+    "bilateralMobileZoomHint": "צביטה ב-2 אצבעות או לחיצה כפולה לזום",
     "bilateralMobileViewBoth": "השוואה",
     "bilateralCheckDetails": "פרטי הוצאה",
     "bilateralShareLabel": "חלק",

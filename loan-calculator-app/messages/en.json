@@ -335,6 +335,7 @@
     "bilateralCumulative": "∑ {amount} {currency}",
     "bilateralGoToEntry": "Go to check in All Entries",
     "bilateralZoomHint": "Ctrl + Scroll or Ctrl +/- to zoom",
+    "bilateralMobileZoomHint": "Pinch with 2 fingers or double-tap to zoom",
     "bilateralMobileViewBoth": "Comparison",
     "bilateralCheckDetails": "Check Details",
     "bilateralShareLabel": "Share",
