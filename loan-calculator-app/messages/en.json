@@ -341,7 +341,20 @@
     "bilateralShareLabel": "Share",
     "bilateralDateLabel": "Date",
     "bilateralClose": "Close",
-    "bilateralBackShort": "Back"
+    "bilateralBackShort": "Back",
+    "settlementModeSimplifiedShort": "Simplified",
+    "settlementModeDirectShort": "Direct",
+    "bilateralTransitiveSettlement": "Transitive settlement",
+    "bilateralTransitiveVia": "via {name}",
+    "bilateralTransitiveAbsorbed": "Included in transfer",
+    "bilateralTransitiveOffsetDesc": "Transitive settlement via {name}",
+    "bilateralTransitiveAbsorbedDesc": "Included in transfer: credit for {name}",
+    "bilateralTransitiveGenericDesc": "Simplified debt reallocation",
+    "bilateralTransitiveOffsetExplanation": "Debt between {memberA} and {memberB} is settled via room debt simplification involving {related}.",
+    "bilateralTransitiveAbsorbedExplanation": "This amount is consolidated into the simplified transfer between {memberA} and {memberB} to settle obligations involving {related}.",
+    "bilateralNetSummarySettledSimplified": "All mutual checks between {memberA} and {memberB} are fully covered including room debt simplification (difference 0 {currency}).",
+    "bilateralGoToSettlement": "View simplified settlement",
+    "bilateralPendingReallocation": "Pending simplified reallocation"
   },
   "Dialog": {
     "cancel": "Cancel",

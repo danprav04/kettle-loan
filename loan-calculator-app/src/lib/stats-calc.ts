@@ -1,5 +1,5 @@
 // src/lib/stats-calc.ts
-import { calculateAllMemberBalances, BalanceCalcMember, BalanceCalcEntry } from './balance-calc';
+import { calculateAllMemberBalances, isSettlementEntry, BalanceCalcMember, BalanceCalcEntry } from './balance-calc';
 import { Entry } from './offline-sync';
 
 export interface StatsMember {
@@ -52,24 +52,7 @@ export function formatCurrencyAmount(val: number): string {
     });
 }
 
-export function isSettlementEntry(entry: { description?: string | null }): boolean {
-    if (!entry.description) return false;
-    const desc = entry.description.toLowerCase().trim();
-    const settlementKeywords = [
-        'settle',
-        'repayment',
-        'погашен',
-        'расчет',
-        'расчёт',
-        'סגירת חוב',
-        'סגור חוב',
-        'התחשב',
-        'возврат',
-        'перевод',
-        'transfer'
-    ];
-    return settlementKeywords.some(kw => desc.includes(kw));
-}
+export { isSettlementEntry } from './balance-calc';
 
 export function calculateRoomStats(
     entries: Entry[],

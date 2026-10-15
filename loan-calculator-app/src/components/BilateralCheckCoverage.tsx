@@ -25,10 +25,13 @@ import {
     FiZoomOut,
     FiExternalLink,
     FiEdit3,
-    FiX
+    FiX,
+    FiZap,
+    FiLayers
 } from 'react-icons/fi';
 import {
     calculatePeerToPeerBalances,
+    calculateTransitiveCoverageBlocks,
     BalanceCalcEntry,
     BalanceCalcMember
 } from '@/lib/balance-calc';
@@ -61,6 +64,12 @@ interface CheckBlockItem {
     isSettlement: boolean;
     isLoan: boolean;
     percentageOfMax: number;
+    isTransitive?: boolean;
+    isSettled?: boolean;
+    routeType?: 'offset' | 'absorbed';
+    relatedMemberId?: number;
+    relatedMemberName?: string;
+    sourceEntryId?: string | number;
 }
 
 const MIN_ZOOM = 0.1;
@@ -161,6 +170,23 @@ export default function BilateralCheckCoverage({
     const [zoomFactor, setZoomFactor] = useState<number>(1);
     const [mobileTab, setMobileTab] = useState<'both' | 'left' | 'right'>('both');
     const [selectedCheck, setSelectedCheck] = useState<CheckBlockItem | null>(null);
+    const [settlementMode, setSettlementMode] = useState<'simplified' | 'direct'>('simplified');
+
+    useEffect(() => {
+        if (roomId) {
+            const modePref = localStorage.getItem(`roomSettlementMode_${roomId}`);
+            if (modePref === 'simplified' || modePref === 'direct') {
+                setSettlementMode(modePref);
+            }
+        }
+    }, [roomId]);
+
+    const handleSettlementModeChange = (mode: 'simplified' | 'direct') => {
+        setSettlementMode(mode);
+        if (roomId) {
+            localStorage.setItem(`roomSettlementMode_${roomId}`, mode);
+        }
+    };
 
     const [scrollContainerEl, setScrollContainerEl] = useState<HTMLDivElement | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -560,7 +586,81 @@ export default function BilateralCheckCoverage({
         );
 
         const pairData = p2pMap.get(personBId);
-        if (!pairData || pairData.transactions.length === 0) {
+
+        type RawItem = Omit<CheckBlockItem, 'percentageOfMax' | 'cumulativeAmount'>;
+        const rawLeft: RawItem[] = [];
+        const rawRight: RawItem[] = [];
+
+        if (pairData && pairData.transactions.length > 0) {
+            pairData.transactions.forEach((tx, idx) => {
+                const contrib = tx.contribution;
+                if (Math.abs(contrib) < 0.005) return;
+
+                const rawAmt = typeof tx.amount === 'string' ? parseFloat(tx.amount) : tx.amount;
+                const shareAmount = Math.round(Math.abs(contrib) * 100) / 100;
+                const fullAmount = Math.round(Math.abs(rawAmt || 0) * 100) / 100;
+                const isSettlement = isSettlementEntry(tx as { description?: string | null });
+                const isLoan = !isSettlement && rawAmt < 0;
+
+                const item: RawItem = {
+                    id: tx.id ?? `tx-${idx}`,
+                    description: (tx.description as string) || '—',
+                    shareAmount,
+                    fullAmount,
+                    createdAt: tx.created_at || '',
+                    isSettlement,
+                    isLoan
+                };
+
+                if (contrib > 0) {
+                    rawLeft.push(item);
+                } else {
+                    rawRight.push(item);
+                }
+            });
+        }
+
+        // When in Simplified mode, inject transitive coverage / offset blocks
+        if (settlementMode === 'simplified') {
+            const transitiveBlocks = calculateTransitiveCoverageBlocks(
+                entries as BalanceCalcEntry[],
+                members as BalanceCalcMember[],
+                personAId,
+                personBId
+            );
+
+            transitiveBlocks.forEach((tb, idx) => {
+                const desc = tb.relatedMemberName
+                    ? (tb.routeType === 'offset'
+                        ? t('bilateralTransitiveOffsetDesc', { name: tb.relatedMemberName })
+                        : t('bilateralTransitiveAbsorbedDesc', { name: tb.relatedMemberName }))
+                    : t('bilateralTransitiveGenericDesc');
+
+                const item: RawItem = {
+                    id: tb.id || `transitive-${idx}`,
+                    description: desc,
+                    shareAmount: tb.shareAmount,
+                    fullAmount: tb.fullAmount,
+                    createdAt: '',
+                    isSettlement: true,
+                    isLoan: false,
+                    isTransitive: true,
+                    isSettled: tb.isSettled,
+                    routeType: tb.routeType,
+                    relatedMemberId: tb.relatedMemberId,
+                    relatedMemberName: tb.relatedMemberName,
+                    sourceEntryId: tb.sourceEntryId
+                };
+
+                if (tb.targetSide === 'left') {
+                    rawLeft.push(item);
+                } else {
+                    rawRight.push(item);
+                }
+            });
+        }
+
+        if (rawLeft.length === 0 && rawRight.length === 0) {
             return {
                 leftChecks: [] as CheckBlockItem[],
                 rightChecks: [] as CheckBlockItem[],
@@ -574,45 +674,17 @@ export default function BilateralCheckCoverage({
             };
         }
 
-        type RawItem = Omit<CheckBlockItem, 'percentageOfMax' | 'cumulativeAmount'>;
-        const rawLeft: RawItem[] = [];
-        const rawRight: RawItem[] = [];
-
-        pairData.transactions.forEach((tx, idx) => {
-            const contrib = tx.contribution;
-            if (Math.abs(contrib) < 0.005) return;
-
-            const rawAmt = typeof tx.amount === 'string' ? parseFloat(tx.amount) : tx.amount;
-            const shareAmount = Math.round(Math.abs(contrib) * 100) / 100;
-            const fullAmount = Math.round(Math.abs(rawAmt || 0) * 100) / 100;
-            const isSettlement = isSettlementEntry(tx as { description?: string | null });
-            const isLoan = !isSettlement && rawAmt < 0;
-
-            const item: RawItem = {
-                id: tx.id ?? `tx-${idx}`,
-                description: (tx.description as string) || '—',
-                shareAmount,
-                fullAmount,
-                createdAt: tx.created_at || '',
-                isSettlement,
-                isLoan
-            };
-
-            if (contrib > 0) {
-                rawLeft.push(item);
-            } else {
-                rawRight.push(item);
-            }
-        });
-
         const sortItems = (list: RawItem[]) => {
             const copy = [...list];
             if (sortBy === 'amount') {
                 copy.sort((a, b) => b.shareAmount - a.shareAmount);
             } else {
                 copy.sort((a, b) => {
-                    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    if (!a.createdAt && !b.createdAt) return b.shareAmount - a.shareAmount;
+                    if (!a.createdAt) return 1;
+                    if (!b.createdAt) return -1;
+                    const timeA = new Date(a.createdAt).getTime();
+                    const timeB = new Date(b.createdAt).getTime();
                     return timeB - timeA;
                 });
             }
@@ -661,7 +733,7 @@ export default function BilateralCheckCoverage({
             shorterSide: shorter,
             coveragePercent: covPct
         };
-    }, [personAId, personBId, entries, members, sortBy]);
+    }, [personAId, personBId, entries, members, sortBy, settlementMode, t]);
 
     if (eligibleMembers.length < 2) {
         return (
@@ -741,26 +813,31 @@ export default function BilateralCheckCoverage({
         const isSingleLine = displayHeightPx >= 32 && displayHeightPx < 56;
         const isMicro = displayHeightPx < 32;
 
-        const colorClasses = item.isSettlement
+        const colorClasses = item.isTransitive
+            ? 'bg-purple-500/12 hover:bg-purple-500/22 border-dashed border-purple-500/60 text-purple-950 dark:text-purple-100'
+            : item.isSettlement
             ? 'bg-purple-500/15 hover:bg-purple-500/25 border-purple-500/40 text-purple-950 dark:text-purple-100'
             : side === 'left'
             ? 'bg-emerald-500/14 hover:bg-emerald-500/24 border-emerald-500/40 text-emerald-950 dark:text-emerald-100'
             : 'bg-sky-500/14 hover:bg-sky-500/24 border-sky-500/40 text-sky-950 dark:text-sky-100';
 
-        const accentTextClass = item.isSettlement
+        const accentTextClass = item.isTransitive
+            ? 'text-purple-600 dark:text-purple-400'
+            : item.isSettlement
             ? 'text-purple-600 dark:text-purple-400'
             : side === 'left'
             ? 'text-emerald-600 dark:text-emerald-400'
             : 'text-sky-600 dark:text-sky-400';
 
         const dateLabel = formatShortDate(item.createdAt);
-        const entryHref = roomId ? `/rooms/${roomId}/entries?entryId=${encodeURIComponent(String(item.id))}` : null;
+        const targetEntryId = item.sourceEntryId || (!item.isTransitive ? item.id : null);
+        const entryHref = roomId && targetEntryId ? `/rooms/${roomId}/entries?entryId=${encodeURIComponent(String(targetEntryId))}` : null;
 
         const goToEntryBtn = entryHref ? (
             <Link
                 href={entryHref}
                 onClick={e => e.stopPropagation()}
-                title={t('bilateralGoToEntry')}
+                title={item.isTransitive ? t('bilateralGoToSettlement') : t('bilateralGoToEntry')}
                 className="p-1 rounded-lg bg-card/80 hover:bg-primary hover:text-primary-foreground text-muted-foreground border border-card-border/70 transition-colors shrink-0 shadow-2xs"
             >
                 <FiEdit3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
@@ -802,11 +879,16 @@ export default function BilateralCheckCoverage({
                                 <span className="font-bold text-[11px] sm:text-xs text-foreground truncate">
                                     {item.description}
                                 </span>
-                                {item.isSettlement && (
+                                {item.isTransitive ? (
+                                    <span className="text-[8px] sm:text-[9px] uppercase font-extrabold px-1 sm:px-1.5 py-0.2 rounded bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-500/40 shrink-0 flex items-center gap-1">
+                                        <FiRepeat className="w-2.5 h-2.5 shrink-0" />
+                                        <span>{t('bilateralTransitiveSettlement')}</span>
+                                    </span>
+                                ) : item.isSettlement ? (
                                     <span className="text-[8px] sm:text-[9px] uppercase font-extrabold px-1 sm:px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30 shrink-0">
                                         {t('exportTypeSettlement')}
                                     </span>
-                                )}
+                                ) : null}
                             </div>
                             <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
                                 <div className="flex items-baseline gap-0.5 sm:gap-1">
@@ -830,20 +912,31 @@ export default function BilateralCheckCoverage({
                                         <span className="font-extrabold text-[11px] sm:text-sm text-foreground break-words line-clamp-2">
                                             {item.description}
                                         </span>
-                                        {item.isSettlement && (
+                                        {item.isTransitive ? (
+                                            <span className="text-[8px] sm:text-[9px] uppercase font-extrabold px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-500/40 shrink-0 flex items-center gap-1">
+                                                <FiRepeat className="w-2.5 h-2.5 shrink-0" />
+                                                <span>{t('bilateralTransitiveSettlement')}</span>
+                                            </span>
+                                        ) : item.isSettlement ? (
                                             <span className="text-[8px] sm:text-[9px] uppercase font-extrabold px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30 shrink-0">
                                                 {t('exportTypeSettlement')}
                                             </span>
-                                        )}
+                                        ) : null}
                                     </div>
-                                    {item.fullAmount !== item.shareAmount && (
+                                    {item.isTransitive && item.relatedMemberName ? (
+                                        <div className="text-[9px] sm:text-[10px] font-semibold text-purple-700 dark:text-purple-300 mt-0.5 truncate">
+                                            {item.routeType === 'offset'
+                                                ? t('bilateralTransitiveOffsetDesc', { name: item.relatedMemberName })
+                                                : t('bilateralTransitiveAbsorbedDesc', { name: item.relatedMemberName })}
+                                        </div>
+                                    ) : item.fullAmount !== item.shareAmount ? (
                                         <div className="text-[9px] sm:text-[10px] font-mono text-muted-foreground mt-0.5 truncate">
                                             {t('bilateralFullCheckTotal', {
                                                 amount: formatCurrencyAmount(item.fullAmount),
                                                 currency
                                             })}
                                         </div>
-                                    )}
+                                    ) : null}
                                 </div>
                                 <div className="flex items-start gap-1 sm:gap-1.5 shrink-0">
                                     <div className="text-end">
@@ -985,6 +1078,38 @@ export default function BilateralCheckCoverage({
                             <span>{t('bilateralOpenFullPage')}</span>
                         </Link>
                     )}
+
+                    {/* Simplified vs Direct Settlement Mode Toggle */}
+                    <div className="flex items-center p-0.5 bg-background rounded-xl border border-card-border shadow-xs text-xs font-bold">
+                        <button
+                            type="button"
+                            onClick={() => handleSettlementModeChange('simplified')}
+                            title={t('simplifiedModeTooltip')}
+                            className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
+                                settlementMode === 'simplified'
+                                    ? 'bg-primary text-primary-foreground shadow-xs'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            <FiZap className="w-3.5 h-3.5 shrink-0" />
+                            <span className="hidden sm:inline">{t('settlementModeSimplified')}</span>
+                            <span className="sm:hidden">{t('settlementModeSimplifiedShort')}</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleSettlementModeChange('direct')}
+                            title={t('directModeTooltip')}
+                            className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg transition-all text-xs font-semibold cursor-pointer ${
+                                settlementMode === 'direct'
+                                    ? 'bg-primary text-primary-foreground shadow-xs'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            <FiLayers className="w-3.5 h-3.5 shrink-0" />
+                            <span className="hidden sm:inline">{t('settlementModeDirect')}</span>
+                            <span className="sm:hidden">{t('settlementModeDirectShort')}</span>
+                        </button>
+                    </div>
 
                     {/* 1:1 Exact vs Compact Toggle */}
                     <div className="flex items-center p-0.5 bg-background rounded-xl border border-card-border shadow-xs text-xs font-bold">
@@ -1280,11 +1405,17 @@ export default function BilateralCheckCoverage({
                                     <>
                                         <FiCheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
                                         <span className="truncate">
-                                            {t('bilateralNetSummarySettled', {
-                                                memberA: personAName,
-                                                memberB: personBName,
-                                                currency
-                                            })}
+                                            {settlementMode === 'simplified'
+                                                ? t('bilateralNetSummarySettledSimplified', {
+                                                      memberA: personAName,
+                                                      memberB: personBName,
+                                                      currency
+                                                  })
+                                                : t('bilateralNetSummarySettled', {
+                                                      memberA: personAName,
+                                                      memberB: personBName,
+                                                      currency
+                                                  })}
                                         </span>
                                     </>
                                 ) : (
@@ -1399,11 +1530,16 @@ export default function BilateralCheckCoverage({
                                     <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                                         {t('bilateralCheckDetails')}
                                     </span>
-                                    {selectedCheck.isSettlement && (
+                                    {selectedCheck.isTransitive ? (
+                                        <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-500/40 flex items-center gap-1">
+                                            <FiRepeat className="w-3 h-3 shrink-0" />
+                                            <span>{t('bilateralTransitiveSettlement')}</span>
+                                        </span>
+                                    ) : selectedCheck.isSettlement ? (
                                         <span className="text-[9px] uppercase font-extrabold px-2 py-0.5 rounded bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30">
                                             {t('exportTypeSettlement')}
                                         </span>
-                                    )}
+                                    ) : null}
                                 </div>
                                 <h3 className="text-base sm:text-lg font-black text-foreground break-words mt-1">
                                     {selectedCheck.description}
@@ -1418,6 +1554,33 @@ export default function BilateralCheckCoverage({
                                 <FiX className="w-5 h-5" />
                             </button>
                         </div>
+
+                        {/* Transitive Route Explanation Callout */}
+                        {selectedCheck.isTransitive && (
+                            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/25 text-xs text-foreground space-y-1">
+                                <div className="flex items-center gap-1.5 font-extrabold text-purple-700 dark:text-purple-300">
+                                    <FiRepeat className="w-3.5 h-3.5 shrink-0" />
+                                    <span>
+                                        {selectedCheck.routeType === 'offset'
+                                            ? t('bilateralTransitiveSettlement')
+                                            : t('bilateralTransitiveAbsorbed')}
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                    {selectedCheck.routeType === 'offset'
+                                        ? t('bilateralTransitiveOffsetExplanation', {
+                                              memberA: personAName,
+                                              memberB: personBName,
+                                              related: selectedCheck.relatedMemberName || '—'
+                                          })
+                                        : t('bilateralTransitiveAbsorbedExplanation', {
+                                              memberA: personAName,
+                                              memberB: personBName,
+                                              related: selectedCheck.relatedMemberName || '—'
+                                          })}
+                                </p>
+                            </div>
+                        )}
 
                         {/* Modal Stats Grid */}
                         <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-muted/40 border border-card-border text-xs">
@@ -1456,13 +1619,23 @@ export default function BilateralCheckCoverage({
                         {/* Action Buttons */}
                         <div className="flex items-center gap-2 pt-1">
                             {roomId && (
-                                <Link
-                                    href={`/rooms/${roomId}/entries?entryId=${encodeURIComponent(String(selectedCheck.id))}`}
-                                    className="flex-1 inline-flex items-center justify-center gap-2 font-bold py-2.5 px-4 rounded-xl btn-primary text-xs sm:text-sm shadow-sm transition-all active:scale-95"
-                                >
-                                    <FiEdit3 className="w-4 h-4 shrink-0" />
-                                    <span>{t('bilateralGoToEntry')}</span>
-                                </Link>
+                                selectedCheck.sourceEntryId ? (
+                                    <Link
+                                        href={`/rooms/${roomId}/entries?entryId=${encodeURIComponent(String(selectedCheck.sourceEntryId))}`}
+                                        className="flex-1 inline-flex items-center justify-center gap-2 font-bold py-2.5 px-4 rounded-xl btn-primary text-xs sm:text-sm shadow-sm transition-all active:scale-95"
+                                    >
+                                        <FiEdit3 className="w-4 h-4 shrink-0" />
+                                        <span>{t('bilateralGoToSettlement')}</span>
+                                    </Link>
+                                ) : !selectedCheck.isTransitive ? (
+                                    <Link
+                                        href={`/rooms/${roomId}/entries?entryId=${encodeURIComponent(String(selectedCheck.id))}`}
+                                        className="flex-1 inline-flex items-center justify-center gap-2 font-bold py-2.5 px-4 rounded-xl btn-primary text-xs sm:text-sm shadow-sm transition-all active:scale-95"
+                                    >
+                                        <FiEdit3 className="w-4 h-4 shrink-0" />
+                                        <span>{t('bilateralGoToEntry')}</span>
+                                    </Link>
+                                ) : null
                             )}
                             <button
                                 type="button"

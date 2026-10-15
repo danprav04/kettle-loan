@@ -341,7 +341,20 @@
     "bilateralShareLabel": "חלק",
     "bilateralDateLabel": "תאריך",
     "bilateralClose": "סגור",
-    "bilateralBackShort": "חזור"
+    "bilateralBackShort": "חזור",
+    "settlementModeSimplifiedShort": "מפושט",
+    "settlementModeDirectShort": "ישיר",
+    "bilateralTransitiveSettlement": "סגירה מועברת",
+    "bilateralTransitiveVia": "דרך {name}",
+    "bilateralTransitiveAbsorbed": "נכלל בהעברה",
+    "bilateralTransitiveOffsetDesc": "קיזוז מפושט דרך {name}",
+    "bilateralTransitiveAbsorbedDesc": "נכלל בהעברה: קיזוז עבור {name}",
+    "bilateralTransitiveGenericDesc": "קיזוז חוב מפושט",
+    "bilateralTransitiveOffsetExplanation": "החוב בין {memberA} לבין {memberB} נסגר באמצעות פישוט חובות החדר בהשתתפות {related}.",
+    "bilateralTransitiveAbsorbedExplanation": "סכום זה אוחד לתוך ההעברה המפושטת בין {memberA} לבין {memberB} לסגירת חובות בהשתתפות {related}.",
+    "bilateralNetSummarySettledSimplified": "כל ההוצאות ההדדיות בין {memberA} לבין {memberB} מכוסות במלואן כולל פישוט חובות החדר (הפרש 0 {currency}).",
+    "bilateralGoToSettlement": "צפה בהעברה המפושטת",
+    "bilateralPendingReallocation": "ממתין לקיזוז מפושט"
   },
   "Dialog": {
     "cancel": "ביטול",

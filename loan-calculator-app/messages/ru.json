@@ -341,7 +341,20 @@
     "bilateralShareLabel": "Доля",
     "bilateralDateLabel": "Дата",
     "bilateralClose": "Закрыть",
-    "bilateralBackShort": "Назад"
+    "bilateralBackShort": "Назад",
+    "settlementModeSimplifiedShort": "Упрощ.",
+    "settlementModeDirectShort": "Прямой",
+    "bilateralTransitiveSettlement": "Упрощенный зачет",
+    "bilateralTransitiveVia": "через {name}",
+    "bilateralTransitiveAbsorbed": "Включено в перевод",
+    "bilateralTransitiveOffsetDesc": "Упрощенный зачет через {name}",
+    "bilateralTransitiveAbsorbedDesc": "Включено в перевод: зачет за {name}",
+    "bilateralTransitiveGenericDesc": "Упрощенный зачет долга",
+    "bilateralTransitiveOffsetExplanation": "Обязательство между {memberA} и {memberB} закрыто через упрощенный перевод комнаты с участием {related}.",
+    "bilateralTransitiveAbsorbedExplanation": "Данная сумма включена в упрощенный перевод между {memberA} и {memberB} для закрытия обязательств с участием {related}.",
+    "bilateralNetSummarySettledSimplified": "Все взаимные обязательства между {memberA} и {memberB} полностью покрыты с учетом упрощенных расчетов комнаты (разница 0 {currency}).",
+    "bilateralGoToSettlement": "Перейти к упрощенному переводу",
+    "bilateralPendingReallocation": "Запланировано к упрощенному зачету"
   },
   "Dialog": {
     "cancel": "Отмена",

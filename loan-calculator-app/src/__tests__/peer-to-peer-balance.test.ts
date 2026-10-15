@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     calculateAllMemberBalances,
     calculatePeerToPeerBalances,
+    calculateTransitiveCoverageBlocks,
     BalanceCalcMember,
     BalanceCalcEntry
 } from '../lib/balance-calc';
@@ -345,4 +346,113 @@ describe('calculatePeerToPeerBalances', () => {
         expect(elviraDirect.netBalance).toBe(-50);
         expect(elviraDirect.transactions[0].runningP2PBalance).toBe(-50);
     });
+
+    it('should reconcile transitive pairs and overpayments in simplified check coverage (reproducing Elvira, Marina, Inna, Ira scenario)', () => {
+        // Members: 1: ИННА, 2: ИРА, 3: MARINA, 4: ЭЛЬВИРА
+        const entries: BalanceCalcEntry[] = [
+            {
+                id: 'e1',
+                amount: 1107.60,
+                user_id: 1, // Inna
+                split_with_user_ids: [4], // for Elvira
+                description: 'Inna paid for Elvira',
+                created_at: '2026-09-01T10:00:00Z',
+            },
+            {
+                id: 'e2',
+                amount: 1107.29,
+                user_id: 2, // Ira
+                split_with_user_ids: [4], // for Elvira
+                description: 'Ira paid for Elvira',
+                created_at: '2026-09-01T11:00:00Z',
+            },
+            {
+                id: 'e3',
+                amount: 224.69,
+                user_id: 3, // Marina
+                split_with_user_ids: [4], // for Elvira
+                description: 'Marina paid for Elvira',
+                created_at: '2026-09-01T12:00:00Z',
+            },
+            {
+                id: 'e4',
+                amount: 1107.55,
+                user_id: 3, // Marina
+                split_with_user_ids: [1], // for Inna
+                description: 'Marina paid for Inna',
+                created_at: '2026-09-01T13:00:00Z',
+            },
+            {
+                id: 'e5',
+                amount: 1106.94,
+                user_id: 3, // Marina
+                split_with_user_ids: [2], // for Ira
+                description: 'Marina paid for Ira',
+                created_at: '2026-09-01T14:00:00Z',
+            },
+            // Elvira settles with Marina for 2438.68 (simplified settlement)
+            {
+                id: 's1',
+                amount: 2438.68,
+                user_id: 4, // Elvira
+                split_with_user_ids: [3],
+                payer_shares: [{ userId: 4, percentage: 100 }],
+                beneficiary_shares: [{ userId: 3, percentage: 100 }],
+                description: 'Погашение долга (Упрощенный перевод)',
+                created_at: '2026-09-02T10:00:00Z',
+            },
+        ];
+
+        // 1. Pair: Elvira (4) ↔ Inna (1)
+        const elviraInnaBlocks = calculateTransitiveCoverageBlocks(entries, members, 4, 1);
+        expect(elviraInnaBlocks.length).toBeGreaterThan(0);
+        const elviraInnaTotal = elviraInnaBlocks.reduce((sum, b) => sum + b.shareAmount, 0);
+        expect(elviraInnaTotal).toBeCloseTo(1107.55, 2);
+        expect(elviraInnaBlocks[0].targetSide).toBe('left'); // Placed on Elvira's side
+        expect(elviraInnaBlocks[0].relatedMemberName).toBe('MARINA');
+        expect(elviraInnaBlocks[0].isSettled).toBe(true);
+
+        // 2. Pair: Elvira (4) ↔ Ira (2)
+        const elviraIraBlocks = calculateTransitiveCoverageBlocks(entries, members, 4, 2);
+        expect(elviraIraBlocks.length).toBeGreaterThan(0);
+        const elviraIraTotal = elviraIraBlocks.reduce((sum, b) => sum + b.shareAmount, 0);
+        expect(elviraIraTotal).toBeCloseTo(1106.94, 2);
+        expect(elviraIraBlocks[0].targetSide).toBe('left'); // Placed on Elvira's side
+        expect(elviraIraBlocks[0].relatedMemberName).toBe('MARINA');
+        expect(elviraIraBlocks[0].isSettled).toBe(true);
+
+        // 3. Pair: Elvira (4) ↔ Marina (3)
+        // Elvira paid 2438.68 settlement; Marina paid 224.69 check.
+        // Direct net balance is +2213.99 overpayment.
+        // Transitive blocks should add ~2213.99 to Marina's side ('right') from Inna and Ira!
+        const elviraMarinaBlocks = calculateTransitiveCoverageBlocks(entries, members, 4, 3);
+        expect(elviraMarinaBlocks.length).toBe(2);
+        const elviraMarinaTotal = elviraMarinaBlocks.reduce((sum, b) => sum + b.shareAmount, 0);
+        expect(elviraMarinaTotal).toBeCloseTo(2214.49, 2);
+        expect(elviraMarinaBlocks.every(b => b.targetSide === 'right')).toBe(true); // Placed on Marina's side
+        const names = elviraMarinaBlocks.map(b => b.relatedMemberName);
+        expect(names).toContain('ИННА');
+        expect(names).toContain('ИРА');
+
+        // 4. Pair: Marina (3) ↔ Inna (1)
+        // Marina paid 1107.55 for Inna.
+        // Inna's side ('right' from Marina's perspective) should receive 1107.55 block via Elvira!
+        const marinaInnaBlocks = calculateTransitiveCoverageBlocks(entries, members, 3, 1);
+        expect(marinaInnaBlocks.length).toBeGreaterThan(0);
+        const marinaInnaTotal = marinaInnaBlocks.reduce((sum, b) => sum + b.shareAmount, 0);
+        expect(marinaInnaTotal).toBeCloseTo(1107.55, 2);
+        expect(marinaInnaBlocks[0].targetSide).toBe('right');
+        expect(marinaInnaBlocks[0].relatedMemberName).toBe('ЭЛЬВИРА');
+
+        // 5. Pair: Marina (3) ↔ Ira (2)
+        // Marina paid 1106.94 for Ira.
+        // Ira's side ('right' from Marina's perspective) should receive 1106.94 block via Elvira!
+        const marinaIraBlocks = calculateTransitiveCoverageBlocks(entries, members, 3, 2);
+        expect(marinaIraBlocks.length).toBeGreaterThan(0);
+        const marinaIraTotal = marinaIraBlocks.reduce((sum, b) => sum + b.shareAmount, 0);
+        expect(marinaIraTotal).toBeCloseTo(1106.94, 2);
+        expect(marinaIraBlocks[0].targetSide).toBe('right');
+        expect(marinaIraBlocks[0].relatedMemberName).toBe('ЭЛЬВИРА');
+    });
 });
+

@@ -434,3 +434,180 @@ export function calculateDirectTransfers<T extends BalanceCalcEntry = BalanceCal
     return directTransfers;
 }
 
+export function isSettlementEntry(entry: { description?: string | null }): boolean {
+    if (!entry.description) return false;
+    const desc = entry.description.toLowerCase().trim();
+    const settlementKeywords = [
+        'settle',
+        'repayment',
+        'погашен',
+        'расчет',
+        'расчёт',
+        'סגירת חוב',
+        'סגור חוב',
+        'התחשב',
+        'возврат',
+        'перевод',
+        'transfer'
+    ];
+    return settlementKeywords.some(kw => desc.includes(kw));
+}
+
+export interface TransitiveCoverageBlock {
+    id: string;
+    description: string;
+    shareAmount: number;
+    fullAmount: number;
+    targetSide: 'left' | 'right';
+    relatedMemberId?: number;
+    relatedMemberName?: string;
+    isTransitive: true;
+    isSettlement: boolean;
+    isSettled: boolean;
+    routeType: 'offset' | 'absorbed';
+    sourceEntryId?: string | number;
+}
+
+export function calculateTransitiveCoverageBlocks<T extends BalanceCalcEntry = BalanceCalcEntry>(
+    entries: T[],
+    members: BalanceCalcMember[],
+    personAId: number,
+    personBId: number
+): TransitiveCoverageBlock[] {
+    if (!entries.length || !members.length || !personAId || !personBId || personAId === personBId) {
+        return [];
+    }
+
+    const memberMap = new Map<number, string>();
+    members.forEach(m => {
+        if (m.username) memberMap.set(m.id, m.username);
+    });
+
+    // Calculate P2P in simplified mode for Person A
+    const p2pA = calculatePeerToPeerBalances(entries, members, personAId, { simplifyDebts: true });
+    const pairData = p2pA.get(personBId);
+    if (!pairData) return [];
+
+    const totalReallocated = pairData.reallocatedAmount;
+    if (Math.abs(totalReallocated) < 0.005) {
+        return [];
+    }
+
+    const targetSide: 'left' | 'right' = totalReallocated > 0 ? 'left' : 'right';
+    const totalMagnitude = Math.round(Math.abs(totalReallocated) * 100) / 100;
+
+    // Detect if settlement entries exist
+    const settlementEntries = entries.filter(e => isSettlementEntry(e as { description?: string | null }));
+    const hasSettlements = settlementEntries.length > 0;
+
+    const canonicalBalances = calculateAllMemberBalances(entries, members);
+    const isRoomSettled =
+        Math.abs(canonicalBalances[personAId] || 0) < 2.0 &&
+        Math.abs(canonicalBalances[personBId] || 0) < 2.0;
+
+    // Find other members with opposite sign reallocations to attribute the route
+    const candidates: { id: number; username: string; weight: number }[] = [];
+    p2pA.forEach((otherData, otherId) => {
+        if (otherId === personBId || otherId === personAId) return;
+        const otherRealloc = otherData.reallocatedAmount;
+        if (totalReallocated > 0 && otherRealloc < -0.005) {
+            candidates.push({
+                id: otherId,
+                username: memberMap.get(otherId) || `#${otherId}`,
+                weight: Math.abs(otherRealloc)
+            });
+        } else if (totalReallocated < 0 && otherRealloc > 0.005) {
+            candidates.push({
+                id: otherId,
+                username: memberMap.get(otherId) || `#${otherId}`,
+                weight: Math.abs(otherRealloc)
+            });
+        }
+    });
+
+    if (candidates.length === 0) {
+        const p2pB = calculatePeerToPeerBalances(entries, members, personBId, { simplifyDebts: true });
+        p2pB.forEach((otherData, otherId) => {
+            if (otherId === personAId || otherId === personBId) return;
+            const otherRealloc = otherData.reallocatedAmount;
+            if (totalReallocated > 0 && otherRealloc > 0.005) {
+                candidates.push({
+                    id: otherId,
+                    username: memberMap.get(otherId) || `#${otherId}`,
+                    weight: Math.abs(otherRealloc)
+                });
+            } else if (totalReallocated < 0 && otherRealloc < -0.005) {
+                candidates.push({
+                    id: otherId,
+                    username: memberMap.get(otherId) || `#${otherId}`,
+                    weight: Math.abs(otherRealloc)
+                });
+            }
+        });
+    }
+
+    const blocks: TransitiveCoverageBlock[] = [];
+
+    const findSettlementEntry = (u1: number, u2: number) => {
+        return settlementEntries.find(s => {
+            const payer = s.user_id;
+            const participants = s.split_with_user_ids || [];
+            const bShares = s.beneficiary_shares || [];
+            const isBeneficiary = (id: number) => participants.includes(id) || bShares.some(b => b.userId === id);
+            return (payer === u1 && isBeneficiary(u2)) || (payer === u2 && isBeneficiary(u1));
+        });
+    };
+
+    if (candidates.length === 0) {
+        const relevantSettlement = findSettlementEntry(personAId, personBId);
+        blocks.push({
+            id: `transitive-${personAId}-${personBId}-0`,
+            description: targetSide === 'left' ? 'reallocated_offset' : 'reallocated_absorbed',
+            shareAmount: totalMagnitude,
+            fullAmount: totalMagnitude,
+            targetSide,
+            isTransitive: true,
+            isSettlement: hasSettlements,
+            isSettled: hasSettlements && (Boolean(relevantSettlement) || isRoomSettled),
+            routeType: targetSide === 'left' ? 'offset' : 'absorbed',
+            sourceEntryId: relevantSettlement?.id
+        });
+        return blocks;
+    }
+
+    const totalWeight = candidates.reduce((sum, c) => sum + c.weight, 0);
+    let allocatedSum = 0;
+
+    candidates.forEach((cand, idx) => {
+        const isLast = idx === candidates.length - 1;
+        const portion = isLast
+            ? Math.round((totalMagnitude - allocatedSum) * 100) / 100
+            : Math.round(((totalMagnitude * cand.weight) / totalWeight) * 100) / 100;
+
+        if (portion > 0.005) {
+            allocatedSum += portion;
+            const relevantSettlement =
+                findSettlementEntry(personAId, cand.id) ||
+                findSettlementEntry(personBId, cand.id) ||
+                findSettlementEntry(personAId, personBId);
+
+            blocks.push({
+                id: `transitive-${personAId}-${personBId}-${cand.id}`,
+                description: targetSide === 'left' ? 'reallocated_offset' : 'reallocated_absorbed',
+                shareAmount: portion,
+                fullAmount: portion,
+                targetSide,
+                relatedMemberId: cand.id,
+                relatedMemberName: cand.username,
+                isTransitive: true,
+                isSettlement: hasSettlements,
+                isSettled: hasSettlements && (Boolean(relevantSettlement) || isRoomSettled),
+                routeType: targetSide === 'left' ? 'offset' : 'absorbed',
+                sourceEntryId: relevantSettlement?.id
+            });
+        }
+    });
+
+    return blocks;
+}
+
