@@ -334,7 +334,13 @@
     "bilateralBackToBalance": "Detailed Balances",
     "bilateralCumulative": "∑ {amount} {currency}",
     "bilateralGoToEntry": "Go to check in All Entries",
-    "bilateralZoomHint": "Ctrl + Scroll or Ctrl +/- to zoom"
+    "bilateralZoomHint": "Ctrl + Scroll or Ctrl +/- to zoom",
+    "bilateralMobileViewBoth": "Comparison",
+    "bilateralCheckDetails": "Check Details",
+    "bilateralShareLabel": "Share",
+    "bilateralDateLabel": "Date",
+    "bilateralClose": "Close",
+    "bilateralBackShort": "Back"
   },
   "Dialog": {
     "cancel": "Cancel",

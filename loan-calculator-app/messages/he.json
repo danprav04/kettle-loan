@@ -334,7 +334,13 @@
     "bilateralBackToBalance": "פירוט יתרות",
     "bilateralCumulative": "∑ {amount} {currency}",
     "bilateralGoToEntry": "עבור לרשומה בכל הרשומות",
-    "bilateralZoomHint": "Ctrl + גלילה או Ctrl +/- לזום"
+    "bilateralZoomHint": "Ctrl + גלילה או Ctrl +/- לזום",
+    "bilateralMobileViewBoth": "השוואה",
+    "bilateralCheckDetails": "פרטי הוצאה",
+    "bilateralShareLabel": "חלק",
+    "bilateralDateLabel": "תאריך",
+    "bilateralClose": "סגור",
+    "bilateralBackShort": "חזור"
   },
   "Dialog": {
     "cancel": "ביטול",

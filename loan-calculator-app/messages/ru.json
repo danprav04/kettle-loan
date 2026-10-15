@@ -334,7 +334,13 @@
     "bilateralBackToBalance": "Детальный баланс",
     "bilateralCumulative": "∑ {amount} {currency}",
     "bilateralGoToEntry": "Перейти к чеку во всех записях",
-    "bilateralZoomHint": "Ctrl + колесико или Ctrl +/- для масштаба"
+    "bilateralZoomHint": "Ctrl + колесико или Ctrl +/- для масштаба",
+    "bilateralMobileViewBoth": "Сравнение",
+    "bilateralCheckDetails": "Детали чека",
+    "bilateralShareLabel": "Доля",
+    "bilateralDateLabel": "Дата",
+    "bilateralClose": "Закрыть",
+    "bilateralBackShort": "Назад"
   },
   "Dialog": {
     "cancel": "Отмена",
