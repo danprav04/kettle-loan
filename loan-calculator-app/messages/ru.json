@@ -370,7 +370,16 @@
     "bilateralRouteCardSubAbsorbed": "Поглощен долг {debtor}",
     "bilateralRouteExplanationOffsetDebtor": "По чекам комнаты {debtor} была должна {creditor} {amount} {currency}. В упрощенных расчетах этот долг закрыт прямым переводом от {payer} к {recipient}. Деньги фактически поступили от {payer}, но закрыли долг {debtor}.",
     "bilateralRouteExplanationOffsetCreditor": "По чекам комнаты {debtor} была должна {creditor} {amount} {currency}. Поскольку {creditor} имела долг перед {recipient}, {debtor} перевела деньги напрямую {recipient}. Этот перевод закрыл обязательства {debtor} перед {creditor}.",
-    "bilateralRouteExplanationAbsorbed": "{recipient} приняла на себя требование по долгу {debtor} перед {recipient} на сумму {amount} {currency}. Прямой перевод от {payer} к {recipient} объединил эти обязательства в один платеж."
+    "bilateralRouteExplanationAbsorbed": "{recipient} приняла на себя требование по долгу {debtor} перед {recipient} на сумму {amount} {currency}. Прямой перевод от {payer} к {recipient} объединил эти обязательства в один платеж.",
+    "bilateralRouteWhyTitle": "Почему платит {payer}, а не {insteadOf}?",
+    "bilateralRouteWhyStep1": "1. {creditor} оплачивала чеки за {debtor} — {debtor} была должна {creditor} {amount} {currency}.",
+    "bilateralRouteWhyStep2": "2. {creditor} оплачивала чеки за {debtor} — {debtor} была должна {creditor} {amount} {currency}.",
+    "bilateralRouteWhyConclusion": "3. Взаимозачет долгов: вместо двух отдельных переводов {payer} перевела деньги напрямую {recipient}. Это одновременно закрыло долг {payer} перед {insteadOf} и долг {insteadOf} перед {recipient}!",
+    "bilateralRouteChainStep": "Цепочка взаимных обязательств",
+    "bilateralRouteDirectBypass": "Прямой перевод (закрывает оба долга)",
+    "bilateralRouteSourceDebtorSub": "Должник",
+    "bilateralRouteIntermediarySub": "Взаимозачет",
+    "bilateralRouteFinalCreditorSub": "Получатель"
   },
   "Dialog": {
     "cancel": "Отмена",

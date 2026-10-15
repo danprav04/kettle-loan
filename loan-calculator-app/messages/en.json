@@ -370,7 +370,16 @@
     "bilateralRouteCardSubAbsorbed": "Absorbed debt of {debtor}",
     "bilateralRouteExplanationOffsetDebtor": "According to room checks, {debtor} owed {creditor} {amount} {currency}. In simplified debts, this was settled via a direct transfer from {payer} to {recipient}. The funds physically came from {payer}, clearing {debtor}'s debt.",
     "bilateralRouteExplanationOffsetCreditor": "According to room checks, {debtor} owed {creditor} {amount} {currency}. Since {creditor} owed {recipient}, {debtor} transferred funds directly to {recipient}. This transfer settled {debtor}'s obligation to {creditor}.",
-    "bilateralRouteExplanationAbsorbed": "{recipient} absorbed the claim of {debtor}'s debt for {amount} {currency}. The direct transfer from {payer} to {recipient} consolidated these obligations into a single payment."
+    "bilateralRouteExplanationAbsorbed": "{recipient} absorbed the claim of {debtor}'s debt for {amount} {currency}. The direct transfer from {payer} to {recipient} consolidated these obligations into a single payment.",
+    "bilateralRouteWhyTitle": "Why does {payer} pay instead of {insteadOf}?",
+    "bilateralRouteWhyStep1": "1. {creditor} paid checks for {debtor} — {debtor} owed {creditor} {amount} {currency}.",
+    "bilateralRouteWhyStep2": "2. {creditor} paid checks for {debtor} — {debtor} owed {creditor} {amount} {currency}.",
+    "bilateralRouteWhyConclusion": "3. Debt offset: instead of two separate transfers, {payer} transferred funds directly to {recipient}. This simultaneously settled {payer}'s debt to {insteadOf} and {insteadOf}'s debt to {recipient}!",
+    "bilateralRouteChainStep": "Mutual Obligation Chain",
+    "bilateralRouteDirectBypass": "Direct Transfer (settles both debts)",
+    "bilateralRouteSourceDebtorSub": "Debtor",
+    "bilateralRouteIntermediarySub": "Offset Link",
+    "bilateralRouteFinalCreditorSub": "Recipient"
   },
   "Dialog": {
     "cancel": "Cancel",

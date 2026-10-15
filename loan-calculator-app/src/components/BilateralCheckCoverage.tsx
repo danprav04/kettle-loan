@@ -31,7 +31,8 @@ import {
     FiArrowRight,
     FiFileText,
     FiCheck,
-    FiClock
+    FiClock,
+    FiInfo
 } from 'react-icons/fi';
 import {
     calculatePeerToPeerBalances,
@@ -1597,62 +1598,79 @@ export default function BilateralCheckCoverage({
                                         )}
                                     </div>
 
-                                    {/* Step 1: Real Money Transfer */}
-                                    <div className="p-3 rounded-2xl bg-purple-500/10 dark:bg-purple-950/40 border border-purple-500/25 space-y-2">
+                                    {/* Visual 3-Node Obligation Chain Diagram */}
+                                    <div className="p-3 sm:p-3.5 rounded-2xl bg-purple-500/10 dark:bg-purple-950/40 border border-purple-500/25 space-y-3">
                                         <div className="flex items-center justify-between text-[11px] font-extrabold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
                                             <span className="flex items-center gap-1.5">
-                                                <FiArrowRight className="w-3.5 h-3.5" />
-                                                {t('bilateralRouteActualTransfer')}
+                                                <FiRepeat className="w-3.5 h-3.5" />
+                                                {t('bilateralRouteChainStep')}
                                             </span>
                                             <span className="font-mono font-black text-xs sm:text-sm text-foreground">
                                                 {formatCurrencyAmount(selectedCheck.route.amount)} {currency}
                                             </span>
                                         </div>
 
-                                        {/* Flow Bar: Payer -> Arrow -> Recipient */}
-                                        <div className="flex items-center justify-between gap-2 p-2 sm:p-2.5 rounded-xl bg-card border border-card-border/80 shadow-xs">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-purple-500/20 text-purple-700 dark:text-purple-300 font-black text-xs sm:text-sm flex items-center justify-center shrink-0 border border-purple-500/30">
-                                                    {selectedCheck.route.actualPayerName.charAt(0).toUpperCase()}
+                                        {/* 3 Nodes: Source Debtor -> Intermediary -> Final Creditor */}
+                                        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 items-center p-2.5 rounded-xl bg-card border border-card-border/80 shadow-xs text-center">
+                                            {/* Node 1: Source Debtor */}
+                                            <div className="flex flex-col items-center min-w-0">
+                                                <div className="w-8 h-8 rounded-full bg-purple-500/20 text-purple-700 dark:text-purple-300 font-black text-xs sm:text-sm flex items-center justify-center border border-purple-500/30 shrink-0">
+                                                    {selectedCheck.route.sourceDebtorName.charAt(0).toUpperCase()}
                                                 </div>
-                                                <div className="min-w-0">
-                                                    <div className="font-extrabold text-xs sm:text-sm text-foreground truncate">
-                                                        {selectedCheck.route.actualPayerName}
-                                                    </div>
-                                                    <div className="text-[9px] sm:text-[10px] font-semibold text-muted-foreground">
-                                                        {t('bilateralRoutePayer')}
-                                                    </div>
+                                                <div className="font-extrabold text-[11px] sm:text-xs text-foreground truncate max-w-full mt-1">
+                                                    {selectedCheck.route.sourceDebtorName}
                                                 </div>
-                                            </div>
-
-                                            <div className="flex flex-col items-center shrink-0 px-1 sm:px-2">
-                                                <div className="font-mono font-black text-[10px] sm:text-xs text-purple-600 dark:text-purple-400">
-                                                    {formatCurrencyAmount(selectedCheck.route.amount)} {currency}
-                                                </div>
-                                                <div className="flex items-center text-purple-500">
-                                                    <div className="w-6 sm:w-10 h-0.5 bg-purple-500/40"></div>
-                                                    <FiArrowRight className="w-3.5 h-3.5 -ml-1" />
+                                                <div className="text-[9px] font-semibold text-muted-foreground">
+                                                    {t('bilateralRouteSourceDebtorSub')}
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-2 min-w-0 text-right justify-end">
-                                                <div className="min-w-0">
-                                                    <div className="font-extrabold text-xs sm:text-sm text-foreground truncate">
-                                                        {selectedCheck.route.actualRecipientName}
-                                                    </div>
-                                                    <div className="text-[9px] sm:text-[10px] font-semibold text-muted-foreground">
-                                                        {t('bilateralRouteRecipient')}
-                                                    </div>
+                                            {/* Node 2: Intermediary */}
+                                            <div className="flex flex-col items-center min-w-0 relative">
+                                                <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-black text-xs sm:text-sm flex items-center justify-center border border-amber-500/30 shrink-0">
+                                                    {selectedCheck.route.intermediaryMemberName.charAt(0).toUpperCase()}
                                                 </div>
-                                                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-black text-xs sm:text-sm flex items-center justify-center shrink-0 border border-emerald-500/30">
-                                                    {selectedCheck.route.actualRecipientName.charAt(0).toUpperCase()}
+                                                <div className="font-extrabold text-[11px] sm:text-xs text-foreground truncate max-w-full mt-1">
+                                                    {selectedCheck.route.intermediaryMemberName}
+                                                </div>
+                                                <div className="text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                                                    {t('bilateralRouteIntermediarySub')}
+                                                </div>
+                                            </div>
+
+                                            {/* Node 3: Final Creditor */}
+                                            <div className="flex flex-col items-center min-w-0">
+                                                <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-black text-xs sm:text-sm flex items-center justify-center border border-emerald-500/30 shrink-0">
+                                                    {selectedCheck.route.finalCreditorName.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="font-extrabold text-[11px] sm:text-xs text-foreground truncate max-w-full mt-1">
+                                                    {selectedCheck.route.finalCreditorName}
+                                                </div>
+                                                <div className="text-[9px] font-semibold text-muted-foreground">
+                                                    {t('bilateralRouteFinalCreditorSub')}
                                                 </div>
                                             </div>
                                         </div>
 
+                                        {/* Direct Transfer Bypass Banner */}
+                                        <div className="p-2.5 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-between gap-2 text-xs">
+                                            <div className="min-w-0 flex items-center gap-1.5 font-bold text-purple-900 dark:text-purple-200 truncate">
+                                                <FiArrowRight className="w-3.5 h-3.5 shrink-0 text-purple-600 dark:text-purple-400" />
+                                                <span className="truncate">
+                                                    {t('bilateralRouteCardTitle', {
+                                                        from: selectedCheck.route.sourceDebtorName,
+                                                        to: selectedCheck.route.finalCreditorName
+                                                    })}
+                                                </span>
+                                            </div>
+                                            <span className="font-mono font-black text-purple-700 dark:text-purple-300 shrink-0">
+                                                {formatCurrencyAmount(selectedCheck.route.amount)} {currency}
+                                            </span>
+                                        </div>
+
                                         {/* Link to concrete settlement entry if available */}
                                         {selectedCheck.route.settlementEntry && (
-                                            <div className="flex items-center justify-between text-[11px] p-2 rounded-xl bg-card/60 border border-card-border/60">
+                                            <div className="flex items-center justify-between text-[11px] p-2 rounded-xl bg-card/70 border border-card-border/60">
                                                 <div className="min-w-0 flex items-center gap-1.5">
                                                     <FiFileText className="w-3.5 h-3.5 text-purple-500 shrink-0" />
                                                     <span className="text-muted-foreground shrink-0">{t('bilateralRouteSettlementEntry')}</span>
@@ -1665,6 +1683,50 @@ export default function BilateralCheckCoverage({
                                                 </span>
                                             </div>
                                         )}
+                                    </div>
+
+                                    {/* Dedicated "Why Person X Pays Instead of Person Y" Callout */}
+                                    <div className="p-3 sm:p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/25 space-y-2 text-xs">
+                                        <div className="flex items-center gap-1.5 font-extrabold text-amber-700 dark:text-amber-400">
+                                            <FiInfo className="w-4 h-4 shrink-0" />
+                                            <span>
+                                                {t('bilateralRouteWhyTitle', {
+                                                    payer: selectedCheck.route.sourceDebtorName,
+                                                    insteadOf: selectedCheck.route.intermediaryMemberName
+                                                })}
+                                            </span>
+                                        </div>
+                                        <div className="space-y-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                                            <div className="flex items-start gap-1.5">
+                                                <span className="font-extrabold text-amber-600 dark:text-amber-400 shrink-0">1.</span>
+                                                <span>
+                                                    {t('bilateralRouteWhyStep1', {
+                                                        creditor: selectedCheck.route.intermediaryMemberName,
+                                                        debtor: selectedCheck.route.sourceDebtorName,
+                                                        amount: formatCurrencyAmount(selectedCheck.route.sourceDebtAmount),
+                                                        currency
+                                                    })}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-start gap-1.5">
+                                                <span className="font-extrabold text-amber-600 dark:text-amber-400 shrink-0">2.</span>
+                                                <span>
+                                                    {t('bilateralRouteWhyStep2', {
+                                                        creditor: selectedCheck.route.finalCreditorName,
+                                                        debtor: selectedCheck.route.intermediaryMemberName,
+                                                        amount: formatCurrencyAmount(selectedCheck.route.targetDebtAmount),
+                                                        currency
+                                                    })}
+                                                </span>
+                                            </div>
+                                            <div className="p-2 rounded-xl bg-card border border-card-border/70 text-foreground font-semibold mt-1">
+                                                {t('bilateralRouteWhyConclusion', {
+                                                    payer: selectedCheck.route.sourceDebtorName,
+                                                    insteadOf: selectedCheck.route.intermediaryMemberName,
+                                                    recipient: selectedCheck.route.finalCreditorName
+                                                })}
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {/* Step 2: Obligation Covered */}

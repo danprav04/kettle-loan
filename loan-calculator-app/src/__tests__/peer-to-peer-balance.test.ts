@@ -458,6 +458,9 @@ describe('calculatePeerToPeerBalances', () => {
         expect(marinaInnaBlocks[0].route?.actualRecipientName).toBe('MARINA');
         expect(marinaInnaBlocks[0].route?.originalDebtorName).toBe('ИННА');
         expect(marinaInnaBlocks[0].route?.originalCreditorName).toBe('MARINA');
+        expect(marinaInnaBlocks[0].route?.sourceDebtorName).toBe('ЭЛЬВИРА');
+        expect(marinaInnaBlocks[0].route?.intermediaryMemberName).toBe('ИННА');
+        expect(marinaInnaBlocks[0].route?.finalCreditorName).toBe('MARINA');
         expect(marinaInnaBlocks[0].route?.settlementEntry?.description).toBe('Погашение долга (Упрощенный перевод)');
 
         // 5. Pair: Marina (3) ↔ Ira (2)

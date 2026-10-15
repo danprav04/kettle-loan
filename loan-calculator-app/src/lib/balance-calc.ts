@@ -462,8 +462,14 @@ export interface TransitiveCoverageRoute {
     originalDebtorName: string;
     originalCreditorId: number;
     originalCreditorName: string;
-    intermediaryMemberId?: number;
-    intermediaryMemberName?: string;
+    sourceDebtorId: number;
+    sourceDebtorName: string;
+    intermediaryMemberId: number;
+    intermediaryMemberName: string;
+    finalCreditorId: number;
+    finalCreditorName: string;
+    sourceDebtAmount: number;
+    targetDebtAmount: number;
     amount: number;
     settlementEntry?: {
         id: string | number;
@@ -661,6 +667,16 @@ export function calculateTransitiveCoverageBlocks<T extends BalanceCalcEntry = B
             }
         }
 
+        const membersInTriangle = [personAId, personBId];
+        if (candId) membersInTriangle.push(candId);
+        const intermediaryId =
+            membersInTriangle.find(id => id !== actualPayerId && id !== actualRecipientId) ||
+            candId ||
+            originalDebtorId;
+
+        const sourceDebtorId = actualPayerId;
+        const finalCreditorId = actualRecipientId;
+
         const route: TransitiveCoverageRoute = {
             actualPayerId,
             actualPayerName: getName(actualPayerId),
@@ -670,8 +686,14 @@ export function calculateTransitiveCoverageBlocks<T extends BalanceCalcEntry = B
             originalDebtorName: getName(originalDebtorId),
             originalCreditorId,
             originalCreditorName: getName(originalCreditorId),
-            intermediaryMemberId: candId,
-            intermediaryMemberName: candId ? getName(candId) : undefined,
+            sourceDebtorId,
+            sourceDebtorName: getName(sourceDebtorId),
+            intermediaryMemberId: intermediaryId,
+            intermediaryMemberName: getName(intermediaryId),
+            finalCreditorId,
+            finalCreditorName: getName(finalCreditorId),
+            sourceDebtAmount: portion,
+            targetDebtAmount: portion,
             amount: portion,
             settlementEntry: settlement ? {
                 id: settlement.id,

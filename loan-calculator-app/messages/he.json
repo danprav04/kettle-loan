@@ -370,7 +370,16 @@
     "bilateralRouteCardSubAbsorbed": "חוב שנספג עבור {debtor}",
     "bilateralRouteExplanationOffsetDebtor": "לפי קבלות החדר, {debtor} הייתה חייבת ל-{creditor} {amount} {currency}. בהתחשבנות מפושטת, חוב זה נסגר באמצעות העברה ישירה מ-{payer} ל-{recipient}. הכסף הגיע בפועל מ-{payer}, וסגר את חוב {debtor}.",
     "bilateralRouteExplanationOffsetCreditor": "לפי קבלות החדר, {debtor} הייתה חייבת ל-{creditor} {amount} {currency}. מכיוון ש-{creditor} הייתה חייבת ל-{recipient}, {debtor} העבירה כספים ישירות ל-{recipient}. העברה זו סגרה את התחייבויות {debtor} כלפי {creditor}.",
-    "bilateralRouteExplanationAbsorbed": "{recipient} קיבלה על עצמה את חוב {debtor} בסך {amount} {currency}. העברה ישירה מ-{payer} ל-{recipient} איחדה התחייבויות אלו לתשלום יחיד."
+    "bilateralRouteExplanationAbsorbed": "{recipient} קיבלה על עצמה את חוב {debtor} בסך {amount} {currency}. העברה ישירה מ-{payer} ל-{recipient} איחדה התחייבויות אלו לתשלום יחיד.",
+    "bilateralRouteWhyTitle": "למה {payer} משלמת במקום {insteadOf}?",
+    "bilateralRouteWhyStep1": "1. {creditor} שילמה על חשבונות עבור {debtor} — {debtor} הייתה חייבת ל-{creditor} {amount} {currency}.",
+    "bilateralRouteWhyStep2": "2. {creditor} שילמה על חשבונות עבור {debtor} — {debtor} הייתה חייבת ל-{creditor} {amount} {currency}.",
+    "bilateralRouteWhyConclusion": "3. קיזוז חובות: במקום שתי העברות נפרדות, {payer} העבירה כספים ישירות ל-{recipient}. זה סגר במקביל את חוב {payer} ל-{insteadOf} ואת חוב {insteadOf} ל-{recipient}!",
+    "bilateralRouteChainStep": "שרשרת התחייבויות הדדיות",
+    "bilateralRouteDirectBypass": "העברה ישירה (סוגרת את שני החובות)",
+    "bilateralRouteSourceDebtorSub": "חייב",
+    "bilateralRouteIntermediarySub": "קישור קיזוז",
+    "bilateralRouteFinalCreditorSub": "מקבל"
   },
   "Dialog": {
     "cancel": "ביטול",
