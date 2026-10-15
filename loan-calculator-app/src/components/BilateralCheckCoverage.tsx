@@ -27,13 +27,18 @@ import {
     FiEdit3,
     FiX,
     FiZap,
-    FiLayers
+    FiLayers,
+    FiArrowRight,
+    FiFileText,
+    FiCheck,
+    FiClock
 } from 'react-icons/fi';
 import {
     calculatePeerToPeerBalances,
     calculateTransitiveCoverageBlocks,
     BalanceCalcEntry,
-    BalanceCalcMember
+    BalanceCalcMember,
+    TransitiveCoverageRoute
 } from '@/lib/balance-calc';
 import {
     formatCurrencyAmount,
@@ -70,6 +75,7 @@ interface CheckBlockItem {
     relatedMemberId?: number;
     relatedMemberName?: string;
     sourceEntryId?: string | number;
+    route?: TransitiveCoverageRoute;
 }
 
 const MIN_ZOOM = 0.1;
@@ -630,18 +636,25 @@ export default function BilateralCheckCoverage({
             );
 
             transitiveBlocks.forEach((tb, idx) => {
-                const desc = tb.relatedMemberName
+                let desc = tb.relatedMemberName
                     ? (tb.routeType === 'offset'
                         ? t('bilateralTransitiveOffsetDesc', { name: tb.relatedMemberName })
                         : t('bilateralTransitiveAbsorbedDesc', { name: tb.relatedMemberName }))
                     : t('bilateralTransitiveGenericDesc');
+
+                if (tb.route) {
+                    desc = t('bilateralRouteCardTitle', {
+                        from: tb.route.actualPayerName,
+                        to: tb.route.actualRecipientName
+                    });
+                }
 
                 const item: RawItem = {
                     id: tb.id || `transitive-${idx}`,
                     description: desc,
                     shareAmount: tb.shareAmount,
                     fullAmount: tb.fullAmount,
-                    createdAt: '',
+                    createdAt: tb.route?.settlementEntry?.created_at || '',
                     isSettlement: true,
                     isLoan: false,
                     isTransitive: true,
@@ -649,7 +662,8 @@ export default function BilateralCheckCoverage({
                     routeType: tb.routeType,
                     relatedMemberId: tb.relatedMemberId,
                     relatedMemberName: tb.relatedMemberName,
-                    sourceEntryId: tb.sourceEntryId
+                    sourceEntryId: tb.sourceEntryId,
+                    route: tb.route
                 };
 
                 if (tb.targetSide === 'left') {
@@ -923,7 +937,13 @@ export default function BilateralCheckCoverage({
                                             </span>
                                         ) : null}
                                     </div>
-                                    {item.isTransitive && item.relatedMemberName ? (
+                                    {item.isTransitive && item.route ? (
+                                        <div className="text-[9px] sm:text-[10px] font-semibold text-purple-700 dark:text-purple-300 mt-0.5 truncate">
+                                            {item.routeType === 'offset'
+                                                ? t('bilateralRouteCardSubOffset', { debtor: item.route.originalDebtorName })
+                                                : t('bilateralRouteCardSubAbsorbed', { debtor: item.route.originalDebtorName })}
+                                        </div>
+                                    ) : item.isTransitive && item.relatedMemberName ? (
                                         <div className="text-[9px] sm:text-[10px] font-semibold text-purple-700 dark:text-purple-300 mt-0.5 truncate">
                                             {item.routeType === 'offset'
                                                 ? t('bilateralTransitiveOffsetDesc', { name: item.relatedMemberName })
@@ -1555,31 +1575,186 @@ export default function BilateralCheckCoverage({
                             </button>
                         </div>
 
-                        {/* Transitive Route Explanation Callout */}
+                        {/* Transitive Route Visualizer Card */}
                         {selectedCheck.isTransitive && (
-                            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/25 text-xs text-foreground space-y-1">
-                                <div className="flex items-center gap-1.5 font-extrabold text-purple-700 dark:text-purple-300">
-                                    <FiRepeat className="w-3.5 h-3.5 shrink-0" />
-                                    <span>
-                                        {selectedCheck.routeType === 'offset'
-                                            ? t('bilateralTransitiveSettlement')
-                                            : t('bilateralTransitiveAbsorbed')}
-                                    </span>
+                            selectedCheck.route ? (
+                                <div className="space-y-2.5">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-1.5 font-extrabold text-xs text-purple-700 dark:text-purple-300">
+                                            <FiRepeat className="w-3.5 h-3.5 shrink-0" />
+                                            <span>{t('bilateralRouteChainTitle')}</span>
+                                        </div>
+                                        {selectedCheck.isSettled ? (
+                                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shrink-0">
+                                                <FiCheck className="w-3 h-3" />
+                                                <span>{t('bilateralRouteStatusSettled')}</span>
+                                            </span>
+                                        ) : (
+                                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1 shrink-0">
+                                                <FiClock className="w-3 h-3" />
+                                                <span>{t('bilateralRouteStatusPending')}</span>
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Step 1: Real Money Transfer */}
+                                    <div className="p-3 rounded-2xl bg-purple-500/10 dark:bg-purple-950/40 border border-purple-500/25 space-y-2">
+                                        <div className="flex items-center justify-between text-[11px] font-extrabold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+                                            <span className="flex items-center gap-1.5">
+                                                <FiArrowRight className="w-3.5 h-3.5" />
+                                                {t('bilateralRouteActualTransfer')}
+                                            </span>
+                                            <span className="font-mono font-black text-xs sm:text-sm text-foreground">
+                                                {formatCurrencyAmount(selectedCheck.route.amount)} {currency}
+                                            </span>
+                                        </div>
+
+                                        {/* Flow Bar: Payer -> Arrow -> Recipient */}
+                                        <div className="flex items-center justify-between gap-2 p-2 sm:p-2.5 rounded-xl bg-card border border-card-border/80 shadow-xs">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-purple-500/20 text-purple-700 dark:text-purple-300 font-black text-xs sm:text-sm flex items-center justify-center shrink-0 border border-purple-500/30">
+                                                    {selectedCheck.route.actualPayerName.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="font-extrabold text-xs sm:text-sm text-foreground truncate">
+                                                        {selectedCheck.route.actualPayerName}
+                                                    </div>
+                                                    <div className="text-[9px] sm:text-[10px] font-semibold text-muted-foreground">
+                                                        {t('bilateralRoutePayer')}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col items-center shrink-0 px-1 sm:px-2">
+                                                <div className="font-mono font-black text-[10px] sm:text-xs text-purple-600 dark:text-purple-400">
+                                                    {formatCurrencyAmount(selectedCheck.route.amount)} {currency}
+                                                </div>
+                                                <div className="flex items-center text-purple-500">
+                                                    <div className="w-6 sm:w-10 h-0.5 bg-purple-500/40"></div>
+                                                    <FiArrowRight className="w-3.5 h-3.5 -ml-1" />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 min-w-0 text-right justify-end">
+                                                <div className="min-w-0">
+                                                    <div className="font-extrabold text-xs sm:text-sm text-foreground truncate">
+                                                        {selectedCheck.route.actualRecipientName}
+                                                    </div>
+                                                    <div className="text-[9px] sm:text-[10px] font-semibold text-muted-foreground">
+                                                        {t('bilateralRouteRecipient')}
+                                                    </div>
+                                                </div>
+                                                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-black text-xs sm:text-sm flex items-center justify-center shrink-0 border border-emerald-500/30">
+                                                    {selectedCheck.route.actualRecipientName.charAt(0).toUpperCase()}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Link to concrete settlement entry if available */}
+                                        {selectedCheck.route.settlementEntry && (
+                                            <div className="flex items-center justify-between text-[11px] p-2 rounded-xl bg-card/60 border border-card-border/60">
+                                                <div className="min-w-0 flex items-center gap-1.5">
+                                                    <FiFileText className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                                                    <span className="text-muted-foreground shrink-0">{t('bilateralRouteSettlementEntry')}</span>
+                                                    <span className="font-bold text-foreground truncate">
+                                                        {selectedCheck.route.settlementEntry.description}
+                                                    </span>
+                                                </div>
+                                                <span className="font-mono font-bold text-purple-600 dark:text-purple-400 shrink-0 ml-2">
+                                                    {formatCurrencyAmount(selectedCheck.route.settlementEntry.amount)} {currency}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Step 2: Obligation Covered */}
+                                    <div className="p-3 rounded-2xl bg-muted/40 border border-card-border space-y-2">
+                                        <div className="flex items-center justify-between text-[11px] font-extrabold text-muted-foreground uppercase tracking-wider">
+                                            <span className="flex items-center gap-1.5">
+                                                <FiCheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                                                {t('bilateralRouteObligationCovered')}
+                                            </span>
+                                            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+                                                {t('bilateralRouteCoveredPill')}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-card border border-card-border/60 text-xs">
+                                            <div className="min-w-0">
+                                                <div className="font-bold text-foreground truncate">{selectedCheck.route.originalDebtorName}</div>
+                                                <div className="text-[9px] text-muted-foreground">{t('bilateralRouteDebtor')}</div>
+                                            </div>
+
+                                            <div className="flex flex-col items-center shrink-0 px-2">
+                                                <span className="font-mono font-bold text-[11px] text-muted-foreground line-through">
+                                                    {formatCurrencyAmount(selectedCheck.route.amount)} {currency}
+                                                </span>
+                                                <div className="flex items-center text-muted-foreground/60">
+                                                    <div className="w-6 sm:w-8 h-0.5 border-t border-dashed border-muted-foreground/60"></div>
+                                                    <FiArrowRight className="w-3 h-3 -ml-0.5" />
+                                                </div>
+                                            </div>
+
+                                            <div className="min-w-0 text-right">
+                                                <div className="font-bold text-foreground truncate">{selectedCheck.route.originalCreditorName}</div>
+                                                <div className="text-[9px] text-muted-foreground">{t('bilateralRouteCreditor')}</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Narrative Paragraph */}
+                                        <p className="text-[11px] text-muted-foreground leading-relaxed pt-1">
+                                            {selectedCheck.routeType === 'absorbed'
+                                                ? t('bilateralRouteExplanationAbsorbed', {
+                                                      recipient: selectedCheck.route.actualRecipientName,
+                                                      debtor: selectedCheck.route.originalDebtorName,
+                                                      amount: formatCurrencyAmount(selectedCheck.route.amount),
+                                                      currency,
+                                                      payer: selectedCheck.route.actualPayerName
+                                                  })
+                                                : selectedCheck.route.originalDebtorName === personBName
+                                                ? t('bilateralRouteExplanationOffsetDebtor', {
+                                                      debtor: selectedCheck.route.originalDebtorName,
+                                                      creditor: selectedCheck.route.originalCreditorName,
+                                                      amount: formatCurrencyAmount(selectedCheck.route.amount),
+                                                      currency,
+                                                      payer: selectedCheck.route.actualPayerName,
+                                                      recipient: selectedCheck.route.actualRecipientName
+                                                  })
+                                                : t('bilateralRouteExplanationOffsetCreditor', {
+                                                      debtor: selectedCheck.route.originalDebtorName,
+                                                      creditor: selectedCheck.route.originalCreditorName,
+                                                      amount: formatCurrencyAmount(selectedCheck.route.amount),
+                                                      currency,
+                                                      recipient: selectedCheck.route.actualRecipientName
+                                                  })}
+                                        </p>
+                                    </div>
                                 </div>
-                                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                    {selectedCheck.routeType === 'offset'
-                                        ? t('bilateralTransitiveOffsetExplanation', {
-                                              memberA: personAName,
-                                              memberB: personBName,
-                                              related: selectedCheck.relatedMemberName || '—'
-                                          })
-                                        : t('bilateralTransitiveAbsorbedExplanation', {
-                                              memberA: personAName,
-                                              memberB: personBName,
-                                              related: selectedCheck.relatedMemberName || '—'
-                                          })}
-                                </p>
-                            </div>
+                            ) : (
+                                <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/25 text-xs text-foreground space-y-1">
+                                    <div className="flex items-center gap-1.5 font-extrabold text-purple-700 dark:text-purple-300">
+                                        <FiRepeat className="w-3.5 h-3.5 shrink-0" />
+                                        <span>
+                                            {selectedCheck.routeType === 'offset'
+                                                ? t('bilateralTransitiveSettlement')
+                                                : t('bilateralTransitiveAbsorbed')}
+                                        </span>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                        {selectedCheck.routeType === 'offset'
+                                            ? t('bilateralTransitiveOffsetExplanation', {
+                                                  memberA: personAName,
+                                                  memberB: personBName,
+                                                  related: selectedCheck.relatedMemberName || '—'
+                                              })
+                                            : t('bilateralTransitiveAbsorbedExplanation', {
+                                                  memberA: personAName,
+                                                  memberB: personBName,
+                                                  related: selectedCheck.relatedMemberName || '—'
+                                              })}
+                                    </p>
+                                </div>
+                            )
                         )}
 
                         {/* Modal Stats Grid */}

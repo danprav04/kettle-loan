@@ -411,6 +411,10 @@ describe('calculatePeerToPeerBalances', () => {
         expect(elviraInnaBlocks[0].targetSide).toBe('left'); // Placed on Elvira's side
         expect(elviraInnaBlocks[0].relatedMemberName).toBe('MARINA');
         expect(elviraInnaBlocks[0].isSettled).toBe(true);
+        expect(elviraInnaBlocks[0].route?.actualPayerName).toBe('ЭЛЬВИРА');
+        expect(elviraInnaBlocks[0].route?.actualRecipientName).toBe('MARINA');
+        expect(elviraInnaBlocks[0].route?.originalDebtorName).toBe('ЭЛЬВИРА');
+        expect(elviraInnaBlocks[0].route?.originalCreditorName).toBe('ИННА');
 
         // 2. Pair: Elvira (4) ↔ Ira (2)
         const elviraIraBlocks = calculateTransitiveCoverageBlocks(entries, members, 4, 2);
@@ -420,6 +424,10 @@ describe('calculatePeerToPeerBalances', () => {
         expect(elviraIraBlocks[0].targetSide).toBe('left'); // Placed on Elvira's side
         expect(elviraIraBlocks[0].relatedMemberName).toBe('MARINA');
         expect(elviraIraBlocks[0].isSettled).toBe(true);
+        expect(elviraIraBlocks[0].route?.actualPayerName).toBe('ЭЛЬВИРА');
+        expect(elviraIraBlocks[0].route?.actualRecipientName).toBe('MARINA');
+        expect(elviraIraBlocks[0].route?.originalDebtorName).toBe('ЭЛЬВИРА');
+        expect(elviraIraBlocks[0].route?.originalCreditorName).toBe('ИРА');
 
         // 3. Pair: Elvira (4) ↔ Marina (3)
         // Elvira paid 2438.68 settlement; Marina paid 224.69 check.
@@ -433,6 +441,8 @@ describe('calculatePeerToPeerBalances', () => {
         const names = elviraMarinaBlocks.map(b => b.relatedMemberName);
         expect(names).toContain('ИННА');
         expect(names).toContain('ИРА');
+        expect(elviraMarinaBlocks[0].route?.actualPayerName).toBe('ЭЛЬВИРА');
+        expect(elviraMarinaBlocks[0].route?.actualRecipientName).toBe('MARINA');
 
         // 4. Pair: Marina (3) ↔ Inna (1)
         // Marina paid 1107.55 for Inna.
@@ -443,6 +453,12 @@ describe('calculatePeerToPeerBalances', () => {
         expect(marinaInnaTotal).toBeCloseTo(1107.55, 2);
         expect(marinaInnaBlocks[0].targetSide).toBe('right');
         expect(marinaInnaBlocks[0].relatedMemberName).toBe('ЭЛЬВИРА');
+        expect(marinaInnaBlocks[0].route).toBeDefined();
+        expect(marinaInnaBlocks[0].route?.actualPayerName).toBe('ЭЛЬВИРА');
+        expect(marinaInnaBlocks[0].route?.actualRecipientName).toBe('MARINA');
+        expect(marinaInnaBlocks[0].route?.originalDebtorName).toBe('ИННА');
+        expect(marinaInnaBlocks[0].route?.originalCreditorName).toBe('MARINA');
+        expect(marinaInnaBlocks[0].route?.settlementEntry?.description).toBe('Погашение долга (Упрощенный перевод)');
 
         // 5. Pair: Marina (3) ↔ Ira (2)
         // Marina paid 1106.94 for Ira.
@@ -453,6 +469,10 @@ describe('calculatePeerToPeerBalances', () => {
         expect(marinaIraTotal).toBeCloseTo(1106.94, 2);
         expect(marinaIraBlocks[0].targetSide).toBe('right');
         expect(marinaIraBlocks[0].relatedMemberName).toBe('ЭЛЬВИРА');
+        expect(marinaIraBlocks[0].route?.actualPayerName).toBe('ЭЛЬВИРА');
+        expect(marinaIraBlocks[0].route?.actualRecipientName).toBe('MARINA');
+        expect(marinaIraBlocks[0].route?.originalDebtorName).toBe('ИРА');
+        expect(marinaIraBlocks[0].route?.originalCreditorName).toBe('MARINA');
     });
 });
 

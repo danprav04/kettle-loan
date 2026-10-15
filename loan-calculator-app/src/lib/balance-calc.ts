@@ -453,6 +453,26 @@ export function isSettlementEntry(entry: { description?: string | null }): boole
     return settlementKeywords.some(kw => desc.includes(kw));
 }
 
+export interface TransitiveCoverageRoute {
+    actualPayerId: number;
+    actualPayerName: string;
+    actualRecipientId: number;
+    actualRecipientName: string;
+    originalDebtorId: number;
+    originalDebtorName: string;
+    originalCreditorId: number;
+    originalCreditorName: string;
+    intermediaryMemberId?: number;
+    intermediaryMemberName?: string;
+    amount: number;
+    settlementEntry?: {
+        id: string | number;
+        description: string;
+        amount: number;
+        created_at?: string;
+    };
+}
+
 export interface TransitiveCoverageBlock {
     id: string;
     description: string;
@@ -466,6 +486,7 @@ export interface TransitiveCoverageBlock {
     isSettled: boolean;
     routeType: 'offset' | 'absorbed';
     sourceEntryId?: string | number;
+    route?: TransitiveCoverageRoute;
 }
 
 export function calculateTransitiveCoverageBlocks<T extends BalanceCalcEntry = BalanceCalcEntry>(
@@ -482,6 +503,7 @@ export function calculateTransitiveCoverageBlocks<T extends BalanceCalcEntry = B
     members.forEach(m => {
         if (m.username) memberMap.set(m.id, m.username);
     });
+    const getName = (id: number) => memberMap.get(id) || `#${id}`;
 
     // Calculate P2P in simplified mode for Person A
     const p2pA = calculatePeerToPeerBalances(entries, members, personAId, { simplifyDebts: true });
@@ -504,6 +526,17 @@ export function calculateTransitiveCoverageBlocks<T extends BalanceCalcEntry = B
     const isRoomSettled =
         Math.abs(canonicalBalances[personAId] || 0) < 2.0 &&
         Math.abs(canonicalBalances[personBId] || 0) < 2.0;
+
+    const calcMembers = members.filter(m => {
+        if (m.role === 'observer') return false;
+        if (m.can_participate !== undefined) return m.can_participate !== false;
+        if (m.permissions?.canParticipate !== undefined) return m.permissions.canParticipate !== false;
+        return true;
+    });
+    const simplifiedTransfers = calculateSimplifiedDebts(
+        canonicalBalances,
+        calcMembers.map(m => m.id)
+    );
 
     // Find other members with opposite sign reallocations to attribute the route
     const candidates: { id: number; username: string; weight: number }[] = [];
@@ -546,8 +579,6 @@ export function calculateTransitiveCoverageBlocks<T extends BalanceCalcEntry = B
         });
     }
 
-    const blocks: TransitiveCoverageBlock[] = [];
-
     const findSettlementEntry = (u1: number, u2: number) => {
         return settlementEntries.find(s => {
             const payer = s.user_id;
@@ -558,19 +589,119 @@ export function calculateTransitiveCoverageBlocks<T extends BalanceCalcEntry = B
         });
     };
 
+    const buildRouteInfo = (
+        candId: number | undefined,
+        portion: number,
+        settlement: any
+    ): { routeType: 'offset' | 'absorbed'; route: TransitiveCoverageRoute } => {
+        // Determine actual transfer payer and recipient
+        let actualPayerId = personAId;
+        let actualRecipientId = personBId;
+
+        const findTransferBetween = (u1: number, u2: number) => {
+            const st = simplifiedTransfers.find(
+                t => (t.fromUserId === u1 && t.toUserId === u2) || (t.fromUserId === u2 && t.toUserId === u1)
+            );
+            return st;
+        };
+
+        if (settlement) {
+            actualPayerId = settlement.user_id;
+            const participants = settlement.split_with_user_ids || [];
+            const bShares = settlement.beneficiary_shares || [];
+            const firstBeneficiary = bShares[0]?.userId || participants.find((id: number) => id !== actualPayerId) || personBId;
+            actualRecipientId = firstBeneficiary;
+        } else if (candId) {
+            const stAC = findTransferBetween(personAId, candId);
+            const stBC = findTransferBetween(personBId, candId);
+            const stAB = findTransferBetween(personAId, personBId);
+
+            if (stAC) {
+                actualPayerId = stAC.fromUserId;
+                actualRecipientId = stAC.toUserId;
+            } else if (stBC) {
+                actualPayerId = stBC.fromUserId;
+                actualRecipientId = stBC.toUserId;
+            } else if (stAB) {
+                actualPayerId = stAB.fromUserId;
+                actualRecipientId = stAB.toUserId;
+            }
+        }
+
+        const isSettlementPair =
+            (actualPayerId === personAId && actualRecipientId === personBId) ||
+            (actualPayerId === personBId && actualRecipientId === personAId);
+
+        const routeType: 'offset' | 'absorbed' = isSettlementPair ? 'absorbed' : 'offset';
+
+        // Determine original debtor and creditor of the underlying obligation
+        let originalDebtorId = personAId;
+        let originalCreditorId = personBId;
+
+        if (routeType === 'absorbed') {
+            // A settlement pair where creditor absorbed a 3rd party's claim
+            // E.g. Marina absorbed Inna's debt, so Inna was original debtor to Marina
+            if (candId) {
+                originalDebtorId = candId;
+                originalCreditorId = actualRecipientId;
+            } else {
+                originalDebtorId = actualPayerId;
+                originalCreditorId = actualRecipientId;
+            }
+        } else {
+            // Offset in a pairwise debt
+            if (targetSide === 'left') {
+                // Left side (Person A) receives credit
+                originalDebtorId = personAId;
+                originalCreditorId = personBId;
+            } else {
+                // Right side (Person B) receives credit, e.g. Inna in [Marina ↔ Inna]
+                originalDebtorId = personBId;
+                originalCreditorId = personAId;
+            }
+        }
+
+        const route: TransitiveCoverageRoute = {
+            actualPayerId,
+            actualPayerName: getName(actualPayerId),
+            actualRecipientId,
+            actualRecipientName: getName(actualRecipientId),
+            originalDebtorId,
+            originalDebtorName: getName(originalDebtorId),
+            originalCreditorId,
+            originalCreditorName: getName(originalCreditorId),
+            intermediaryMemberId: candId,
+            intermediaryMemberName: candId ? getName(candId) : undefined,
+            amount: portion,
+            settlementEntry: settlement ? {
+                id: settlement.id,
+                description: settlement.description || 'Погашение долга',
+                amount: typeof settlement.amount === 'string' ? parseFloat(settlement.amount) : settlement.amount,
+                created_at: settlement.created_at
+            } : undefined
+        };
+
+        return { routeType, route };
+    };
+
+    const blocks: TransitiveCoverageBlock[] = [];
+
     if (candidates.length === 0) {
         const relevantSettlement = findSettlementEntry(personAId, personBId);
+        const { routeType, route } = buildRouteInfo(undefined, totalMagnitude, relevantSettlement);
+
         blocks.push({
             id: `transitive-${personAId}-${personBId}-0`,
-            description: targetSide === 'left' ? 'reallocated_offset' : 'reallocated_absorbed',
+            description: routeType === 'offset' ? 'reallocated_offset' : 'reallocated_absorbed',
             shareAmount: totalMagnitude,
             fullAmount: totalMagnitude,
             targetSide,
             isTransitive: true,
             isSettlement: hasSettlements,
             isSettled: hasSettlements && (Boolean(relevantSettlement) || isRoomSettled),
-            routeType: targetSide === 'left' ? 'offset' : 'absorbed',
-            sourceEntryId: relevantSettlement?.id
+            routeType,
+            sourceEntryId: relevantSettlement?.id,
+            route
         });
         return blocks;
     }
@@ -591,9 +722,11 @@ export function calculateTransitiveCoverageBlocks<T extends BalanceCalcEntry = B
                 findSettlementEntry(personBId, cand.id) ||
                 findSettlementEntry(personAId, personBId);
 
+            const { routeType, route } = buildRouteInfo(cand.id, portion, relevantSettlement);
+
             blocks.push({
                 id: `transitive-${personAId}-${personBId}-${cand.id}`,
-                description: targetSide === 'left' ? 'reallocated_offset' : 'reallocated_absorbed',
+                description: routeType === 'offset' ? 'reallocated_offset' : 'reallocated_absorbed',
                 shareAmount: portion,
                 fullAmount: portion,
                 targetSide,
@@ -602,8 +735,9 @@ export function calculateTransitiveCoverageBlocks<T extends BalanceCalcEntry = B
                 isTransitive: true,
                 isSettlement: hasSettlements,
                 isSettled: hasSettlements && (Boolean(relevantSettlement) || isRoomSettled),
-                routeType: targetSide === 'left' ? 'offset' : 'absorbed',
-                sourceEntryId: relevantSettlement?.id
+                routeType,
+                sourceEntryId: relevantSettlement?.id,
+                route
             });
         }
     });
